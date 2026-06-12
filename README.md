@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Threshold Salon — Website
 
-## Getting Started
+The website for Threshold Salon, built with [Next.js](https://nextjs.org) and
+[Tailwind CSS](https://tailwindcss.com), deployed automatically to GitHub Pages.
 
-First, run the development server:
+## Working on the site
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install     # first time only
+npm run dev     # start a local preview at http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Edit `app/page.tsx` to change the homepage content (services, prices, hours,
+contact info). Changes appear in the local preview instantly.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Publishing changes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Every push to the `main` branch automatically rebuilds and publishes the site
+via GitHub Actions (see `.github/workflows/deploy.yml`):
 
-## Learn More
+```bash
+git add -A
+git commit -m "Describe your change"
+git push
+```
 
-To learn more about Next.js, take a look at the following resources:
+The live site updates a minute or two later.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## To-do before launch
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [ ] Replace placeholder address, phone, and email in `app/page.tsx`
+- [ ] Set real services and pricing
+- [ ] Add salon photos
+- [ ] Decide on booking: link to a service (Square, Vagaro) or build custom
+- [ ] Attach a custom domain (Settings → Pages on GitHub), then remove the
+      `basePath` from `next.config.ts`
