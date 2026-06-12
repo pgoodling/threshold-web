@@ -36,23 +36,23 @@ export default function Home() {
     <main className="flex-1">
       {/* Navigation */}
       <header className="sticky top-0 z-10 border-b border-foreground/10 bg-background/90 backdrop-blur">
-        <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <nav className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
           <a href="#" className="font-display text-xl tracking-wide">
             Threshold
           </a>
           <div className="flex items-center gap-6 text-sm">
-            <a href="#services" className="hover:text-accent">
+            <a href="#services" className="hidden hover:text-accent sm:block">
               Services
             </a>
-            <a href="#about" className="hover:text-accent">
+            <a href="#about" className="hidden hover:text-accent sm:block">
               About
             </a>
-            <a href="#visit" className="hover:text-accent">
+            <a href="#visit" className="hidden hover:text-accent sm:block">
               Visit
             </a>
             <a
               href="#visit"
-              className="rounded-full bg-accent px-4 py-2 text-white transition hover:bg-accent-dark"
+              className="whitespace-nowrap rounded-full bg-accent px-4 py-2 text-white transition hover:bg-accent-dark"
             >
               Book now
             </a>
@@ -65,7 +65,7 @@ export default function Home() {
         <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
           Now open
         </p>
-        <h1 className="font-display text-5xl leading-tight sm:text-6xl">
+        <h1 className="font-display text-4xl leading-tight sm:text-6xl">
           Step over the threshold.
           <br />
           Leave feeling like yourself.
