@@ -37,8 +37,13 @@ export default function Home() {
       {/* Navigation */}
       <header className="sticky top-0 z-10 border-b border-foreground/10 bg-background/90 backdrop-blur">
         <nav className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
-          <a href="#" className="font-display text-xl tracking-wide">
-            Threshold
+          <a href="#">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/threshold-logos/threshold-wordmark-terracotta-transparent.svg"
+              alt="Threshold — Studio by Evelyn"
+              className="h-11 w-auto"
+            />
           </a>
           <div className="flex items-center gap-6 text-sm">
             <a href="#services" className="hidden hover:text-accent sm:block">
@@ -61,7 +66,13 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <section className="mx-auto max-w-5xl px-6 py-24 text-center sm:py-32">
+      <section className="mx-auto max-w-5xl px-6 py-16 text-center sm:py-24">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/threshold-logos/threshold-logo-transparent.svg"
+          alt=""
+          className="mx-auto mb-2 w-56 sm:w-72"
+        />
         <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
           Coming soon
         </p>
@@ -154,7 +165,8 @@ export default function Home() {
 
       <footer className="border-t border-foreground/10">
         <div className="mx-auto max-w-5xl px-6 py-8 text-sm text-muted">
-          © {new Date().getFullYear()} Threshold Salon. All rights reserved.
+          © {new Date().getFullYear()} Threshold · Studio by Evelyn. All rights
+          reserved.
         </div>
       </footer>
     </main>

@@ -13,9 +13,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Threshold Salon",
+  title: "Threshold — Studio by Evelyn",
   description:
-    "Threshold Salon — expert cuts, color, and styling in a space that feels like home. Book your appointment today.",
+    "Threshold, Studio by Evelyn — expert cuts, color, and styling in Kettering, OH. Coming soon to Salon Lofts on E. Stroop Rd.",
 };
 
 export default function RootLayout({
