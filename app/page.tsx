@@ -63,7 +63,7 @@ export default function Home() {
       {/* Hero */}
       <section className="mx-auto max-w-5xl px-6 py-24 text-center sm:py-32">
         <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
-          Now open
+          Coming soon
         </p>
         <h1 className="font-display text-4xl leading-tight sm:text-6xl">
           Step over the threshold.
