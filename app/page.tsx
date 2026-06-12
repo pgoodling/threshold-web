@@ -119,9 +119,11 @@ export default function Home() {
           <div>
             <h2 className="font-display text-3xl">Visit us</h2>
             <p className="mt-6 text-muted">
-              123 Main Street
+              Salon Lofts
               <br />
-              Your Town, ST 00000
+              424 E. Stroop Rd.
+              <br />
+              Kettering, OH 45429
             </p>
             <p className="mt-4">
               <a href="tel:+15555555555" className="text-accent hover:underline">
