@@ -89,7 +89,7 @@ export default function Home() {
           href="#visit"
           className="mt-10 inline-block rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark"
         >
-          Book an appointment
+          Book now
         </a>
       </section>
 
