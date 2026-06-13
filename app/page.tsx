@@ -142,10 +142,10 @@ export default function Home() {
               </a>
               <br />
               <a
-                href="mailto:hello@thresholdsalon.com"
+                href="mailto:hello@threshold.salon"
                 className="text-accent hover:underline"
               >
-                hello@thresholdsalon.com
+                hello@threshold.salon
               </a>
             </p>
           </div>
