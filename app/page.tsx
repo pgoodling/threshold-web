@@ -33,20 +33,20 @@ const hours = [
 
 // Recent client work. Filenames contain spaces, so paths are URL-encoded.
 const gallery = [
-  { src: "/clients/ashley.jpg", alt: "Bright blonde balayage and waves by Evelyn" },
-  { src: "/clients/lidia%202.jpg", alt: "Soft blonde color and waves by Evelyn" },
+  { src: "/clients/ashley.jpg", alt: "Bright blonde balayage with soft waves, back view, by Evelyn" },
+  { src: "/clients/lidia%202.jpg", alt: "Warm copper-red color with waves by Evelyn" },
   { src: "/clients/laura.jpg", alt: "Brunette balayage with caramel highlights and waves by Evelyn" },
-  { src: "/clients/riley.jpeg", alt: "Fresh color and finish by Evelyn" },
-  { src: "/clients/erin%20back.jpg", alt: "Blended balayage, back view, by Evelyn" },
-  { src: "/clients/mom%201.jpg", alt: "Cut and color by Evelyn" },
-  { src: "/clients/girl%202.jpg", alt: "Color and blowout by Evelyn" },
-  { src: "/clients/girl%203.jpeg", alt: "Balayage and styling by Evelyn" },
-  { src: "/clients/marina.jpg", alt: "Hair color and blowout by Evelyn" },
-  { src: "/clients/lidia%201.jpg", alt: "Dimensional blonde color and styling by Evelyn" },
-  { src: "/clients/girl.jpg", alt: "Hair color and styling by Evelyn" },
-  { src: "/clients/girl%204.jpg", alt: "Color and finish by Evelyn" },
-  { src: "/clients/erin%20front.jpg", alt: "Balayage and face-framing style by Evelyn" },
-  { src: "/clients/dana.jpg", alt: "Cut, color, and styling by Evelyn" },
+  { src: "/clients/riley.jpeg", alt: "Golden blonde with soft waves by Evelyn" },
+  { src: "/clients/erin%20back.jpg", alt: "Blended blonde balayage, back view, by Evelyn" },
+  { src: "/clients/mom%201.jpg", alt: "Icy blonde textured bob by Evelyn" },
+  { src: "/clients/girl%202.jpg", alt: "Soft bronde balayage with beachy waves by Evelyn" },
+  { src: "/clients/girl%203.jpeg", alt: "Blonde balayage with curtain bangs and layers by Evelyn" },
+  { src: "/clients/marina.jpg", alt: "Dimensional blonde color, sleek and straight, by Evelyn" },
+  { src: "/clients/lidia%201.jpg", alt: "Copper-red color with long layers by Evelyn" },
+  { src: "/clients/girl.jpg", alt: "Golden blonde balayage with voluminous waves, back view, by Evelyn" },
+  { src: "/clients/girl%204.jpg", alt: "Bright platinum blonde with waves by Evelyn" },
+  { src: "/clients/erin%20front.jpg", alt: "Blonde balayage with soft waves, side view, by Evelyn" },
+  { src: "/clients/dana.jpg", alt: "Warm blonde balayage with long waves by Evelyn" },
 ];
 
 export default function Home() {
