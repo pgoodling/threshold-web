@@ -99,31 +99,45 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <section className="mx-auto max-w-5xl px-6 py-16 text-center sm:py-24">
+      <section className="relative isolate overflow-hidden">
+        {/* Faint background image for warmth behind the hero */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/threshold-logos/threshold-logo-transparent.svg"
+          src="/headshots/evelyn%202.jpg"
           alt=""
-          className="mx-auto mb-2 w-56 sm:w-72"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover object-center opacity-30"
         />
-        <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
-          Coming soon
-        </p>
-        <h1 className="font-display text-4xl leading-tight sm:text-6xl">
-          Step over the threshold.
-          <br />
-          Leave feeling like yourself.
-        </h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg text-muted">
-          Expert cuts, color, and care in a space designed to feel less like an
-          appointment and more like a visit with someone who gets you.
-        </p>
-        <a
-          href="#visit"
-          className="mt-10 inline-block rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark"
-        >
-          Book now
-        </a>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-background via-transparent to-background"
+        />
+        <div className="mx-auto max-w-5xl px-6 py-16 text-center sm:py-24">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/threshold-logos/threshold-logo-transparent.svg"
+            alt=""
+            className="mx-auto mb-2 w-56 sm:w-72"
+          />
+          <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
+            Coming soon
+          </p>
+          <h1 className="font-display text-4xl leading-tight sm:text-6xl">
+            Step over the threshold.
+            <br />
+            Leave feeling like yourself.
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-lg text-muted">
+            Expert cuts, color, and care in a space designed to feel less like an
+            appointment and more like a visit with someone who gets you.
+          </p>
+          <a
+            href="#visit"
+            className="mt-10 inline-block rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark"
+          >
+            Book now
+          </a>
+        </div>
       </section>
 
       {/* Services */}
