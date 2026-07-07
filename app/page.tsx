@@ -1,27 +1,39 @@
-const services = [
+const services: { name: string; description: string; price?: string }[] = [
   {
-    name: "Cuts & Styling",
+    name: "Custom Highlights",
     description:
-      "Precision cuts tailored to your hair type and lifestyle, finished with a style you can recreate at home.",
-    price: "from $45",
+      "Balayage, foils, and lived-in dimension, from a soft rooted blonde to bright, blended highlights that grow out beautifully — including seamless gray blending.",
+    price: "from $105",
   },
   {
-    name: "Color",
+    name: "Custom Color",
     description:
-      "Full color, balayage, highlights, and gray blending using gentle, professional-grade products.",
-    price: "from $95",
+      "All-over color, root touch-ups, and glosses with gentle, professional-grade formulas that protect the integrity of your hair.",
+    price: "from $90",
+  },
+  {
+    name: "Cut and Style",
+    description:
+      "A precision cut shaped to your hair type, texture, and lifestyle, finished with a look you can actually recreate at home.",
+    price: "from $55",
   },
   {
     name: "Treatments",
     description:
-      "Deep conditioning, smoothing treatments, and scalp care to keep your hair healthy between visits.",
+      "Deep conditioning, bond-building, and scalp care, customized to your hair's needs to restore strength and shine and keep it healthy between visits.",
     price: "from $35",
   },
   {
-    name: "Special Occasions",
+    name: "Blowouts",
     description:
-      "Updos, blowouts, and event styling for weddings, proms, and the days you want to feel your best.",
-    price: "from $65",
+      "A smooth, voluminous finish for events, date nights, or any day you want to feel put together.",
+    price: "from $45",
+  },
+  {
+    name: "Men's Cuts",
+    description:
+      "Clean, tailored cuts and styling for men, from classic tapers to relaxed, low-maintenance looks.",
+    price: "from $50",
   },
 ];
 
@@ -70,8 +82,8 @@ export default function Home() {
             <a href="#about" className="hidden hover:text-accent sm:block">
               About
             </a>
-            <a href="#work" className="hidden hover:text-accent sm:block">
-              Work
+            <a href="#portfolio" className="hidden hover:text-accent sm:block">
+              Portfolio
             </a>
             <a href="#visit" className="hidden hover:text-accent sm:block">
               Visit
@@ -124,9 +136,13 @@ export default function Home() {
                 key={service.name}
                 className="rounded-2xl border border-foreground/10 p-6"
               >
-                <div className="flex items-baseline justify-between">
+                <div className="flex items-baseline justify-between gap-4">
                   <h3 className="font-display text-xl">{service.name}</h3>
-                  <span className="text-sm text-accent">{service.price}</span>
+                  {service.price && (
+                    <span className="whitespace-nowrap text-sm text-accent">
+                      {service.price}
+                    </span>
+                  )}
                 </div>
                 <p className="mt-3 text-muted">{service.description}</p>
               </div>
@@ -186,9 +202,9 @@ export default function Home() {
       </section>
 
       {/* Work / Portfolio */}
-      <section id="work" className="border-t border-foreground/10">
+      <section id="portfolio" className="border-t border-foreground/10">
         <div className="mx-auto max-w-5xl px-6 py-20">
-          <h2 className="font-display text-3xl">Her work</h2>
+          <h2 className="font-display text-3xl">Her Portfolio</h2>
           <p className="mt-4 max-w-2xl text-muted">
             A look at recent color, balayage, and styling — real clients, real
             results.
