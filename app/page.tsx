@@ -31,6 +31,24 @@ const hours = [
   ["Sunday – Monday", "Closed"],
 ];
 
+// Recent client work. Filenames contain spaces, so paths are URL-encoded.
+const gallery = [
+  { src: "/clients/ashley.jpg", alt: "Bright blonde balayage and waves by Evelyn" },
+  { src: "/clients/lidia%202.jpg", alt: "Soft blonde color and waves by Evelyn" },
+  { src: "/clients/laura.jpg", alt: "Brunette balayage with caramel highlights and waves by Evelyn" },
+  { src: "/clients/riley.jpeg", alt: "Fresh color and finish by Evelyn" },
+  { src: "/clients/erin%20back.jpg", alt: "Blended balayage, back view, by Evelyn" },
+  { src: "/clients/mom%201.jpg", alt: "Cut and color by Evelyn" },
+  { src: "/clients/girl%202.jpg", alt: "Color and blowout by Evelyn" },
+  { src: "/clients/girl%203.jpeg", alt: "Balayage and styling by Evelyn" },
+  { src: "/clients/marina.jpg", alt: "Hair color and blowout by Evelyn" },
+  { src: "/clients/lidia%201.jpg", alt: "Dimensional blonde color and styling by Evelyn" },
+  { src: "/clients/girl.jpg", alt: "Hair color and styling by Evelyn" },
+  { src: "/clients/girl%204.jpg", alt: "Color and finish by Evelyn" },
+  { src: "/clients/erin%20front.jpg", alt: "Balayage and face-framing style by Evelyn" },
+  { src: "/clients/dana.jpg", alt: "Cut, color, and styling by Evelyn" },
+];
+
 export default function Home() {
   return (
     <main className="flex-1">
@@ -51,6 +69,9 @@ export default function Home() {
             </a>
             <a href="#about" className="hidden hover:text-accent sm:block">
               About
+            </a>
+            <a href="#work" className="hidden hover:text-accent sm:block">
+              Work
             </a>
             <a href="#visit" className="hidden hover:text-accent sm:block">
               Visit
@@ -114,14 +135,81 @@ export default function Home() {
         </div>
       </section>
 
-      {/* About */}
+      {/* About / Meet Evelyn */}
       <section id="about" className="mx-auto max-w-5xl px-6 py-20">
-        <h2 className="font-display text-3xl">About Threshold</h2>
-        <p className="mt-6 max-w-2xl text-lg text-muted">
-          Threshold was founded on a simple idea: a great salon visit starts the
-          moment you walk in the door. We keep things personal — honest
-          consultations, no upselling, and hair you&apos;ll love living with.
-        </p>
+        <div className="grid items-center gap-12 sm:grid-cols-2">
+          <div className="relative">
+            <div className="overflow-hidden rounded-2xl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/headshots/evelyn%20Scissors.jpg"
+                alt="Evelyn, founder and stylist at Threshold"
+                className="aspect-[4/5] w-full object-cover object-bottom"
+              />
+            </div>
+            {/* Branded detail accent — her name-engraved tools */}
+            <div className="absolute -bottom-6 -left-6 hidden w-40 overflow-hidden rounded-2xl border-4 border-background shadow-lg sm:block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/headshots/brush%20scissors%20hair.jpg"
+                alt="Evelyn's engraved brush, shears, and color swatches"
+                className="aspect-[3/4] w-full object-cover"
+              />
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm uppercase tracking-[0.25em] text-accent">
+              Meet Evelyn
+            </p>
+            <h2 className="font-display text-3xl">
+              The stylist behind Threshold
+            </h2>
+            <p className="mt-6 text-lg text-muted">
+              Hi, I&apos;m Evelyn! I&apos;ve called Dayton home for the past 10
+              years and been behind the chair for 5 of them. When I&apos;m not in
+              the salon, you&apos;ll usually find me at a live concert or curled up
+              binge-watching my latest favorite show.
+            </p>
+            <p className="mt-4 text-muted">
+              What I love most is helping people feel like the best version of
+              themselves. Healthy hair always comes first — every service is
+              customized to your goals while protecting the integrity of your
+              hair, with honest advice and no upselling. My chair is meant to be a
+              place to relax, unwind, and leave feeling confident, refreshed, and
+              truly taken care of.
+            </p>
+            <p className="mt-4 text-muted">
+              I can&apos;t wait to welcome you into my chair!
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Work / Portfolio */}
+      <section id="work" className="border-t border-foreground/10">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <h2 className="font-display text-3xl">Her work</h2>
+          <p className="mt-4 max-w-2xl text-muted">
+            A look at recent color, balayage, and styling — real clients, real
+            results.
+          </p>
+          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {gallery.map((photo) => (
+              <div
+                key={photo.src}
+                className="overflow-hidden rounded-2xl"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.src}
+                  alt={photo.alt}
+                  loading="lazy"
+                  className="aspect-[3/4] w-full object-cover transition duration-300 hover:scale-105"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Visit / Contact */}
