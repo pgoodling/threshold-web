@@ -1,3 +1,5 @@
+import MobileNav from "./MobileNav";
+
 const services: { name: string; description: string; price?: string }[] = [
   {
     name: "Custom Highlights",
@@ -94,6 +96,7 @@ export default function Home() {
             >
               Book now
             </a>
+            <MobileNav />
           </div>
         </nav>
       </header>
