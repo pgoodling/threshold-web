@@ -60,8 +60,9 @@ Goal: on every page, she sees what she needs for *that* thing, and can act witho
 - ✅ **Appointment detail** (calendar): Call/Text/Email, client photos **inline**, **Rebook**, plus reschedule/status. Tap-into-day. Phone required at booking. [PR #8]
 - ▢ **Same detail everywhere** — click an appointment in List / Overview / a client's history and get the same panel, incl. a link to the client's profile.
 - ▢ **Add appointment from the calendar** — she books it herself (pick client + service + time).
-- ▢ **Client page** — Call/Text/Email at top; next visit highlighted (or Book); past visits click into detail; **"Win back"** action for lapsed clients (pre-filled text).
-- ▢ **Tasks + reminders** — her to-dos (**one-off + recurring**) plus auto reminders: **lapsed (8 wks)**, **left without rebooking**, **rebooking due**. Needs a `tasks` migration. Shown on Overview + own tab.
+- ✅ **Client page reach-out** — Call/Text/Email header + **"Win back"** for lapsed clients (pre-filled text). [PR #10]
+- ✅ **Tasks tab** — "Reach out" reminders (no next appt booked, lapsed 8wk flagged) + manual to-dos (one-off + recurring). [PR #11] — **run `0005_tasks.sql`** to enable the to-do list.
+- ▢ Client page: show past visits as click-into-detail + a link *from* an appointment *to* the client profile (part of "same detail everywhere").
 
 ## Marketing ideas (parked — SMS/AI bucket)
 - **Mass-text a discount to fill an open slot** — blast lapsed/all clients when there's a last-minute opening. Needs Twilio + **A2P 10DLC registration** (US business-texting approval) + opt-out compliance; ~1¢/text.
