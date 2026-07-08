@@ -9,7 +9,7 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 ## ✅ Shipped (live on threshold.salon)
 - Public online booking: service → month calendar → time → confirm.
 - No-double-booking, availability driven by Evelyn's hours + time off.
-- `/studio` admin: login, **Overview**, **Appointments** (confirm / reschedule / complete / no-show / cancel), **Clients** CRM (directory, profiles, history, add, book-for-client), **Services** management, **Hours**, **Time off**.
+- `/studio` admin: login, **Overview**, **Appointments** (confirm / reschedule / complete / no-show / cancel), **Clients** CRM (directory, profiles, history, add, book-for-client), **Services** management, **Reports** (client & service metrics), **Hours**, **Time off**.
 - Hosted on Vercel, custom domain + HTTPS, Supabase backend.
 
 ---
@@ -22,7 +22,7 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 | 2 | **Real contact info** | Replace placeholder phone/email on the site | Real **phone + email** |
 | 3 | **Booking rules** | Min notice (e.g. no booking within 2h), buffer between appts, max advance | Your **numbers** |
 | 4 | **Cancellation policy** | Shown at booking | Policy **wording** (or approve draft) |
-| 5 | **Client & service metrics** _(new)_ | See below | Which metrics matter most (defaults proposed) |
+| 5 | ~~**Client & service metrics**~~ ✅ **SHIPPED** | Reports tab: revenue, completed, avg ticket, no-show rate; by-service + top-clients tables; range selector | — (populates as appts are marked completed) |
 | 6 | **Card on file + per-service deposits** (Stripe) | Save a card at booking; collect a deposit on *some* services; charge no-show fees at Evelyn's discretion | **Evelyn's Stripe account** (the blocker); which services get a deposit + amount (set in the Services tab — field already exists); no-show fee + cutoff |
 
 ## 📸 Tier 2 — client experience
