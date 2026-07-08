@@ -92,8 +92,23 @@ export default function BookPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const photoPreviews = useMemo(
+    () => photos.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })),
+    [photos],
+  );
+  useEffect(() => {
+    return () => photoPreviews.forEach((p) => URL.revokeObjectURL(p.url));
+  }, [photoPreviews]);
+
+  function addPhotos(list: FileList | null) {
+    if (!list) return;
+    const picked = Array.from(list).filter((f) => f.type.startsWith("image/"));
+    setPhotos((prev) => [...prev, ...picked].slice(0, 3));
+  }
 
   // Load services once.
   useEffect(() => {
@@ -168,7 +183,7 @@ export default function BookPage() {
     if (!service || !slot) return;
     setSubmitting(true);
     setSubmitError(null);
-    const { error } = await supabase.rpc("create_booking", {
+    const { data, error } = await supabase.rpc("create_booking", {
       p_service_id: service.id,
       p_starts_at: slot,
       p_full_name: name.trim(),
@@ -176,11 +191,28 @@ export default function BookPage() {
       p_phone: phone.trim(),
       p_notes: notes.trim(),
     });
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       setSubmitError(error.message);
       return;
     }
+    // Best-effort photo upload — never block a successful booking on it.
+    const appointmentId = (data as { appointment_id?: string } | null)
+      ?.appointment_id;
+    if (appointmentId && photos.length) {
+      await Promise.all(
+        photos.map((file, i) => {
+          const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+          return supabase.storage
+            .from("booking-photos")
+            .upload(`${appointmentId}/${i + 1}.${ext}`, file, {
+              contentType: file.type,
+              upsert: true,
+            });
+        }),
+      ).catch(() => {});
+    }
+    setSubmitting(false);
     setStep(4);
   }
 
@@ -425,6 +457,53 @@ export default function BookPage() {
                   className="input"
                 />
               </Field>
+
+              <div>
+                <span className="mb-1 block text-sm">
+                  Photos (optional)
+                </span>
+                <p className="mb-2 text-xs text-muted">
+                  Add a photo of your hair now or any inspiration — up to 3.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {photoPreviews.map((p, i) => (
+                    <div key={p.url} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={p.url}
+                        alt={`Upload ${i + 1}`}
+                        className="h-20 w-20 rounded-xl object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPhotos((prev) => prev.filter((_, j) => j !== i))
+                        }
+                        aria-label="Remove photo"
+                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-xs text-background"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  {photos.length < 3 && (
+                    <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border border-dashed border-foreground/25 text-2xl text-muted transition hover:border-accent hover:text-accent">
+                      +
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          addPhotos(e.target.files);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
               <p className="text-xs text-muted">
                 Add an email or phone so we can send your confirmation.
               </p>
