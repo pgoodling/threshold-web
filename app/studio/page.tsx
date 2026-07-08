@@ -201,7 +201,7 @@ function Dashboard() {
       </div>
 
       <div className="mt-8">
-        {tab === "overview" && <Overview />}
+        {tab === "overview" && <Overview onOpenClient={goToClient} />}
         {tab === "tasks" && <Tasks />}
         {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
         {tab === "appointments" && <Appointments />}

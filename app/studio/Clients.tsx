@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { salonWallToISO, whenLabel } from "../../lib/format";
+import ApptDetailModal from "./ApptDetailModal";
 
 type Client = {
   id: string;
@@ -183,6 +184,7 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
   const lapsed = upcoming.length === 0 && weeksSince !== null && weeksSince >= 8;
   const contactCls =
     "rounded-full border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
+  const [openId, setOpenId] = useState<string | null>(null);
 
   return (
     <div>
@@ -309,7 +311,7 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
       {upcoming.length > 0 && (
         <div className="mt-4">
           <p className="text-xs uppercase tracking-wide text-muted">Upcoming</p>
-          <VisitList visits={upcoming} />
+          <VisitList visits={upcoming} onSelect={setOpenId} />
         </div>
       )}
       <div className="mt-4">
@@ -317,20 +319,38 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
         {past.length === 0 ? (
           <p className="mt-2 text-sm text-muted">No past visits.</p>
         ) : (
-          <VisitList visits={past} />
+          <VisitList visits={past} onSelect={setOpenId} />
         )}
       </div>
+
+      {openId && (
+        <ApptDetailModal
+          appointmentId={openId}
+          onClose={() => setOpenId(null)}
+          onChanged={() => {
+            setOpenId(null);
+            loadVisits();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function VisitList({ visits }: { visits: Visit[] }) {
+function VisitList({
+  visits,
+  onSelect,
+}: {
+  visits: Visit[];
+  onSelect: (id: string) => void;
+}) {
   return (
     <div className="mt-2 grid gap-2">
       {visits.map((v) => (
-        <div
+        <button
           key={v.id}
-          className="flex items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm"
+          onClick={() => onSelect(v.id)}
+          className="flex w-full items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3 text-left text-sm transition hover:border-accent"
         >
           <span>{v.services?.name ?? "Service"}</span>
           <span className="text-muted">
@@ -341,7 +361,7 @@ function VisitList({ visits }: { visits: Visit[] }) {
               </span>
             )}
           </span>
-        </div>
+        </button>
       ))}
     </div>
   );
