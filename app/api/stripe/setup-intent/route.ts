@@ -35,10 +35,12 @@ export async function POST(req: Request) {
       customerId = customer.id;
     }
 
+    // Card only (Apple Pay / Google Pay are card wallets and still appear).
+    // Keeps it to methods we can charge off-session later for no-show fees.
     const intent = await stripe.setupIntents.create({
       customer: customerId,
       usage: "off_session",
-      automatic_payment_methods: { enabled: true },
+      payment_method_types: ["card"],
     });
 
     return NextResponse.json({
