@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -16,6 +16,19 @@ export const metadata: Metadata = {
   title: "Threshold — Studio by Evelyn",
   description:
     "Threshold, Studio by Evelyn — expert cuts, color, and styling in Kettering, OH. Coming soon to Salon Lofts on E. Stroop Rd.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Threshold",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: "/threshold-logos/threshold-logo-cream.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#faf6f1",
 };
 
 // Local-business structured data for Google Search/Maps discoverability.

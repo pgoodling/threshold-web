@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import Overview from "./Overview";
+import Calendar from "./Calendar";
 import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
@@ -141,6 +142,7 @@ function Login() {
 
 type Tab =
   | "overview"
+  | "calendar"
   | "appointments"
   | "clients"
   | "services"
@@ -167,7 +169,8 @@ function Dashboard() {
         {(
           [
             ["overview", "Overview"],
-            ["appointments", "Appointments"],
+            ["calendar", "Calendar"],
+            ["appointments", "List"],
             ["clients", "Clients"],
             ["services", "Services"],
             ["reports", "Reports"],
@@ -191,6 +194,7 @@ function Dashboard() {
 
       <div className="mt-8">
         {tab === "overview" && <Overview />}
+        {tab === "calendar" && <Calendar />}
         {tab === "appointments" && <Appointments />}
         {tab === "clients" && <Clients />}
         {tab === "services" && <Services />}
