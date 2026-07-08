@@ -80,7 +80,11 @@ function catColors(name: string | undefined) {
 const hourLabel = (h: number) =>
   h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
 
-export default function Calendar() {
+export default function Calendar({
+  onOpenClient,
+}: {
+  onOpenClient?: (clientId: string) => void;
+}) {
   const now = useMemo(salonNow, []);
   const todayKey = key(now.year, now.month, now.day);
   const [view, setView] = useState<View>("month");
@@ -89,6 +93,7 @@ export default function Calendar() {
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState(todayKey);
   const [selected, setSelected] = useState<Appt | null>(null);
+  const [newAppt, setNewAppt] = useState(false);
 
   // Visible date range for the current view.
   const range = useMemo(() => {
@@ -200,6 +205,15 @@ export default function Calendar() {
           >
             Today
           </button>
+          <button
+            onClick={() => {
+              setSelected(null);
+              setNewAppt(true);
+            }}
+            className="ml-1 rounded-full bg-accent px-3 py-1 text-xs text-white transition hover:bg-accent-dark"
+          >
+            + New
+          </button>
         </div>
         <div className="flex rounded-full border border-foreground/15 p-0.5 text-sm">
           {(["month", "week", "day"] as View[]).map((v) => (
@@ -256,11 +270,22 @@ export default function Calendar() {
         )}
       </div>
 
+      {newAppt && (
+        <NewAppointmentPanel
+          onClose={() => setNewAppt(false)}
+          onDone={() => {
+            setNewAppt(false);
+            load();
+          }}
+        />
+      )}
+
       {selected && (
         <ApptPanel
           appt={selected}
           onClose={() => setSelected(null)}
           onReload={load}
+          onOpenClient={onOpenClient}
           onStatus={setStatus}
           onReschedule={async (a, when) => {
             const dur = a.services?.duration_minutes ?? 60;
@@ -468,12 +493,14 @@ function ApptPanel({
   appt,
   onClose,
   onReload,
+  onOpenClient,
   onStatus,
   onReschedule,
 }: {
   appt: Appt;
   onClose: () => void;
   onReload: () => void;
+  onOpenClient?: (clientId: string) => void;
   onStatus: (id: string, status: string) => void;
   onReschedule: (a: Appt, when: string) => void;
 }) {
@@ -506,7 +533,7 @@ function ApptPanel({
         </button>
       </div>
 
-      {(phone || email) && (
+      {(phone || email || onOpenClient) && (
         <div className="mt-4 flex flex-wrap gap-2">
           {phone && (
             <a href={`tel:${phone}`} className={contactCls}>
@@ -522,6 +549,14 @@ function ApptPanel({
             <a href={`mailto:${email}`} className={contactCls}>
               Email
             </a>
+          )}
+          {onOpenClient && (
+            <button
+              onClick={() => onOpenClient(appt.client_id)}
+              className={contactCls}
+            >
+              View profile
+            </button>
           )}
         </div>
       )}
@@ -689,6 +724,60 @@ function RebookForm({
           Cancel
         </button>
       </div>
+    </div>
+  );
+}
+
+type ClientOpt = { id: string; full_name: string };
+
+function NewAppointmentPanel({
+  onClose,
+  onDone,
+}: {
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [clients, setClients] = useState<ClientOpt[]>([]);
+  const [clientId, setClientId] = useState("");
+
+  useEffect(() => {
+    supabase
+      .from("clients")
+      .select("id,full_name")
+      .order("full_name")
+      .then(({ data }) => setClients((data ?? []) as ClientOpt[]));
+  }, []);
+
+  return (
+    <div className="mt-5 rounded-2xl border border-accent/30 bg-white p-5">
+      <div className="flex items-center justify-between">
+        <p className="font-display text-lg">New appointment</p>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="text-muted hover:text-accent"
+        >
+          ✕
+        </button>
+      </div>
+      <label className="mt-3 block">
+        <span className="mb-1 block text-sm">Client</span>
+        <select
+          className="input"
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+        >
+          <option value="">Choose a client…</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.full_name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {clientId && (
+        <RebookForm clientId={clientId} onDone={onDone} onCancel={onClose} />
+      )}
     </div>
   );
 }
