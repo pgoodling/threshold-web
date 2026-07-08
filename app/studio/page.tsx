@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
+import Overview from "./Overview";
+import Clients from "./Clients";
+import Services from "./Services";
+import { salonWallToISO } from "../../lib/format";
 
 const TZ = "America/New_York";
 const WEEKDAYS = [
@@ -133,10 +137,10 @@ function Login() {
   );
 }
 
-type Tab = "appointments" | "hours" | "timeoff";
+type Tab = "overview" | "appointments" | "clients" | "services" | "hours" | "timeoff";
 
 function Dashboard() {
-  const [tab, setTab] = useState<Tab>("appointments");
+  const [tab, setTab] = useState<Tab>("overview");
 
   return (
     <Shell>
@@ -153,7 +157,10 @@ function Dashboard() {
       <div className="mt-6 flex gap-1 border-b border-foreground/10 text-sm">
         {(
           [
+            ["overview", "Overview"],
             ["appointments", "Appointments"],
+            ["clients", "Clients"],
+            ["services", "Services"],
             ["hours", "Hours"],
             ["timeoff", "Time off"],
           ] as [Tab, string][]
@@ -173,7 +180,10 @@ function Dashboard() {
       </div>
 
       <div className="mt-8">
+        {tab === "overview" && <Overview />}
         {tab === "appointments" && <Appointments />}
+        {tab === "clients" && <Clients />}
+        {tab === "services" && <Services />}
         {tab === "hours" && <Hours />}
         {tab === "timeoff" && <TimeOff />}
       </div>
@@ -187,20 +197,22 @@ type Appt = {
   status: string;
   notes: string | null;
   clients: { full_name: string; email: string | null; phone: string | null } | null;
-  services: { name: string } | null;
+  services: { name: string; duration_minutes: number } | null;
 };
 
 function Appointments() {
   const [appts, setAppts] = useState<Appt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [newWhen, setNewWhen] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
     supabase
       .from("appointments")
       .select(
-        "id,starts_at,status,notes,clients(full_name,email,phone),services(name)",
+        "id,starts_at,status,notes,clients(full_name,email,phone),services(name,duration_minutes)",
       )
       .gte("starts_at", new Date().toISOString())
       .neq("status", "cancelled")
@@ -221,6 +233,31 @@ function Appointments() {
       .eq("id", id);
     if (error) setError(error.message);
     else load();
+  }
+
+  async function reschedule(a: Appt) {
+    if (!newWhen) return;
+    setError(null);
+    const dur = a.services?.duration_minutes ?? 60;
+    const startsISO = salonWallToISO(newWhen);
+    const endsISO = new Date(
+      new Date(startsISO).getTime() + dur * 60000,
+    ).toISOString();
+    const { error } = await supabase
+      .from("appointments")
+      .update({ starts_at: startsISO, ends_at: endsISO })
+      .eq("id", a.id);
+    if (error) {
+      setError(
+        error.message.includes("overlap") || error.message.includes("exclusion")
+          ? "That time overlaps another appointment."
+          : error.message,
+      );
+      return;
+    }
+    setRescheduleId(null);
+    setNewWhen("");
+    load();
   }
 
   if (loading) return <p className="text-muted">Loading appointments…</p>;
@@ -248,27 +285,58 @@ function Appointments() {
             {[a.clients?.phone, a.clients?.email].filter(Boolean).join(" · ")}
           </p>
           {a.notes && <p className="mt-2 text-sm text-muted">“{a.notes}”</p>}
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            {a.status !== "confirmed" && (
-              <ActionButton onClick={() => setStatus(a.id, "confirmed")}>
-                Confirm
+
+          {rescheduleId === a.id ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+              <input
+                type="datetime-local"
+                className="input w-auto"
+                value={newWhen}
+                onChange={(e) => setNewWhen(e.target.value)}
+              />
+              <ActionButton onClick={() => reschedule(a)}>Save</ActionButton>
+              <button
+                onClick={() => {
+                  setRescheduleId(null);
+                  setNewWhen("");
+                }}
+                className="text-xs text-muted hover:text-accent"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              {a.status !== "confirmed" && (
+                <ActionButton onClick={() => setStatus(a.id, "confirmed")}>
+                  Confirm
+                </ActionButton>
+              )}
+              <ActionButton
+                onClick={() => {
+                  setRescheduleId(a.id);
+                  setNewWhen("");
+                  setError(null);
+                }}
+              >
+                Reschedule
               </ActionButton>
-            )}
-            <ActionButton onClick={() => setStatus(a.id, "completed")}>
-              Completed
-            </ActionButton>
-            <ActionButton onClick={() => setStatus(a.id, "no_show")}>
-              No-show
-            </ActionButton>
-            <ActionButton danger onClick={() => setStatus(a.id, "cancelled")}>
-              Cancel
-            </ActionButton>
-            {a.status !== "booked" && (
-              <span className="rounded-full bg-foreground/5 px-3 py-1 text-muted">
-                {a.status}
-              </span>
-            )}
-          </div>
+              <ActionButton onClick={() => setStatus(a.id, "completed")}>
+                Completed
+              </ActionButton>
+              <ActionButton onClick={() => setStatus(a.id, "no_show")}>
+                No-show
+              </ActionButton>
+              <ActionButton danger onClick={() => setStatus(a.id, "cancelled")}>
+                Cancel
+              </ActionButton>
+              {a.status !== "booked" && (
+                <span className="rounded-full bg-foreground/5 px-3 py-1 text-muted">
+                  {a.status}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       ))}
     </div>
