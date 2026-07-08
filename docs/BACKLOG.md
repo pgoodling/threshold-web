@@ -29,7 +29,7 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 
 | # | Feature | What it does | What we need from you |
 |---|---|---|---|
-| 7 | **Photo upload at booking** _(new)_ | Client optionally uploads a photo of their hair today + inspiration pics | Confirm; max # photos. Needs Storage + a migration (I write it). |
+| 7 | ~~**Photo upload at booking**~~ ✅ **SHIPPED** (run migration `0003` to activate) | Up to 3 optional photos at booking; Evelyn views them per-appointment in `/studio` | **Run `supabase/migrations/0003_booking_photos.sql`** in the SQL editor |
 | 8 | **Client self-service** | Cancel/reschedule from the email link | Cancel cutoff window; depends on #1 |
 | 9 | **SMS text reminders** | Texts alongside/instead of email | **Twilio** account + carrier registration |
 | 10 | **Intake / consultation forms** | New-client allergies, patch test, hair history, goals | The questions; needs a migration |
