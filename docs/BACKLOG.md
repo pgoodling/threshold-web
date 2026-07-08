@@ -23,7 +23,7 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 | 3 | **Booking rules** | Min notice (e.g. no booking within 2h), buffer between appts, max advance | Your **numbers** |
 | 4 | **Cancellation policy** | Shown at booking | Policy **wording** (or approve draft) |
 | 5 | **Client & service metrics** _(new)_ | See below | Which metrics matter most (defaults proposed) |
-| 6 | **Deposits / no-show protection** | Deposit at booking; fee for no-shows | Payments decision (see below); deposit amounts + policy |
+| 6 | **Card on file + per-service deposits** (Stripe) | Save a card at booking; collect a deposit on *some* services; charge no-show fees at Evelyn's discretion | **Evelyn's Stripe account** (the blocker); which services get a deposit + amount (set in the Services tab — field already exists); no-show fee + cutoff |
 
 ## 📸 Tier 2 — client experience
 
@@ -76,13 +76,18 @@ Optional uploads during the public booking flow: a photo of the client's hair to
 - **In-person payment for services** (the bulk of revenue, paid at checkout): **use Intuit / Salon Lofts.** Cheaper rate, and Evelyn just uses their reader — our app doesn't need to touch it.
 - **Online deposits / no-show fees** (small, lower volume): needs a developer-friendly payments API. **Stripe** is far easier to integrate than Intuit's API for deposits + card-on-file. The rate difference only applies to these small deposit amounts, so it's negligible.
 
-**Recommendation:** Intuit for in-person; **only** add Stripe if/when we build online deposits — and honestly we may not need deposits at launch. **Open question:** does Evelyn want to *require online deposits* at booking, or is taking payment in-person (Intuit) enough for launch? If in-person is enough, **we don't need Stripe at all** for now.
+**DECIDED (2026-07-08):** Split model —
+- **In-person service payments → Intuit / Salon Lofts (2.3%).** Our app doesn't touch these.
+- **Online → Stripe:** save a **card on file** at booking (wanted for all), and collect a **deposit on select services only** (per-service `deposit_cents` — the field already exists in the Services tab, so Evelyn can set which services and how much). No-show/late-cancel fees charged against the card on file at Evelyn's discretion.
+
+**Blocker to build:** Evelyn's Stripe account (business + bank for payouts). **Tech note:** Stripe's secret key must run server-side — plan is Supabase Edge Functions (keeps the current static site as-is); deploying those needs the Supabase MCP pointed at the salon project or Paul deploying via CLI/dashboard.
 
 ---
 
 ## ❓ Open questions
-1. Require **online deposits** at booking, or in-person payment (Intuit) only? _(decides whether we need Stripe)_
-2. Real **phone + email** for the site?
-3. Deposit amounts + **no-show/cancellation policy** (fee + cutoff window)?
-4. Booking **min-notice, buffer, and max-advance** numbers?
-5. Reminder timing — 24h, 48h, or both?
+1. ~~Online deposits vs in-person only~~ — **DECIDED:** card-on-file for all + per-service deposits, via Stripe; in-person via Intuit.
+2. Which **services get a deposit**, and how much? (Evelyn can set these in the Services tab now.)
+3. Real **phone + email** for the site?
+4. **No-show/cancellation policy** — fee amount + cutoff window?
+5. Booking **min-notice, buffer, and max-advance** numbers?
+6. Reminder timing — 24h, 48h, or both?
