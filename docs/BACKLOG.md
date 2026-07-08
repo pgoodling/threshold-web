@@ -48,9 +48,10 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 
 ## 🔧 Small / no info needed (I just build)
 - Top-level "New appointment" in Appointments (manual booking is per-client only today)
-- "Add to Home Screen" PWA polish (app icon/name)
 
 ## Also shipped
+- **Calendar** in `/studio` — Month / Week / Day views, color-coded, click-to-manage; old list kept as "List" tab.
+- **PWA install** — web manifest + Apple touch icon + theme color; "Add to Home Screen" launches standalone on iPad/iPhone.
 - **Date-range time off** (block weeks/months in one entry, e.g. "closed until September") — the way to pause online booking until she's ready.
 - **Demo data seed** (`supabase/seed_demo.sql`) for previewing a populated app.
 
