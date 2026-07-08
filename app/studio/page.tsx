@@ -9,7 +9,7 @@ import Calendar from "./Calendar";
 import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
-import AppointmentPhotos from "./AppointmentPhotos";
+import ApptDetailModal from "./ApptDetailModal";
 import { salonWallToISO, dayKey, dateLabel, timeLabel } from "../../lib/format";
 
 const TZ = "America/New_York";
@@ -204,7 +204,7 @@ function Dashboard() {
         {tab === "overview" && <Overview onOpenClient={goToClient} />}
         {tab === "tasks" && <Tasks />}
         {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
-        {tab === "appointments" && <Appointments />}
+        {tab === "appointments" && <Appointments onOpenClient={goToClient} />}
         {tab === "clients" && (
           <Clients
             initialClientId={pendingClient}
@@ -223,27 +223,25 @@ function Dashboard() {
 type Appt = {
   id: string;
   starts_at: string;
-  status: string;
-  notes: string | null;
-  clients: { full_name: string; email: string | null; phone: string | null } | null;
-  services: { name: string; duration_minutes: number } | null;
+  clients: { full_name: string } | null;
+  services: { name: string } | null;
 };
 
-function Appointments() {
+function Appointments({
+  onOpenClient,
+}: {
+  onOpenClient?: (clientId: string) => void;
+}) {
   const [appts, setAppts] = useState<Appt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
-  const [newWhen, setNewWhen] = useState("");
-  const [openPhotos, setOpenPhotos] = useState<Set<string>>(new Set());
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
     supabase
       .from("appointments")
-      .select(
-        "id,starts_at,status,notes,clients(full_name,email,phone),services(name,duration_minutes)",
-      )
+      .select("id,starts_at,clients(full_name),services(name)")
       .gte("starts_at", new Date().toISOString())
       .neq("status", "cancelled")
       .order("starts_at")
@@ -256,132 +254,36 @@ function Appointments() {
 
   useEffect(load, [load]);
 
-  async function setStatus(id: string, status: string) {
-    const { error } = await supabase
-      .from("appointments")
-      .update({ status })
-      .eq("id", id);
-    if (error) setError(error.message);
-    else load();
-  }
-
-  async function reschedule(a: Appt) {
-    if (!newWhen) return;
-    setError(null);
-    const dur = a.services?.duration_minutes ?? 60;
-    const startsISO = salonWallToISO(newWhen);
-    const endsISO = new Date(
-      new Date(startsISO).getTime() + dur * 60000,
-    ).toISOString();
-    const { error } = await supabase
-      .from("appointments")
-      .update({ starts_at: startsISO, ends_at: endsISO })
-      .eq("id", a.id);
-    if (error) {
-      setError(
-        error.message.includes("overlap") || error.message.includes("exclusion")
-          ? "That time overlaps another appointment."
-          : error.message,
-      );
-      return;
-    }
-    setRescheduleId(null);
-    setNewWhen("");
-    load();
-  }
-
   if (loading) return <p className="text-muted">Loading appointments…</p>;
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (appts.length === 0)
     return <p className="text-muted">No upcoming appointments.</p>;
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-2">
       {appts.map((a) => (
-        <div
+        <button
           key={a.id}
-          className="rounded-2xl border border-foreground/10 bg-white p-5"
+          onClick={() => setOpenId(a.id)}
+          className="flex w-full flex-wrap items-baseline justify-between gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-left transition hover:border-accent"
         >
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <p className="font-medium">
-              {a.clients?.full_name ?? "Unknown"}
-              <span className="ml-2 text-sm font-normal text-muted">
-                {a.services?.name}
-              </span>
-            </p>
-            <p className="text-sm text-accent">{whenLabel(a.starts_at)}</p>
-          </div>
-          <p className="mt-1 text-sm text-muted">
-            {[a.clients?.phone, a.clients?.email].filter(Boolean).join(" · ")}
-          </p>
-          {a.notes && <p className="mt-2 text-sm text-muted">“{a.notes}”</p>}
-
-          {rescheduleId === a.id ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-              <input
-                type="datetime-local"
-                className="input w-auto"
-                value={newWhen}
-                onChange={(e) => setNewWhen(e.target.value)}
-              />
-              <ActionButton onClick={() => reschedule(a)}>Save</ActionButton>
-              <button
-                onClick={() => {
-                  setRescheduleId(null);
-                  setNewWhen("");
-                }}
-                className="text-xs text-muted hover:text-accent"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              {a.status !== "confirmed" && (
-                <ActionButton onClick={() => setStatus(a.id, "confirmed")}>
-                  Confirm
-                </ActionButton>
-              )}
-              <ActionButton
-                onClick={() => {
-                  setRescheduleId(a.id);
-                  setNewWhen("");
-                  setError(null);
-                }}
-              >
-                Reschedule
-              </ActionButton>
-              <ActionButton onClick={() => setStatus(a.id, "completed")}>
-                Completed
-              </ActionButton>
-              <ActionButton onClick={() => setStatus(a.id, "no_show")}>
-                No-show
-              </ActionButton>
-              <ActionButton danger onClick={() => setStatus(a.id, "cancelled")}>
-                Cancel
-              </ActionButton>
-              <ActionButton
-                onClick={() =>
-                  setOpenPhotos((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(a.id)) next.delete(a.id);
-                    else next.add(a.id);
-                    return next;
-                  })
-                }
-              >
-                {openPhotos.has(a.id) ? "Hide photos" : "Photos"}
-              </ActionButton>
-              {a.status !== "booked" && (
-                <span className="rounded-full bg-foreground/5 px-3 py-1 text-muted">
-                  {a.status}
-                </span>
-              )}
-            </div>
-          )}
-          {openPhotos.has(a.id) && <AppointmentPhotos appointmentId={a.id} />}
-        </div>
+          <span className="font-medium">
+            {a.clients?.full_name ?? "Unknown"}
+            <span className="ml-2 text-sm font-normal text-muted">
+              {a.services?.name}
+            </span>
+          </span>
+          <span className="text-sm text-accent">{whenLabel(a.starts_at)}</span>
+        </button>
       ))}
+      {openId && (
+        <ApptDetailModal
+          appointmentId={openId}
+          onClose={() => setOpenId(null)}
+          onChanged={load}
+          onOpenClient={onOpenClient}
+        />
+      )}
     </div>
   );
 }
@@ -704,28 +606,6 @@ function TimeOff() {
   );
 }
 
-function ActionButton({
-  children,
-  onClick,
-  danger,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-full border px-3 py-1 transition ${
-        danger
-          ? "border-accent-dark/30 text-accent-dark hover:bg-accent/5"
-          : "border-foreground/15 text-foreground hover:border-accent hover:text-accent"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 function ErrorNote({ children }: { children: React.ReactNode }) {
   return (
