@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Elements } from "@stripe/react-stripe-js";
 import { supabase } from "../../lib/supabase";
+import { stripePromise } from "../../lib/stripe";
+import CardCollect from "./CardCollect";
 
 const TZ = "America/New_York";
 const MONTHS_AHEAD = 6; // how far out clients may book
@@ -95,6 +98,9 @@ export default function BookPage() {
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [cardStage, setCardStage] = useState<"details" | "card">("details");
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
 
   const photoPreviews = useMemo(
     () => photos.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })),
@@ -175,14 +181,44 @@ export default function BookPage() {
     setViewM(now.month);
     setSelectedDay(null);
     setSlot(null);
+    setCardStage("details");
+    setClientSecret(null);
     setStep(2);
   }
 
-  async function submit(e: React.FormEvent) {
+  // Step 3a: collect contact info, then create a SetupIntent so the client
+  // can save a card on file (no charge).
+  async function continueToCard(e: React.FormEvent) {
     e.preventDefault();
-    if (!service || !slot) return;
+    if (!name.trim() || (!email.trim() && !phone.trim())) return;
     setSubmitting(true);
     setSubmitError(null);
+    try {
+      const res = await fetch("/api/stripe/setup-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't start card entry.");
+      setClientSecret(json.clientSecret);
+      setCustomerId(json.customerId);
+      setCardStage("card");
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Step 3b: after the card is saved, create the booking (with the customer
+  // linked) and upload any photos. Throws so the card form can surface errors.
+  async function finishBooking() {
+    if (!service || !slot) return;
     const { data, error } = await supabase.rpc("create_booking", {
       p_service_id: service.id,
       p_starts_at: slot,
@@ -190,13 +226,9 @@ export default function BookPage() {
       p_email: email.trim(),
       p_phone: phone.trim(),
       p_notes: notes.trim(),
+      p_stripe_customer_id: customerId,
     });
-    if (error) {
-      setSubmitting(false);
-      setSubmitError(error.message);
-      return;
-    }
-    // Best-effort photo upload — never block a successful booking on it.
+    if (error) throw new Error(error.message);
     const appointmentId = (data as { appointment_id?: string } | null)
       ?.appointment_id;
     if (appointmentId && photos.length) {
@@ -212,7 +244,6 @@ export default function BookPage() {
         }),
       ).catch(() => {});
     }
-    setSubmitting(false);
     setStep(4);
   }
 
@@ -420,7 +451,8 @@ export default function BookPage() {
               <p className="mt-1 text-sm text-muted">{longWhen(slot)}</p>
             </div>
 
-            <form onSubmit={submit} className="mt-8 grid gap-5">
+            {cardStage === "details" ? (
+            <form onSubmit={continueToCard} className="mt-8 grid gap-5">
               <Field label="Name" required>
                 <input
                   type="text"
@@ -505,7 +537,9 @@ export default function BookPage() {
               </div>
 
               <p className="text-xs text-muted">
-                Add an email or phone so we can send your confirmation.
+                Add an email or phone so we can send your confirmation. We&apos;ll
+                save a card to hold your appointment — you won&apos;t be charged
+                now.
               </p>
 
               {submitError && <ErrorNote>{submitError}</ErrorNote>}
@@ -516,17 +550,52 @@ export default function BookPage() {
                   disabled={submitting}
                   className="rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark disabled:opacity-60"
                 >
-                  {submitting ? "Booking…" : "Confirm booking"}
+                  {submitting ? "…" : "Continue to card"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={() => {
+                    setStep(2);
+                    setCardStage("details");
+                    setClientSecret(null);
+                  }}
                   className="text-sm text-muted hover:text-accent"
                 >
                   ← Change time
                 </button>
               </div>
             </form>
+            ) : (
+              <div className="mt-8">
+                <p className="mb-4 text-sm text-muted">
+                  Save a card to hold your appointment. You won&apos;t be charged
+                  now.
+                </p>
+                {clientSecret && (
+                  <Elements
+                    key={clientSecret}
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret,
+                      appearance: {
+                        theme: "flat",
+                        variables: { colorPrimary: "#bd6b4d" },
+                      },
+                    }}
+                  >
+                    <CardCollect onConfirmed={finishBooking} />
+                  </Elements>
+                )}
+                {submitError && <ErrorNote>{submitError}</ErrorNote>}
+                <button
+                  type="button"
+                  onClick={() => setCardStage("details")}
+                  className="mt-4 text-sm text-muted hover:text-accent"
+                >
+                  ← Back to details
+                </button>
+              </div>
+            )}
           </section>
         )}
 
