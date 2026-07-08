@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { salonWallToISO, dayKey, timeLabel, salonNow } from "../../lib/format";
-import AppointmentPhotos from "./AppointmentPhotos";
+import ApptDetailModal from "./ApptDetailModal";
 
 type Appt = {
   id: string;
@@ -15,16 +15,6 @@ type Appt = {
   clients: { full_name: string; phone: string | null; email: string | null } | null;
   services: { name: string; duration_minutes: number } | null;
 };
-
-const fullWhen = (iso: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(iso));
 
 type View = "month" | "week" | "day";
 
@@ -163,18 +153,6 @@ export default function Calendar({
     return `${f(ws, { month: "short", day: "numeric" })} – ${f(we, { month: "short", day: "numeric" })}`;
   }, [anchor, view]);
 
-  async function setStatus(id: string, status: string) {
-    const { error } = await supabase
-      .from("appointments")
-      .update({ status })
-      .eq("id", id);
-    if (error) setError(error.message);
-    else {
-      setSelected(null);
-      load();
-    }
-  }
-
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -283,37 +261,12 @@ export default function Calendar({
       )}
 
       {selected && (
-        <Modal onClose={() => setSelected(null)}>
-        <ApptPanel
-          appt={selected}
+        <ApptDetailModal
+          appointmentId={selected.id}
           onClose={() => setSelected(null)}
-          onReload={load}
+          onChanged={load}
           onOpenClient={onOpenClient}
-          onStatus={setStatus}
-          onReschedule={async (a, when) => {
-            const dur = a.services?.duration_minutes ?? 60;
-            const startsISO = salonWallToISO(when);
-            const endsISO = new Date(
-              new Date(startsISO).getTime() + dur * 60000,
-            ).toISOString();
-            const { error } = await supabase
-              .from("appointments")
-              .update({ starts_at: startsISO, ends_at: endsISO })
-              .eq("id", a.id);
-            if (error)
-              setError(
-                error.message.includes("overlap") ||
-                  error.message.includes("exclusion")
-                  ? "That time overlaps another appointment."
-                  : error.message,
-              );
-            else {
-              setSelected(null);
-              load();
-            }
-          }}
         />
-        </Modal>
       )}
     </div>
   );
@@ -517,146 +470,6 @@ function TimeGrid({
   );
 }
 
-function ApptPanel({
-  appt,
-  onClose,
-  onReload,
-  onOpenClient,
-  onStatus,
-  onReschedule,
-}: {
-  appt: Appt;
-  onClose: () => void;
-  onReload: () => void;
-  onOpenClient?: (clientId: string) => void;
-  onStatus: (id: string, status: string) => void;
-  onReschedule: (a: Appt, when: string) => void;
-}) {
-  const [mode, setMode] = useState<"view" | "reschedule" | "rebook">("view");
-  const [when, setWhen] = useState("");
-  const phone = appt.clients?.phone ?? "";
-  const email = appt.clients?.email ?? "";
-  const contactCls =
-    "rounded-full border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
-
-  return (
-    <div className="rounded-2xl border border-accent/30 bg-white p-5 shadow-xl">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="font-display text-xl">{appt.clients?.full_name}</p>
-          <p className="mt-1 text-sm text-muted">
-            {appt.services?.name} · {fullWhen(appt.starts_at)} ·{" "}
-            <span className="capitalize">{appt.status}</span>
-          </p>
-          {appt.notes && (
-            <p className="mt-2 text-sm text-muted">“{appt.notes}”</p>
-          )}
-        </div>
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="text-muted hover:text-accent"
-        >
-          ✕
-        </button>
-      </div>
-
-      {(phone || email || onOpenClient) && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {phone && (
-            <a href={`tel:${phone}`} className={contactCls}>
-              Call
-            </a>
-          )}
-          {phone && (
-            <a href={`sms:${phone}`} className={contactCls}>
-              Text
-            </a>
-          )}
-          {email && (
-            <a href={`mailto:${email}`} className={contactCls}>
-              Email
-            </a>
-          )}
-          {onOpenClient && (
-            <button
-              onClick={() => onOpenClient(appt.client_id)}
-              className={contactCls}
-            >
-              View profile
-            </button>
-          )}
-        </div>
-      )}
-
-      <div className="mt-4">
-        <p className="text-xs uppercase tracking-wide text-muted">
-          Client photos — their hair now / inspiration
-        </p>
-        <AppointmentPhotos appointmentId={appt.id} />
-      </div>
-
-      {mode === "reschedule" ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-          <input
-            type="datetime-local"
-            className="input w-auto"
-            value={when}
-            onChange={(e) => setWhen(e.target.value)}
-          />
-          <button
-            onClick={() => when && onReschedule(appt, when)}
-            className="rounded-full bg-accent px-4 py-2 text-white hover:bg-accent-dark"
-          >
-            Save
-          </button>
-          <button
-            onClick={() => setMode("view")}
-            className="text-muted hover:text-accent"
-          >
-            Cancel
-          </button>
-        </div>
-      ) : mode === "rebook" ? (
-        <RebookForm
-          clientId={appt.client_id}
-          onDone={() => {
-            setMode("view");
-            onReload();
-          }}
-          onCancel={() => setMode("view")}
-        />
-      ) : (
-        <div className="mt-4 flex flex-wrap gap-2 text-xs">
-          {appt.status !== "confirmed" && (
-            <PanelBtn onClick={() => onStatus(appt.id, "confirmed")}>
-              Confirm
-            </PanelBtn>
-          )}
-          <PanelBtn
-            onClick={() => {
-              setWhen("");
-              setMode("reschedule");
-            }}
-          >
-            Reschedule
-          </PanelBtn>
-          <PanelBtn onClick={() => setMode("rebook")}>Rebook</PanelBtn>
-          <PanelBtn onClick={() => onStatus(appt.id, "completed")}>
-            Completed
-          </PanelBtn>
-          <PanelBtn onClick={() => onStatus(appt.id, "no_show")}>
-            No-show
-          </PanelBtn>
-          <PanelBtn danger onClick={() => onStatus(appt.id, "cancelled")}>
-            Cancel
-          </PanelBtn>
-        </div>
-      )}
-    </div>
-  );
-}
-
 type SvcOpt = {
   id: string;
   name: string;
@@ -810,25 +623,3 @@ function NewAppointmentPanel({
   );
 }
 
-function PanelBtn({
-  children,
-  onClick,
-  danger,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-full border px-3 py-1 transition ${
-        danger
-          ? "border-accent-dark/30 text-accent-dark hover:bg-accent/5"
-          : "border-foreground/15 hover:border-accent hover:text-accent"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
