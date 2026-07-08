@@ -55,6 +55,18 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 - **Date-range time off** (block weeks/months in one entry, e.g. "closed until September") — the way to pause online booking until she's ready.
 - **Demo data seed** (`supabase/seed_demo.sql`) for previewing a populated app.
 
+## Studio UX overhaul (in progress)
+Goal: on every page, she sees what she needs for *that* thing, and can act without hunting.
+- ✅ **Appointment detail** (calendar): Call/Text/Email, client photos **inline**, **Rebook**, plus reschedule/status. Tap-into-day. Phone required at booking. [PR #8]
+- ▢ **Same detail everywhere** — click an appointment in List / Overview / a client's history and get the same panel, incl. a link to the client's profile.
+- ▢ **Add appointment from the calendar** — she books it herself (pick client + service + time).
+- ▢ **Client page** — Call/Text/Email at top; next visit highlighted (or Book); past visits click into detail; **"Win back"** action for lapsed clients (pre-filled text).
+- ▢ **Tasks + reminders** — her to-dos (**one-off + recurring**) plus auto reminders: **lapsed (8 wks)**, **left without rebooking**, **rebooking due**. Needs a `tasks` migration. Shown on Overview + own tab.
+
+## Marketing ideas (parked — SMS/AI bucket)
+- **Mass-text a discount to fill an open slot** — blast lapsed/all clients when there's a last-minute opening. Needs Twilio + **A2P 10DLC registration** (US business-texting approval) + opt-out compliance; ~1¢/text.
+- **AI-generated promo graphics** (Canva-like) — yes, that's an image-generation feature. Either an image-gen API (type the offer → branded graphic) or editable templates. Its own mini-project.
+
 ---
 
 ## New item detail
