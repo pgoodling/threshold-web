@@ -244,6 +244,17 @@ export default function BookPage() {
         }),
       ).catch(() => {});
     }
+    // Best-effort confirmation text — never blocks the booking.
+    fetch("/api/sms/booking-confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: phone.trim(),
+        name: name.trim(),
+        service: service.name,
+        startsAt: slot,
+      }),
+    }).catch(() => {});
     setStep(4);
   }
 
