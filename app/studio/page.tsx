@@ -154,6 +154,11 @@ type Tab =
 
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("overview");
+  const [pendingClient, setPendingClient] = useState<string | null>(null);
+  const goToClient = (id: string) => {
+    setPendingClient(id);
+    setTab("clients");
+  };
 
   return (
     <Shell>
@@ -198,9 +203,14 @@ function Dashboard() {
       <div className="mt-8">
         {tab === "overview" && <Overview />}
         {tab === "tasks" && <Tasks />}
-        {tab === "calendar" && <Calendar />}
+        {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
         {tab === "appointments" && <Appointments />}
-        {tab === "clients" && <Clients />}
+        {tab === "clients" && (
+          <Clients
+            initialClientId={pendingClient}
+            onOpened={() => setPendingClient(null)}
+          />
+        )}
         {tab === "services" && <Services />}
         {tab === "reports" && <Reports />}
         {tab === "hours" && <Hours />}

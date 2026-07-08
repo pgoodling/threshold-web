@@ -14,7 +14,13 @@ type Client = {
   created_at: string;
 };
 
-export default function Clients() {
+export default function Clients({
+  initialClientId,
+  onOpened,
+}: {
+  initialClientId?: string | null;
+  onOpened?: () => void;
+}) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +42,16 @@ export default function Clients() {
   }, []);
 
   useEffect(load, [load]);
+
+  // Open a specific client when navigated here from an appointment.
+  useEffect(() => {
+    if (!initialClientId || clients.length === 0) return;
+    const c = clients.find((x) => x.id === initialClientId);
+    if (c) {
+      setSelected(c);
+      onOpened?.();
+    }
+  }, [initialClientId, clients, onOpened]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
