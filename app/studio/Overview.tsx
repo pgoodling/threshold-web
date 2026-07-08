@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { salonNow, salonWallToISO, timeLabel } from "../../lib/format";
+import ApptDetailModal from "./ApptDetailModal";
 
 type TodayAppt = {
   id: string;
@@ -14,11 +15,17 @@ type TodayAppt = {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export default function Overview() {
+export default function Overview({
+  onOpenClient,
+}: {
+  onOpenClient?: (clientId: string) => void;
+}) {
   const [today, setToday] = useState<TodayAppt[]>([]);
   const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
   const [clientCount, setClientCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const n = salonNow();
@@ -52,7 +59,7 @@ export default function Overview() {
       setUpcomingCount(weekRes.count ?? 0);
       setClientCount(clientsRes.count ?? 0);
     });
-  }, []);
+  }, [tick]);
 
   return (
     <div>
@@ -76,9 +83,10 @@ export default function Overview() {
       ) : (
         <div className="mt-3 grid gap-2">
           {today.map((a) => (
-            <div
+            <button
               key={a.id}
-              className="flex items-center gap-4 rounded-xl border border-foreground/10 bg-white px-4 py-3"
+              onClick={() => setOpenId(a.id)}
+              className="flex w-full items-center gap-4 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-left transition hover:border-accent"
             >
               <span className="w-20 shrink-0 text-sm text-accent">
                 {timeLabel(a.starts_at)}
@@ -87,9 +95,18 @@ export default function Overview() {
               <span className="ml-auto text-sm text-muted">
                 {a.services?.name}
               </span>
-            </div>
+            </button>
           ))}
         </div>
+      )}
+
+      {openId && (
+        <ApptDetailModal
+          appointmentId={openId}
+          onClose={() => setOpenId(null)}
+          onChanged={() => setTick((t) => t + 1)}
+          onOpenClient={onOpenClient}
+        />
       )}
     </div>
   );
