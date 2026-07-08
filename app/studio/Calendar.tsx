@@ -271,16 +271,19 @@ export default function Calendar({
       </div>
 
       {newAppt && (
-        <NewAppointmentPanel
-          onClose={() => setNewAppt(false)}
-          onDone={() => {
-            setNewAppt(false);
-            load();
-          }}
-        />
+        <Modal onClose={() => setNewAppt(false)}>
+          <NewAppointmentPanel
+            onClose={() => setNewAppt(false)}
+            onDone={() => {
+              setNewAppt(false);
+              load();
+            }}
+          />
+        </Modal>
       )}
 
       {selected && (
+        <Modal onClose={() => setSelected(null)}>
         <ApptPanel
           appt={selected}
           onClose={() => setSelected(null)}
@@ -310,7 +313,32 @@ export default function Calendar({
             }
           }}
         />
+        </Modal>
       )}
+    </div>
+  );
+}
+
+function Modal({
+  onClose,
+  children,
+}: {
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-foreground/40"
+      onClick={onClose}
+    >
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div
+          className="w-full max-w-lg"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
@@ -512,7 +540,7 @@ function ApptPanel({
     "rounded-full border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
 
   return (
-    <div className="mt-6 rounded-2xl border border-accent/30 bg-white p-5">
+    <div className="rounded-2xl border border-accent/30 bg-white p-5 shadow-xl">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-display text-xl">{appt.clients?.full_name}</p>
@@ -749,7 +777,7 @@ function NewAppointmentPanel({
   }, []);
 
   return (
-    <div className="mt-5 rounded-2xl border border-accent/30 bg-white p-5">
+    <div className="rounded-2xl border border-accent/30 bg-white p-5 shadow-xl">
       <div className="flex items-center justify-between">
         <p className="font-display text-lg">New appointment</p>
         <button
