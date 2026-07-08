@@ -190,7 +190,7 @@ export default function BookPage() {
   // can save a card on file (no charge).
   async function continueToCard(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || (!email.trim() && !phone.trim())) return;
+    if (!name.trim() || !phone.trim()) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -472,9 +472,10 @@ export default function BookPage() {
                   autoComplete="email"
                 />
               </Field>
-              <Field label="Phone">
+              <Field label="Phone" required>
                 <input
                   type="tel"
+                  required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="input"
@@ -537,9 +538,8 @@ export default function BookPage() {
               </div>
 
               <p className="text-xs text-muted">
-                Add an email or phone so we can send your confirmation. We&apos;ll
-                save a card to hold your appointment — you won&apos;t be charged
-                now.
+                Email is optional. We&apos;ll save a card to hold your
+                appointment — you won&apos;t be charged now.
               </p>
 
               {submitError && <ErrorNote>{submitError}</ErrorNote>}

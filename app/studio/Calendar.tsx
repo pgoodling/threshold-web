@@ -3,16 +3,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { salonWallToISO, dayKey, timeLabel, salonNow } from "../../lib/format";
+import AppointmentPhotos from "./AppointmentPhotos";
 
 type Appt = {
   id: string;
+  client_id: string;
   starts_at: string;
   ends_at: string;
   status: string;
   notes: string | null;
-  clients: { full_name: string; phone: string | null } | null;
+  clients: { full_name: string; phone: string | null; email: string | null } | null;
   services: { name: string; duration_minutes: number } | null;
 };
+
+const fullWhen = (iso: string) =>
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
 
 type View = "month" | "week" | "day";
 
@@ -92,7 +104,7 @@ export default function Calendar() {
     supabase
       .from("appointments")
       .select(
-        "id,starts_at,ends_at,status,notes,clients(full_name,phone),services(name,duration_minutes)",
+        "id,client_id,starts_at,ends_at,status,notes,clients(full_name,phone,email),services(name,duration_minutes)",
       )
       .gte("starts_at", fromISO)
       .lt("starts_at", toISO)
@@ -219,6 +231,8 @@ export default function Calendar() {
             selectedDay={selectedDay}
             onSelectDay={(k) => {
               setSelectedDay(k);
+              setAnchor(k);
+              setView("day");
               setSelected(null);
             }}
           />
@@ -242,18 +256,11 @@ export default function Calendar() {
         )}
       </div>
 
-      {view === "month" && (
-        <DayAgenda
-          dayK={selectedDay}
-          appts={byDay.get(selectedDay) ?? []}
-          onSelect={setSelected}
-        />
-      )}
-
       {selected && (
         <ApptPanel
           appt={selected}
           onClose={() => setSelected(null)}
+          onReload={load}
           onStatus={setStatus}
           onReschedule={async (a, when) => {
             const dur = a.services?.duration_minutes ?? 60;
@@ -457,89 +464,38 @@ function TimeGrid({
   );
 }
 
-function DayAgenda({
-  dayK,
-  appts,
-  onSelect,
-}: {
-  dayK: string;
-  appts: Appt[];
-  onSelect: (a: Appt) => void;
-}) {
-  const p = parseKey(dayK);
-  const label = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  }).format(new Date(p.y, p.m, p.d));
-  return (
-    <div className="mt-6">
-      <h3 className="font-display text-lg">{label}</h3>
-      {appts.length === 0 ? (
-        <p className="mt-2 text-sm text-muted">Nothing booked.</p>
-      ) : (
-        <div className="mt-3 grid gap-2">
-          {appts.map((a) => {
-            const c = catColors(a.services?.name);
-            return (
-              <button
-                key={a.id}
-                onClick={() => onSelect(a)}
-                className="flex items-center gap-3 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-left transition hover:border-accent"
-              >
-                <span
-                  className="h-8 w-1 rounded-full"
-                  style={{ background: c.fg }}
-                />
-                <span className="w-20 shrink-0 text-sm text-accent">
-                  {timeLabel(a.starts_at)}
-                </span>
-                <span className="font-medium">{a.clients?.full_name}</span>
-                <span className="ml-auto text-sm text-muted">
-                  {a.services?.name}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ApptPanel({
   appt,
   onClose,
+  onReload,
   onStatus,
   onReschedule,
 }: {
   appt: Appt;
   onClose: () => void;
+  onReload: () => void;
   onStatus: (id: string, status: string) => void;
   onReschedule: (a: Appt, when: string) => void;
 }) {
-  const [rescheduling, setRescheduling] = useState(false);
+  const [mode, setMode] = useState<"view" | "reschedule" | "rebook">("view");
   const [when, setWhen] = useState("");
+  const phone = appt.clients?.phone ?? "";
+  const email = appt.clients?.email ?? "";
+  const contactCls =
+    "rounded-full border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
+
   return (
     <div className="mt-6 rounded-2xl border border-accent/30 bg-white p-5">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-display text-xl">{appt.clients?.full_name}</p>
           <p className="mt-1 text-sm text-muted">
-            {appt.services?.name} ·{" "}
-            {new Intl.DateTimeFormat("en-US", {
-              timeZone: "America/New_York",
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            }).format(new Date(appt.starts_at))}
+            {appt.services?.name} · {fullWhen(appt.starts_at)} ·{" "}
+            <span className="capitalize">{appt.status}</span>
           </p>
-          {appt.clients?.phone && (
-            <p className="mt-1 text-sm text-muted">{appt.clients.phone}</p>
+          {appt.notes && (
+            <p className="mt-2 text-sm text-muted">“{appt.notes}”</p>
           )}
-          {appt.notes && <p className="mt-2 text-sm text-muted">“{appt.notes}”</p>}
         </div>
         <button
           onClick={onClose}
@@ -550,7 +506,34 @@ function ApptPanel({
         </button>
       </div>
 
-      {rescheduling ? (
+      {(phone || email) && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {phone && (
+            <a href={`tel:${phone}`} className={contactCls}>
+              Call
+            </a>
+          )}
+          {phone && (
+            <a href={`sms:${phone}`} className={contactCls}>
+              Text
+            </a>
+          )}
+          {email && (
+            <a href={`mailto:${email}`} className={contactCls}>
+              Email
+            </a>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4">
+        <p className="text-xs uppercase tracking-wide text-muted">
+          Client photos — their hair now / inspiration
+        </p>
+        <AppointmentPhotos appointmentId={appt.id} />
+      </div>
+
+      {mode === "reschedule" ? (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <input
             type="datetime-local"
@@ -565,12 +548,21 @@ function ApptPanel({
             Save
           </button>
           <button
-            onClick={() => setRescheduling(false)}
+            onClick={() => setMode("view")}
             className="text-muted hover:text-accent"
           >
             Cancel
           </button>
         </div>
+      ) : mode === "rebook" ? (
+        <RebookForm
+          clientId={appt.client_id}
+          onDone={() => {
+            setMode("view");
+            onReload();
+          }}
+          onCancel={() => setMode("view")}
+        />
       ) : (
         <div className="mt-4 flex flex-wrap gap-2 text-xs">
           {appt.status !== "confirmed" && (
@@ -578,16 +570,125 @@ function ApptPanel({
               Confirm
             </PanelBtn>
           )}
-          <PanelBtn onClick={() => setRescheduling(true)}>Reschedule</PanelBtn>
+          <PanelBtn
+            onClick={() => {
+              setWhen("");
+              setMode("reschedule");
+            }}
+          >
+            Reschedule
+          </PanelBtn>
+          <PanelBtn onClick={() => setMode("rebook")}>Rebook</PanelBtn>
           <PanelBtn onClick={() => onStatus(appt.id, "completed")}>
             Completed
           </PanelBtn>
-          <PanelBtn onClick={() => onStatus(appt.id, "no_show")}>No-show</PanelBtn>
+          <PanelBtn onClick={() => onStatus(appt.id, "no_show")}>
+            No-show
+          </PanelBtn>
           <PanelBtn danger onClick={() => onStatus(appt.id, "cancelled")}>
             Cancel
           </PanelBtn>
         </div>
       )}
+    </div>
+  );
+}
+
+type SvcOpt = {
+  id: string;
+  name: string;
+  duration_minutes: number;
+  price_cents: number;
+};
+
+function RebookForm({
+  clientId,
+  onDone,
+  onCancel,
+}: {
+  clientId: string;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [services, setServices] = useState<SvcOpt[]>([]);
+  const [serviceId, setServiceId] = useState("");
+  const [when, setWhen] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("services")
+      .select("id,name,duration_minutes,price_cents")
+      .eq("active", true)
+      .order("sort_order")
+      .then(({ data }) => setServices((data ?? []) as SvcOpt[]));
+  }, []);
+
+  async function submit() {
+    const svc = services.find((s) => s.id === serviceId);
+    if (!svc || !when) return;
+    setBusy(true);
+    setError(null);
+    const startsISO = salonWallToISO(when);
+    const endsISO = new Date(
+      new Date(startsISO).getTime() + svc.duration_minutes * 60000,
+    ).toISOString();
+    const { error } = await supabase.from("appointments").insert({
+      client_id: clientId,
+      service_id: svc.id,
+      starts_at: startsISO,
+      ends_at: endsISO,
+      price_cents: svc.price_cents,
+      status: "booked",
+    });
+    setBusy(false);
+    if (error)
+      setError(
+        error.message.includes("overlap") || error.message.includes("exclusion")
+          ? "That time overlaps another appointment."
+          : error.message,
+      );
+    else onDone();
+  }
+
+  return (
+    <div className="mt-4 grid gap-3">
+      <p className="text-sm text-muted">Book their next visit:</p>
+      <select
+        className="input"
+        value={serviceId}
+        onChange={(e) => setServiceId(e.target.value)}
+      >
+        <option value="">Choose a service…</option>
+        {services.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+      </select>
+      <input
+        type="datetime-local"
+        className="input w-auto"
+        value={when}
+        onChange={(e) => setWhen(e.target.value)}
+      />
+      {error && <p className="text-sm text-accent-dark">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          onClick={submit}
+          disabled={busy}
+          className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+        >
+          {busy ? "Booking…" : "Book it"}
+        </button>
+        <button
+          onClick={onCancel}
+          className="text-sm text-muted hover:text-accent"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }
