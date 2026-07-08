@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 import Overview from "./Overview";
 import Clients from "./Clients";
 import Services from "./Services";
+import Reports from "./Reports";
 import { salonWallToISO } from "../../lib/format";
 
 const TZ = "America/New_York";
@@ -137,7 +138,14 @@ function Login() {
   );
 }
 
-type Tab = "overview" | "appointments" | "clients" | "services" | "hours" | "timeoff";
+type Tab =
+  | "overview"
+  | "appointments"
+  | "clients"
+  | "services"
+  | "reports"
+  | "hours"
+  | "timeoff";
 
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -161,6 +169,7 @@ function Dashboard() {
             ["appointments", "Appointments"],
             ["clients", "Clients"],
             ["services", "Services"],
+            ["reports", "Reports"],
             ["hours", "Hours"],
             ["timeoff", "Time off"],
           ] as [Tab, string][]
@@ -184,6 +193,7 @@ function Dashboard() {
         {tab === "appointments" && <Appointments />}
         {tab === "clients" && <Clients />}
         {tab === "services" && <Services />}
+        {tab === "reports" && <Reports />}
         {tab === "hours" && <Hours />}
         {tab === "timeoff" && <TimeOff />}
       </div>
