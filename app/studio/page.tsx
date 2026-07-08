@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
+import Overview from "./Overview";
+import Clients from "./Clients";
+import Services from "./Services";
 
 const TZ = "America/New_York";
 const WEEKDAYS = [
@@ -133,10 +136,10 @@ function Login() {
   );
 }
 
-type Tab = "appointments" | "hours" | "timeoff";
+type Tab = "overview" | "appointments" | "clients" | "services" | "hours" | "timeoff";
 
 function Dashboard() {
-  const [tab, setTab] = useState<Tab>("appointments");
+  const [tab, setTab] = useState<Tab>("overview");
 
   return (
     <Shell>
@@ -153,7 +156,10 @@ function Dashboard() {
       <div className="mt-6 flex gap-1 border-b border-foreground/10 text-sm">
         {(
           [
+            ["overview", "Overview"],
             ["appointments", "Appointments"],
+            ["clients", "Clients"],
+            ["services", "Services"],
             ["hours", "Hours"],
             ["timeoff", "Time off"],
           ] as [Tab, string][]
@@ -173,7 +179,10 @@ function Dashboard() {
       </div>
 
       <div className="mt-8">
+        {tab === "overview" && <Overview />}
         {tab === "appointments" && <Appointments />}
+        {tab === "clients" && <Clients />}
+        {tab === "services" && <Services />}
         {tab === "hours" && <Hours />}
         {tab === "timeoff" && <TimeOff />}
       </div>
