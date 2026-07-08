@@ -8,7 +8,7 @@ import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
 import AppointmentPhotos from "./AppointmentPhotos";
-import { salonWallToISO } from "../../lib/format";
+import { salonWallToISO, dayKey, dateLabel, timeLabel } from "../../lib/format";
 
 const TZ = "America/New_York";
 const WEEKDAYS = [
@@ -505,15 +505,27 @@ function Hours() {
 
 type Block = { id: string; starts_at: string; ends_at: string; reason: string | null };
 
+function formatBlock(b: Block) {
+  const sameDay = dayKey(b.starts_at) === dayKey(b.ends_at);
+  if (!sameDay) return `${dateLabel(b.starts_at)} – ${dateLabel(b.ends_at)}`;
+  const st = timeLabel(b.starts_at);
+  const en = timeLabel(b.ends_at);
+  if (st === "12:00 AM" && en === "11:59 PM")
+    return `${dateLabel(b.starts_at)} · All day`;
+  return `${dateLabel(b.starts_at)} · ${st} – ${en}`;
+}
+
 function TimeOff() {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [date, setDate] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
   const [allDay, setAllDay] = useState(true);
   const [reason, setReason] = useState("");
+  const multiDay = Boolean(toDate && toDate > fromDate);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -533,20 +545,26 @@ function TimeOff() {
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    if (!date) return;
+    if (!fromDate) return;
     setError(null);
-    // Build salon-local timestamps; the browser sends ISO with local offset,
-    // which is close enough for whole-day/hour blocks.
-    const s = allDay ? `${date}T00:00` : `${date}T${start}`;
-    const en = allDay ? `${date}T23:59` : `${date}T${end}`;
+    const to = toDate && toDate >= fromDate ? toDate : fromDate;
+    const fullDays = multiDay || allDay;
+    // Interpret wall-clock as salon (Eastern) time regardless of browser tz.
+    const startsISO = fullDays
+      ? salonWallToISO(`${fromDate}T00:00`)
+      : salonWallToISO(`${fromDate}T${start}`);
+    const endsISO = fullDays
+      ? salonWallToISO(`${to}T23:59`)
+      : salonWallToISO(`${fromDate}T${end}`);
     const { error } = await supabase.from("time_off").insert({
-      starts_at: new Date(s).toISOString(),
-      ends_at: new Date(en).toISOString(),
+      starts_at: startsISO,
+      ends_at: endsISO,
       reason: reason.trim() || null,
     });
     if (error) setError(error.message);
     else {
-      setDate("");
+      setFromDate("");
+      setToDate("");
       setReason("");
       load();
     }
@@ -561,7 +579,8 @@ function TimeOff() {
   return (
     <div>
       <p className="text-muted">
-        Block off vacations or personal time. Clients can&apos;t book during these.
+        Block off a single day or a whole stretch — e.g. closed until
+        September. Clients can&apos;t book during blocked dates.
       </p>
 
       <form
@@ -569,39 +588,55 @@ function TimeOff() {
         className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-foreground/10 bg-white p-5"
       >
         <label className="block">
-          <span className="mb-1 block text-sm">Date</span>
+          <span className="mb-1 block text-sm">From</span>
           <input
             type="date"
             required
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
             className="input w-auto"
           />
         </label>
-        <label className="flex items-center gap-2 pb-3 text-sm">
+        <label className="block">
+          <span className="mb-1 block text-sm">To (optional)</span>
           <input
-            type="checkbox"
-            checked={allDay}
-            onChange={(e) => setAllDay(e.target.checked)}
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => setToDate(e.target.value)}
+            className="input w-auto"
           />
-          All day
         </label>
-        {!allDay && (
-          <div className="flex items-center gap-2 pb-1 text-sm">
-            <input
-              type="time"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              className="input w-auto"
-            />
-            <span className="text-muted">to</span>
-            <input
-              type="time"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              className="input w-auto"
-            />
-          </div>
+        {multiDay ? (
+          <span className="pb-3 text-sm text-muted">Full days blocked</span>
+        ) : (
+          <>
+            <label className="flex items-center gap-2 pb-3 text-sm">
+              <input
+                type="checkbox"
+                checked={allDay}
+                onChange={(e) => setAllDay(e.target.checked)}
+              />
+              All day
+            </label>
+            {!allDay && (
+              <div className="flex items-center gap-2 pb-1 text-sm">
+                <input
+                  type="time"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                  className="input w-auto"
+                />
+                <span className="text-muted">to</span>
+                <input
+                  type="time"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                  className="input w-auto"
+                />
+              </div>
+            )}
+          </>
         )}
         <label className="block flex-1">
           <span className="mb-1 block text-sm">Reason (optional)</span>
@@ -633,7 +668,7 @@ function TimeOff() {
             className="flex items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3"
           >
             <span className="text-sm">
-              {whenLabel(b.starts_at)} – {whenLabel(b.ends_at)}
+              {formatBlock(b)}
               {b.reason && (
                 <span className="ml-2 text-muted">· {b.reason}</span>
               )}
