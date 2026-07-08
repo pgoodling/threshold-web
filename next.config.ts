@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
 
-// Static export for GitHub Pages, served at https://threshold.salon
+// Native Next.js on Vercel — server routes are needed for secure Stripe calls.
 const nextConfig: NextConfig = {
-  output: "export",
   images: {
-    unoptimized: true, // GitHub Pages has no image optimization server
+    unoptimized: true, // we use plain <img> tags, not next/image
   },
 };
 
