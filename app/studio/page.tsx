@@ -7,6 +7,7 @@ import Overview from "./Overview";
 import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
+import AppointmentPhotos from "./AppointmentPhotos";
 import { salonWallToISO } from "../../lib/format";
 
 const TZ = "America/New_York";
@@ -216,6 +217,7 @@ function Appointments() {
   const [error, setError] = useState<string | null>(null);
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [newWhen, setNewWhen] = useState("");
+  const [openPhotos, setOpenPhotos] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -340,6 +342,18 @@ function Appointments() {
               <ActionButton danger onClick={() => setStatus(a.id, "cancelled")}>
                 Cancel
               </ActionButton>
+              <ActionButton
+                onClick={() =>
+                  setOpenPhotos((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(a.id)) next.delete(a.id);
+                    else next.add(a.id);
+                    return next;
+                  })
+                }
+              >
+                {openPhotos.has(a.id) ? "Hide photos" : "Photos"}
+              </ActionButton>
               {a.status !== "booked" && (
                 <span className="rounded-full bg-foreground/5 px-3 py-1 text-muted">
                   {a.status}
@@ -347,6 +361,7 @@ function Appointments() {
               )}
             </div>
           )}
+          {openPhotos.has(a.id) && <AppointmentPhotos appointmentId={a.id} />}
         </div>
       ))}
     </div>
