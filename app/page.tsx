@@ -91,7 +91,7 @@ export default function Home() {
               Visit
             </a>
             <a
-              href="#visit"
+              href="/book"
               className="whitespace-nowrap rounded-full bg-accent px-4 py-2 text-white transition hover:bg-accent-dark"
             >
               Book now
@@ -135,7 +135,7 @@ export default function Home() {
             appointment and more like a visit with someone who gets you.
           </p>
           <a
-            href="#visit"
+            href="/book"
             className="mt-10 inline-block rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark"
           >
             Book now

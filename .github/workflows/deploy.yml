@@ -1,8 +1,9 @@
 name: Deploy to GitHub Pages
 
+# Hosting moved to Vercel. This GitHub Pages deploy is retained for reference but
+# no longer runs on push (it would fail without the Supabase env vars, which live
+# in Vercel). It can still be triggered manually via "Run workflow" if needed.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

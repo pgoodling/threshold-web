@@ -53,7 +53,7 @@ export default function MobileNav() {
               </a>
             ))}
             <a
-              href="#visit"
+              href="/book"
               onClick={() => setOpen(false)}
               className="mt-2 rounded-full bg-accent px-4 py-3 text-center text-white transition hover:bg-accent-dark"
             >
