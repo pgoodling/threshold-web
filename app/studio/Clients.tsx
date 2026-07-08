@@ -160,6 +160,13 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
   const now = Date.now();
   const upcoming = visits.filter((v) => new Date(v.starts_at).getTime() >= now);
   const past = visits.filter((v) => new Date(v.starts_at).getTime() < now);
+  const lastPast = past[0]?.starts_at ?? null;
+  const weeksSince = lastPast
+    ? (now - new Date(lastPast).getTime()) / (7 * 86400000)
+    : null;
+  const lapsed = upcoming.length === 0 && weeksSince !== null && weeksSince >= 8;
+  const contactCls =
+    "rounded-full border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
 
   return (
     <div>
@@ -205,9 +212,6 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-display text-2xl">{c.full_name}</h2>
-                <p className="mt-1 text-sm text-muted">
-                  {[c.phone, c.email].filter(Boolean).join(" · ") || "No contact info"}
-                </p>
                 {c.birthday && (
                   <p className="mt-1 text-sm text-muted">🎂 {c.birthday}</p>
                 )}
@@ -219,6 +223,25 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
                 Edit
               </button>
             </div>
+            {(c.phone || c.email) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {c.phone && (
+                  <a href={`tel:${c.phone}`} className={contactCls}>
+                    Call
+                  </a>
+                )}
+                {c.phone && (
+                  <a href={`sms:${c.phone}`} className={contactCls}>
+                    Text
+                  </a>
+                )}
+                {c.email && (
+                  <a href={`mailto:${c.email}`} className={contactCls}>
+                    Email
+                  </a>
+                )}
+              </div>
+            )}
             {c.notes && (
               <p className="mt-4 whitespace-pre-wrap rounded-xl bg-background px-4 py-3 text-sm">
                 {c.notes}
@@ -227,6 +250,22 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
           </>
         )}
       </div>
+
+      {lapsed && c.phone && (
+        <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/5 p-4">
+          <p className="text-sm">
+            Hasn&apos;t been in for about {Math.round(weeksSince ?? 0)} weeks.
+          </p>
+          <a
+            href={`sms:${c.phone}?&body=${encodeURIComponent(
+              `Hi ${c.full_name.split(" ")[0]}, it's Evelyn at Threshold! It's been a while — I'd love to get you back in the chair. Want me to save you a spot?`,
+            )}`}
+            className="mt-2 inline-block rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark"
+          >
+            Win back — send a text
+          </a>
+        </div>
+      )}
 
       {/* Visit history */}
       <div className="mt-6 flex items-center justify-between">
