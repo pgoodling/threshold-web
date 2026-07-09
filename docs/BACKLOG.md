@@ -67,9 +67,33 @@ Goal: on every page, she sees what she needs for *that* thing, and can act witho
 - ✅ **Client page reach-out** — Call/Text/Email header + **"Win back"** for lapsed clients (pre-filled text). [PR #10]
 - ✅ **Tasks tab** — "Reach out" reminders (no next appt booked, lapsed 8wk flagged) + manual to-dos (one-off + recurring). [PR #11] — **run `0005_tasks.sql`** to enable the to-do list.
 - ▢ Client page: show past visits as click-into-detail + a link *from* an appointment *to* the client profile (part of "same detail everywhere").
+- ▢ **Command-center redesign (Design C)** — mocked + approved-in-principle by Paul (2026-07-09), **pending Evelyn's feedback** before build. Left **sidebar** nav (→ hamburger on phones) replacing top tabs; **greeting**, a **"needs attention"** banner (running-late clients), and a **"taken today"** ($ from checkouts) stat; today's-schedule rows show **status as a left stripe** + **service type as a fixed-width solid color block flush right** (no pills). Status colors: green=checked in, charcoal=checked out, red=running late. Service colors: Highlights=soft yellow, Custom Color=peach/terracotta, Cut and Style=rose, Treatments=lavender, Blowouts=clay, Men's=blue (all distinct, off the status hues).
+
+## Two-way texting + SMS automation (planned — own feature, phased)
+Goal: automate as much client texting as possible around the appointment lifecycle, and put replies **in front of Evelyn even when she's busy with another client**. Everything here dovetails with the Design-C **"needs attention"** banner (that's where alerts/replies surface).
+
+**Hard dependency:** **A2P 10DLC registration** must clear before any of this can go live — automated/two-way US business texting legally requires it. (As of 2026-07-09: waiting for the pending registration to fail so Paul can resubmit with the correct number — the OTP had gone to his wife's number. This is the critical path.) Also needs opt-out (STOP) handling, quiet-hours rules, and the existing `/api/sms/booking-confirm` hardened.
+
+**Foundation (Phase 1):**
+- `messages` table (client_id, appointment_id?, direction in/out, body, twilio_sid, status, created_at, read_at) + RLS.
+- **Inbound webhook** `/api/sms/inbound` — Twilio posts incoming texts; match `from` → client by E.164; store; respond TwiML. Handle STOP/START.
+- **Studio inbox/thread** — see + reply to client texts; unread badge; inbound surfaces on the appointment + Overview "needs attention".
+
+**Late-arrival flow (Phase 2):**
+- **Scheduler** (Supabase pg_cron or Vercel cron, every few min) finds booked/confirmed appts past start + not checked in + not already pinged → auto-text "still on your way?"; record it; flag the appt.
+- Client reply lands in front of Evelyn with **one-tap actions**: "can't make it" → mark no-show + send rebook link; "omw" → red flag can ease to amber.
+- Clients can also **text first** ("running late") → matched to their appt → needs-attention.
+
+**More automations (Phase 3) — Paul: "all of it will be good":**
+- **Reminders** (day-before / 2h) with "Reply C to confirm" → auto-sets Confirmed.
+- **"Running behind" heads-up** — when *Evelyn's* late (prev appt overran), one tap texts the next client.
+- **No-show follow-up / win-back** — auto or one-tap rebook (ties into Tasks reach-out).
+- **Waitlist fill** — slot opens → text the waitlist.
+
+**Later enhancement:** **push notifications** so it buzzes her phone with the app closed (iOS installed-PWA supports it; more setup). In-app alerts cover it until then. Cost ~1¢/text in or out.
 
 ## Marketing ideas (parked — SMS/AI bucket)
-- **Mass-text a discount to fill an open slot** — blast lapsed/all clients when there's a last-minute opening. Needs Twilio + **A2P 10DLC registration** (US business-texting approval) + opt-out compliance; ~1¢/text.
+- **Mass-text a discount to fill an open slot** — blast lapsed/all clients when there's a last-minute opening. Needs Twilio + **A2P 10DLC registration** (US business-texting approval) + opt-out compliance; ~1¢/text. (Same channel as two-way texting above.)
 - **AI-generated promo graphics** (Canva-like) — yes, that's an image-generation feature. Either an image-gen API (type the offer → branded graphic) or editable templates. Its own mini-project.
 
 ---
