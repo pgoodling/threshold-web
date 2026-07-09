@@ -45,11 +45,13 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 | 15 | Waitlist / cancellation fill | Go/no-go; depends on notifications |
 | 16 | Reviews & light marketing | Google Business link; go/no-go |
 | 17 | Google Calendar sync for Evelyn | Go/no-go (needs Google sign-in setup) |
+| 18 | **Retail + inventory + cost-of-goods** (the salon-shaped gap QuickBooks handles poorly) | Go/no-go. Sell retail at checkout, track product/color stock + low-stock nudges, rough product cost per service → true margins. Keep general bookkeeping/expenses/taxes in QuickBooks. Own mini-project; needs a migration. |
 
 ## 🔧 Small / no info needed (I just build)
 - Top-level "New appointment" in Appointments (manual booking is per-client only today)
 
 ## Also shipped
+- **Check in / Check out** — appointment lifecycle is now Booked → Confirmed → **Checked in** (arrived) → **Checked out** (paid & done), replacing the single "Completed". Check-out records the **amount paid** (editable) + **payment method** (Card (Intuit) / Cash / Venmo / Zelle / Other). Reports counts checked-out visits as revenue and adds a **By payment method** breakdown so the **Card total reconciles against Intuit deposits**. Needs migration `0006_check_in_out.sql`.
 - **Card on file at booking** (Stripe SetupIntent, no charge) — clean **card-only** field, plus an **Apple Pay / Google Pay** button that appears only on wallet-capable devices. Needs the domain registered in Stripe → Payment method domains (per mode: test now, **live before launch**).
 - **Calendar** in `/studio` — Month / Week / Day views, color-coded, click-to-manage; old list kept as "List" tab.
 - **PWA install** — web manifest + Apple touch icon + theme color; "Add to Home Screen" launches standalone on iPad/iPhone.

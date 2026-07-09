@@ -69,6 +69,36 @@ export function salonWallToISO(localDateTime: string): string {
   return new Date(guess.getTime() - offset).toISOString();
 }
 
+// Appointment lifecycle: booked → confirmed → checked_in → checked_out (paid).
+export const statusLabel = (status: string): string =>
+  (
+    ({
+      booked: "Booked",
+      confirmed: "Confirmed",
+      checked_in: "Checked in",
+      checked_out: "Checked out",
+      completed: "Checked out", // legacy — pre-check-in/out data
+      no_show: "No-show",
+      cancelled: "Cancelled",
+    }) as Record<string, string>
+  )[status] ?? status;
+
+// Statuses that count as paid revenue (checked_out, plus legacy completed).
+export const PAID_STATUSES = ["checked_out", "completed"];
+
+// Payment methods captured at check-out. The split matters for reconciling
+// against Intuit: only "card" flows through Intuit's deposits; the rest don't.
+export const PAYMENT_METHODS: { value: string; label: string }[] = [
+  { value: "card", label: "Card (Intuit)" },
+  { value: "cash", label: "Cash" },
+  { value: "venmo", label: "Venmo" },
+  { value: "zelle", label: "Zelle" },
+  { value: "other", label: "Other" },
+];
+
+export const paymentLabel = (value: string | null): string =>
+  PAYMENT_METHODS.find((m) => m.value === value)?.label ?? value ?? "—";
+
 // "now" as parts in the salon timezone
 export function salonNow() {
   const parts = new Intl.DateTimeFormat("en-CA", {

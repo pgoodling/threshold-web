@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { salonWallToISO } from "../../lib/format";
+import {
+  salonWallToISO,
+  statusLabel,
+  paymentLabel,
+  money,
+  PAYMENT_METHODS,
+} from "../../lib/format";
 import AppointmentPhotos from "./AppointmentPhotos";
 
 // One appointment detail, shown as a centered modal, used everywhere an
@@ -26,6 +32,9 @@ type Detail = {
   ends_at: string;
   status: string;
   notes: string | null;
+  price_cents: number | null;
+  paid_cents: number | null;
+  payment_method: string | null;
   clients: {
     full_name: string;
     phone: string | null;
@@ -71,14 +80,20 @@ export default function ApptDetailModal({
 }) {
   const [appt, setAppt] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"view" | "reschedule" | "rebook">("view");
+  const [mode, setMode] = useState<
+    "view" | "reschedule" | "rebook" | "checkout"
+  >("view");
   const [when, setWhen] = useState("");
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
     supabase
       .from("appointments")
+      // `*` so new payment columns are tolerated even before the migration runs.
       .select(
-        "id,client_id,starts_at,ends_at,status,notes,clients(full_name,phone,email),services(name,duration_minutes)",
+        "*,clients(full_name,phone,email),services(name,duration_minutes)",
       )
       .eq("id", appointmentId)
       .single()
@@ -91,9 +106,11 @@ export default function ApptDetailModal({
   useEffect(load, [load]);
 
   async function setStatus(status: string) {
+    const patch: Record<string, unknown> = { status };
+    if (status === "checked_in") patch.checked_in_at = new Date().toISOString();
     const { error } = await supabase
       .from("appointments")
-      .update({ status })
+      .update(patch)
       .eq("id", appointmentId);
     if (error) {
       setError(error.message);
@@ -102,6 +119,43 @@ export default function ApptDetailModal({
     onChanged?.();
     if (status === "cancelled") onClose();
     else load();
+  }
+
+  function openCheckout() {
+    if (!appt) return;
+    const cents = appt.paid_cents ?? appt.price_cents ?? 0;
+    setAmount(cents ? (cents / 100).toFixed(2) : "");
+    setMethod(appt.payment_method ?? "card");
+    setError(null);
+    setMode("checkout");
+  }
+
+  async function checkOut() {
+    if (!method) return;
+    const dollars = parseFloat(amount);
+    if (Number.isNaN(dollars) || dollars < 0) {
+      setError("Enter the amount paid.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const { error } = await supabase
+      .from("appointments")
+      .update({
+        status: "checked_out",
+        paid_cents: Math.round(dollars * 100),
+        payment_method: method,
+        checked_out_at: new Date().toISOString(),
+      })
+      .eq("id", appointmentId);
+    setBusy(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setMode("view");
+    onChanged?.();
+    load();
   }
 
   async function reschedule() {
@@ -145,8 +199,19 @@ export default function ApptDetailModal({
                 </p>
                 <p className="mt-1 text-sm text-muted">
                   {appt.services?.name} · {fullWhen(appt.starts_at)} ·{" "}
-                  <span className="capitalize">{appt.status}</span>
+                  <span className="text-foreground">
+                    {statusLabel(appt.status)}
+                  </span>
                 </p>
+                {(appt.status === "checked_out" ||
+                  appt.status === "completed") &&
+                  appt.paid_cents != null && (
+                    <p className="mt-1 text-sm text-accent">
+                      Paid {money(appt.paid_cents)}
+                      {appt.payment_method &&
+                        ` · ${paymentLabel(appt.payment_method)}`}
+                    </p>
+                  )}
                 {appt.notes && (
                   <p className="mt-2 text-sm text-muted">“{appt.notes}”</p>
                 )}
@@ -225,31 +290,121 @@ export default function ApptDetailModal({
                 }}
                 onCancel={() => setMode("view")}
               />
+            ) : mode === "checkout" ? (
+              <div className="mt-4 grid gap-3">
+                <p className="text-sm text-muted">
+                  Check out — record the payment:
+                </p>
+                <label className="text-sm">
+                  <span className="mb-1 block">Amount paid</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      inputMode="decimal"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="input w-32"
+                      autoFocus
+                    />
+                  </div>
+                </label>
+                <div>
+                  <span className="mb-1 block text-sm">Paid with</span>
+                  <div className="flex flex-wrap gap-2">
+                    {PAYMENT_METHODS.map((m) => (
+                      <button
+                        key={m.value}
+                        type="button"
+                        onClick={() => setMethod(m.value)}
+                        className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                          method === m.value
+                            ? "border-accent bg-accent text-white"
+                            : "border-foreground/15 hover:border-accent"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={checkOut}
+                    disabled={busy || !method}
+                    className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                  >
+                    {busy ? "Saving…" : "Check out & mark paid"}
+                  </button>
+                  <button
+                    onClick={() => setMode("view")}
+                    className="text-sm text-muted hover:text-accent"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                {appt.status !== "confirmed" && (
+                {appt.status === "booked" && (
                   <ActionBtn onClick={() => setStatus("confirmed")}>
                     Confirm
                   </ActionBtn>
                 )}
-                <ActionBtn
-                  onClick={() => {
-                    setWhen("");
-                    setMode("reschedule");
-                  }}
-                >
-                  Reschedule
-                </ActionBtn>
+                {(appt.status === "booked" ||
+                  appt.status === "confirmed" ||
+                  appt.status === "no_show") && (
+                  <ActionBtn primary onClick={() => setStatus("checked_in")}>
+                    Check in
+                  </ActionBtn>
+                )}
+                {appt.status === "checked_in" && (
+                  <>
+                    <ActionBtn primary onClick={openCheckout}>
+                      Check out
+                    </ActionBtn>
+                    <ActionBtn onClick={() => setStatus("confirmed")}>
+                      Undo check-in
+                    </ActionBtn>
+                  </>
+                )}
+                {(appt.status === "checked_out" ||
+                  appt.status === "completed") && (
+                  <>
+                    <ActionBtn onClick={openCheckout}>Edit payment</ActionBtn>
+                    <ActionBtn onClick={() => setStatus("checked_in")}>
+                      Undo check-out
+                    </ActionBtn>
+                  </>
+                )}
+                {appt.status !== "checked_out" &&
+                  appt.status !== "completed" && (
+                    <ActionBtn
+                      onClick={() => {
+                        setWhen("");
+                        setMode("reschedule");
+                      }}
+                    >
+                      Reschedule
+                    </ActionBtn>
+                  )}
                 <ActionBtn onClick={() => setMode("rebook")}>Rebook</ActionBtn>
-                <ActionBtn onClick={() => setStatus("completed")}>
-                  Completed
-                </ActionBtn>
-                <ActionBtn onClick={() => setStatus("no_show")}>
-                  No-show
-                </ActionBtn>
-                <ActionBtn danger onClick={() => setStatus("cancelled")}>
-                  Cancel
-                </ActionBtn>
+                {appt.status !== "no_show" &&
+                  appt.status !== "checked_out" &&
+                  appt.status !== "completed" && (
+                    <ActionBtn onClick={() => setStatus("no_show")}>
+                      No-show
+                    </ActionBtn>
+                  )}
+                {appt.status !== "cancelled" &&
+                  appt.status !== "checked_out" &&
+                  appt.status !== "completed" && (
+                    <ActionBtn danger onClick={() => setStatus("cancelled")}>
+                      Cancel
+                    </ActionBtn>
+                  )}
               </div>
             )}
           </>
@@ -362,18 +517,22 @@ function ActionBtn({
   children,
   onClick,
   danger,
+  primary,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   danger?: boolean;
+  primary?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       className={`rounded-full border px-3 py-1 transition ${
-        danger
-          ? "border-accent-dark/30 text-accent-dark hover:bg-accent/5"
-          : "border-foreground/15 hover:border-accent hover:text-accent"
+        primary
+          ? "border-accent bg-accent text-white hover:bg-accent-dark"
+          : danger
+            ? "border-accent-dark/30 text-accent-dark hover:bg-accent/5"
+            : "border-foreground/15 hover:border-accent hover:text-accent"
       }`}
     >
       {children}

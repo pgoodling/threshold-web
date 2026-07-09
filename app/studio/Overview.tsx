@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { salonNow, salonWallToISO, timeLabel } from "../../lib/format";
+import {
+  salonNow,
+  salonWallToISO,
+  timeLabel,
+  statusLabel,
+} from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
 
 type TodayAppt = {
@@ -92,6 +97,11 @@ export default function Overview({
                 {timeLabel(a.starts_at)}
               </span>
               <span className="font-medium">{a.clients?.full_name ?? "—"}</span>
+              {a.status !== "booked" && a.status !== "confirmed" && (
+                <span className={`rounded-full px-2 py-0.5 text-xs ${statusPill(a.status)}`}>
+                  {statusLabel(a.status)}
+                </span>
+              )}
               <span className="ml-auto text-sm text-muted">
                 {a.services?.name}
               </span>
@@ -110,6 +120,20 @@ export default function Overview({
       )}
     </div>
   );
+}
+
+function statusPill(status: string): string {
+  switch (status) {
+    case "checked_in":
+      return "bg-accent/15 text-accent-dark";
+    case "checked_out":
+    case "completed":
+      return "bg-foreground/5 text-muted";
+    case "no_show":
+      return "bg-accent-dark/10 text-accent-dark";
+    default:
+      return "bg-foreground/5 text-muted";
+  }
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

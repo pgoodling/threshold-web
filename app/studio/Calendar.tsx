@@ -438,7 +438,10 @@ function TimeGrid({
                 const top = Math.max(0, ((startMin - GRID_TOP_MIN) / 60) * HOUR_PX);
                 const h = Math.max(22, ((endMin - startMin) / 60) * HOUR_PX);
                 const c = catColors(a.services?.name);
-                const dim = a.status === "no_show" || a.status === "completed";
+                const dim =
+                  a.status === "no_show" ||
+                  a.status === "completed" ||
+                  a.status === "checked_out";
                 return (
                   <button
                     key={a.id}

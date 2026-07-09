@@ -9,6 +9,9 @@
 -- Safe to re-run: it clears the previous demo run first. Every demo client uses
 -- an @example.com email so they're easy to spot and remove.
 --
+-- REQUIRES migrations 0001–0006 to have run first (it uses the check-in/out
+-- statuses + payment columns added in 0006).
+--
 -- TO REMOVE ALL DEMO DATA LATER, run just these two lines:
 --   delete from appointments where client_id in (select id from clients where email like '%@example.com');
 --   delete from clients where email like '%@example.com';
@@ -125,6 +128,11 @@ declare
   price    int;
   st       text;
   note     text;
+  end_ts   timestamptz;
+  paid     int;
+  pm       text;
+  r        numeric;
+  pmr      numeric;
 begin
   -- Walk each day from ~14 weeks ago to ~4 weeks out.
   for off_i in 0..126 loop
@@ -171,13 +179,33 @@ begin
         continue;
       end if;
 
-      -- Past slots are done (mostly completed); future slots are on the books.
-      if ts < now() then
-        st := case
-                when random() < 0.86 then 'completed'
-                when random() < 0.50 then 'no_show'
-                else 'cancelled'
-              end;
+      end_ts := ts + make_interval(mins => dur);
+      paid := null;
+      pm := null;
+
+      -- Finished slots are checked out (paid); the one spanning "now" is in the
+      -- chair (checked in); the rest are still on the books.
+      if end_ts <= now() then
+        r := random();
+        if r < 0.86 then
+          st := 'checked_out';
+          -- occasional tip on top of the service price
+          paid := price + (array[0, 0, 0, 500, 1000, 1500, 2000])[1 + floor(random() * 7)::int];
+          pmr := random();
+          pm := case
+                  when pmr < 0.68 then 'card'
+                  when pmr < 0.80 then 'cash'
+                  when pmr < 0.90 then 'venmo'
+                  when pmr < 0.97 then 'zelle'
+                  else 'other'
+                end;
+        elsif r < 0.93 then
+          st := 'no_show';
+        else
+          st := 'cancelled';
+        end if;
+      elsif ts <= now() and end_ts > now() then
+        st := 'checked_in';
       else
         st := case when random() < 0.70 then 'booked' else 'confirmed' end;
       end if;
@@ -190,8 +218,16 @@ begin
       -- Skip a slot only if it would collide with a real appointment already
       -- in the calendar (demo slots never overlap each other).
       begin
-        insert into appointments (client_id, service_id, starts_at, ends_at, status, price_cents, notes)
-          values (cid, sid, ts, ts + make_interval(mins => dur), st, price, note);
+        insert into appointments (
+          client_id, service_id, starts_at, ends_at, status, price_cents, notes,
+          paid_cents, payment_method, checked_in_at, checked_out_at
+        )
+        values (
+          cid, sid, ts, end_ts, st, price, note,
+          paid, pm,
+          case when st = 'checked_in' then ts end,
+          case when st = 'checked_out' then end_ts end
+        );
       exception
         when exclusion_violation then
           null;
