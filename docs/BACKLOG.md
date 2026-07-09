@@ -21,7 +21,7 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 | 1 | **Confirmation + reminder emails** | "You're booked" + 24h reminder to client; Evelyn notified | **Resend** account; the "from" address; reminder timing. I draft the copy. |
 | 2 | **Real contact info** | Replace placeholder phone/email on the site | Real **phone + email** |
 | 3 | **Booking rules** | Min notice (e.g. no booking within 2h), buffer between appts, max advance | Your **numbers** |
-| 4 | **Cancellation policy** | Shown at booking | Policy **wording** (or approve draft) |
+| 4 | ~~**Cancellation policy**~~ ✅ **SHIPPED** | "Reserving your time" note at booking: 24h notice; late cancels / no-shows may be charged up to full service price (Evelyn's discretion) | — |
 | 5 | ~~**Client & service metrics**~~ ✅ **SHIPPED** | Reports tab: revenue, completed, avg ticket, no-show rate; by-service + top-clients tables; range selector | — (populates as appts are marked completed) |
 | 6 | **Card on file + per-service deposits** (Stripe) | Save a card at booking; collect a deposit on *some* services; charge no-show fees at Evelyn's discretion | **Evelyn's Stripe account** (the blocker); which services get a deposit + amount (set in the Services tab — field already exists); no-show fee + cutoff |
 
@@ -108,6 +108,6 @@ Optional uploads during the public booking flow: a photo of the client's hair to
 1. ~~Online deposits vs in-person only~~ — **DECIDED:** card-on-file for all + per-service deposits, via Stripe; in-person via Intuit.
 2. Which **services get a deposit**, and how much? (Evelyn can set these in the Services tab now.)
 3. Real **phone + email** for the site?
-4. **No-show/cancellation policy** — fee amount + cutoff window?
+4. ~~No-show/cancellation policy~~ — **DECIDED:** 24h notice; late cancels / no-shows may be charged up to full service price, at Evelyn's discretion.
 5. Booking **min-notice, buffer, and max-advance** numbers?
 6. Reminder timing — 24h, 48h, or both?
