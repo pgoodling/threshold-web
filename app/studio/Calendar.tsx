@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { salonWallToISO, dayKey, timeLabel, salonNow } from "../../lib/format";
+import {
+  salonWallToISO,
+  dayKey,
+  timeLabel,
+  salonNow,
+  statusBlockColor,
+  liveStatus,
+} from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
 
 type Appt = {
@@ -349,7 +356,9 @@ function MonthView({
                 {parseKey(k).d}
               </div>
               {list.slice(0, 3).map((a) => {
-                const c = catColors(a.services?.name);
+                const c =
+                  statusBlockColor(liveStatus(a.status, a.starts_at)) ??
+                  catColors(a.services?.name);
                 return (
                   <div
                     key={a.id}
@@ -437,11 +446,12 @@ function TimeGrid({
                 const endMin = salonMinutes(a.ends_at);
                 const top = Math.max(0, ((startMin - GRID_TOP_MIN) / 60) * HOUR_PX);
                 const h = Math.max(22, ((endMin - startMin) / 60) * HOUR_PX);
-                const c = catColors(a.services?.name);
-                const dim =
-                  a.status === "no_show" ||
-                  a.status === "completed" ||
-                  a.status === "checked_out";
+                // Checked-in/out + running-late get their own status color;
+                // everything else keeps the service color. No-shows stay dimmed.
+                const c =
+                  statusBlockColor(liveStatus(a.status, a.starts_at)) ??
+                  catColors(a.services?.name);
+                const dim = a.status === "no_show";
                 return (
                   <button
                     key={a.id}

@@ -5,6 +5,8 @@ import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
   statusLabel,
+  statusPillClass,
+  liveStatus,
   paymentLabel,
   money,
   PAYMENT_METHODS,
@@ -197,10 +199,14 @@ export default function ApptDetailModal({
                 <p className="font-display text-xl">
                   {appt.clients?.full_name}
                 </p>
-                <p className="mt-1 text-sm text-muted">
-                  {appt.services?.name} · {fullWhen(appt.starts_at)} ·{" "}
-                  <span className="text-foreground">
-                    {statusLabel(appt.status)}
+                <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm text-muted">
+                  <span>
+                    {appt.services?.name} · {fullWhen(appt.starts_at)}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(liveStatus(appt.status, appt.starts_at))}`}
+                  >
+                    {statusLabel(liveStatus(appt.status, appt.starts_at))}
                   </span>
                 </p>
                 {(appt.status === "checked_out" ||
