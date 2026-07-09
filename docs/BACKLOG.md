@@ -74,10 +74,13 @@ Goal: automate as much client texting as possible around the appointment lifecyc
 
 **Hard dependency:** **A2P 10DLC registration** must clear before any of this can go live — automated/two-way US business texting legally requires it. (As of 2026-07-09: waiting for the pending registration to fail so Paul can resubmit with the correct number — the OTP had gone to his wife's number. This is the critical path.) Also needs opt-out (STOP) handling, quiet-hours rules, and the existing `/api/sms/booking-confirm` hardened.
 
-**Foundation (Phase 1):**
-- `messages` table (client_id, appointment_id?, direction in/out, body, twilio_sid, status, created_at, read_at) + RLS.
-- **Inbound webhook** `/api/sms/inbound` — Twilio posts incoming texts; match `from` → client by E.164; store; respond TwiML. Handle STOP/START.
-- **Studio inbox/thread** — see + reply to client texts; unread badge; inbound surfaces on the appointment + Overview "needs attention".
+**Foundation (Phase 1) — ✅ BUILT (needs migration `0007_messages.sql` + env):**
+- ✅ `messages` table + `clients.sms_opt_out` + RLS (migration `0007_messages.sql`).
+- ✅ **Inbound webhook** `/api/sms/inbound` — Twilio-signature verified; matches `from` → client by last-10 digits; links to the client's nearest current/upcoming appt; logs the text; handles STOP/START. Writes via the service-role key.
+- ✅ **Authenticated send route** `/api/sms/send` — verifies Evelyn's session token, respects opt-out, sends via Twilio + logs. 503s until Twilio configured.
+- ✅ **Studio Messages tab** — conversation list + thread + reply, mark-read, unread badge on the tab (desktop + mobile).
+- Needs: run migration `0007`, set `SUPABASE_SERVICE_ROLE_KEY` (server env), and point Twilio's inbound webhook at `/api/sms/inbound`. Still gated on A2P for real sending.
+- ▢ TODO next: surface inbound on the appointment detail + Overview "needs attention".
 
 **Late-arrival flow (Phase 2):**
 - **Scheduler** (Supabase pg_cron or Vercel cron, every few min) finds booked/confirmed appts past start + not checked in + not already pinged → auto-text "still on your way?"; record it; flag the appt.

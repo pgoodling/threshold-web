@@ -9,6 +9,7 @@ import Calendar from "./Calendar";
 import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
+import Messages from "./Messages";
 import ApptDetailModal from "./ApptDetailModal";
 import { salonWallToISO, dayKey, dateLabel, timeLabel } from "../../lib/format";
 
@@ -144,6 +145,7 @@ function Login() {
 type Tab =
   | "overview"
   | "tasks"
+  | "messages"
   | "calendar"
   | "appointments"
   | "clients"
@@ -155,6 +157,7 @@ type Tab =
 const TABS: [Tab, string][] = [
   ["overview", "Overview"],
   ["tasks", "Tasks"],
+  ["messages", "Messages"],
   ["calendar", "Calendar"],
   ["appointments", "List"],
   ["clients", "Clients"],
@@ -167,7 +170,29 @@ const TABS: [Tab, string][] = [
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("overview");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   const [pendingClient, setPendingClient] = useState<string | null>(null);
+
+  // Count of unread incoming texts, for the Messages tab badge. Refreshes on
+  // tab change and every minute.
+  useEffect(() => {
+    let active = true;
+    const loadUnread = () =>
+      supabase
+        .from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("direction", "inbound")
+        .is("read_at", null)
+        .then(({ count }) => {
+          if (active) setUnread(count ?? 0);
+        });
+    loadUnread();
+    const t = setInterval(loadUnread, 60000);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, [tab]);
   const goToClient = (id: string) => {
     setPendingClient(id);
     setTab("clients");
@@ -203,6 +228,11 @@ function Dashboard() {
             }`}
           >
             {label}
+            {key === "messages" && unread > 0 && (
+              <span className="ml-1.5 align-middle rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">
+                {unread}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -215,7 +245,12 @@ function Dashboard() {
           aria-haspopup="true"
           className="flex w-full items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm"
         >
-          <span className="font-medium">{currentLabel}</span>
+          <span className="flex items-center gap-2 font-medium">
+            {currentLabel}
+            {unread > 0 && tab !== "messages" && (
+              <span className="h-2 w-2 rounded-full bg-accent" />
+            )}
+          </span>
           <span
             className="relative flex h-4 w-5 flex-col justify-between"
             aria-hidden="true"
@@ -248,13 +283,18 @@ function Dashboard() {
                 <button
                   key={key}
                   onClick={() => select(key)}
-                  className={`block w-full px-4 py-3 text-left text-sm transition ${
+                  className={`flex w-full items-center gap-2 px-4 py-3 text-left text-sm transition ${
                     tab === key
                       ? "bg-accent/10 font-medium text-accent-dark"
                       : "text-foreground hover:bg-foreground/5"
                   }`}
                 >
                   {label}
+                  {key === "messages" && unread > 0 && (
+                    <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">
+                      {unread}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -265,6 +305,7 @@ function Dashboard() {
       <div className="mt-8">
         {tab === "overview" && <Overview onOpenClient={goToClient} />}
         {tab === "tasks" && <Tasks />}
+        {tab === "messages" && <Messages />}
         {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
         {tab === "appointments" && <Appointments onOpenClient={goToClient} />}
         {tab === "clients" && (
