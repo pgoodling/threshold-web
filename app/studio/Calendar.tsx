@@ -66,12 +66,18 @@ function salonMinutes(iso: string) {
   return h * 60 + m;
 }
 
+// One distinct color per service (booked / upcoming). Kept off the status
+// hues — green, red, charcoal — so status coloring never collides. Order
+// matters: "men" is checked before "cut" since "Men's Cuts" contains both.
 function catColors(name: string | undefined) {
   const n = (name ?? "").toLowerCase();
-  if (n.includes("color") || n.includes("highlight"))
-    return { bg: "#FAECE7", fg: "#712B13" };
-  if (n.includes("cut")) return { bg: "#E1F5EE", fg: "#085041" };
-  return { bg: "#FAEEDA", fg: "#633806" };
+  if (n.includes("highlight")) return { bg: "#f6e7a8", fg: "#6e5410" }; // soft yellow
+  if (n.includes("men")) return { bg: "#e6f1fb", fg: "#0c447c" }; // blue
+  if (n.includes("color")) return { bg: "#faece7", fg: "#712b13" }; // terracotta
+  if (n.includes("cut")) return { bg: "#fbeaf0", fg: "#72243e" }; // rose
+  if (n.includes("treatment")) return { bg: "#eeedfe", fg: "#3c3489" }; // lavender
+  if (n.includes("blowout")) return { bg: "#faeeda", fg: "#633806" }; // clay
+  return { bg: "#faeeda", fg: "#633806" }; // clay (fallback)
 }
 
 const hourLabel = (h: number) =>
