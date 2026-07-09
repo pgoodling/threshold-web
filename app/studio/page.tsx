@@ -152,13 +152,31 @@ type Tab =
   | "hours"
   | "timeoff";
 
+const TABS: [Tab, string][] = [
+  ["overview", "Overview"],
+  ["tasks", "Tasks"],
+  ["calendar", "Calendar"],
+  ["appointments", "List"],
+  ["clients", "Clients"],
+  ["services", "Services"],
+  ["reports", "Reports"],
+  ["hours", "Hours"],
+  ["timeoff", "Time off"],
+];
+
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("overview");
+  const [menuOpen, setMenuOpen] = useState(false);
   const [pendingClient, setPendingClient] = useState<string | null>(null);
   const goToClient = (id: string) => {
     setPendingClient(id);
     setTab("clients");
   };
+  const select = (key: Tab) => {
+    setTab(key);
+    setMenuOpen(false);
+  };
+  const currentLabel = TABS.find(([k]) => k === tab)?.[1] ?? "";
 
   return (
     <Shell>
@@ -172,20 +190,9 @@ function Dashboard() {
         </button>
       </div>
 
-      <div className="mt-6 flex gap-1 border-b border-foreground/10 text-sm">
-        {(
-          [
-            ["overview", "Overview"],
-            ["tasks", "Tasks"],
-            ["calendar", "Calendar"],
-            ["appointments", "List"],
-            ["clients", "Clients"],
-            ["services", "Services"],
-            ["reports", "Reports"],
-            ["hours", "Hours"],
-            ["timeoff", "Time off"],
-          ] as [Tab, string][]
-        ).map(([key, label]) => (
+      {/* Desktop: horizontal tab bar */}
+      <div className="mt-6 hidden gap-1 border-b border-foreground/10 text-sm sm:flex">
+        {TABS.map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -198,6 +205,61 @@ function Dashboard() {
             {label}
           </button>
         ))}
+      </div>
+
+      {/* Mobile: hamburger menu showing the current tab */}
+      <div className="relative mt-6 sm:hidden">
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-expanded={menuOpen}
+          aria-haspopup="true"
+          className="flex w-full items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm"
+        >
+          <span className="font-medium">{currentLabel}</span>
+          <span
+            className="relative flex h-4 w-5 flex-col justify-between"
+            aria-hidden="true"
+          >
+            <span
+              className={`h-0.5 w-full rounded-full bg-foreground transition ${
+                menuOpen ? "translate-y-[7px] rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`h-0.5 w-full rounded-full bg-foreground transition ${
+                menuOpen ? "opacity-0" : ""
+              }`}
+            />
+            <span
+              className={`h-0.5 w-full rounded-full bg-foreground transition ${
+                menuOpen ? "-translate-y-[7px] -rotate-45" : ""
+              }`}
+            />
+          </span>
+        </button>
+        {menuOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-10"
+              onClick={() => setMenuOpen(false)}
+            />
+            <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-foreground/10 bg-white shadow-lg">
+              {TABS.map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => select(key)}
+                  className={`block w-full px-4 py-3 text-left text-sm transition ${
+                    tab === key
+                      ? "bg-accent/10 font-medium text-accent-dark"
+                      : "text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="mt-8">
