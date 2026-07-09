@@ -549,10 +549,9 @@ export default function BookPage() {
                 </div>
               </div>
 
-              <p className="text-xs text-muted">
-                Email is optional. We&apos;ll save a card to hold your
-                appointment — you won&apos;t be charged now.
-              </p>
+              <p className="text-xs text-muted">Email is optional.</p>
+
+              <PolicyNote />
 
               {submitError && <ErrorNote>{submitError}</ErrorNote>}
 
@@ -579,10 +578,7 @@ export default function BookPage() {
             </form>
             ) : (
               <div className="mt-8">
-                <p className="mb-4 text-sm text-muted">
-                  Save a card to hold your appointment. You won&apos;t be charged
-                  now.
-                </p>
+                <PolicyNote className="mb-5" />
                 {clientSecret && (
                   <div className="grid gap-4">
                     <Elements
@@ -710,6 +706,27 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+// Explains why we collect a card and the cancellation policy (24h notice; late
+// cancels / no-shows may be charged up to the full service price, at Evelyn's
+// discretion). Shown before and during card entry.
+function PolicyNote({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm text-muted ${className}`}
+    >
+      <p className="font-medium text-foreground">Reserving your time</p>
+      <p className="mt-1.5 leading-relaxed">
+        We save a card to hold your appointment —{" "}
+        <span className="text-foreground">you won&apos;t be charged today.</span>{" "}
+        Plans change, and that&apos;s okay: just cancel or reschedule at least{" "}
+        <span className="text-foreground">24 hours ahead</span>{" "}
+        and there&apos;s no charge. Cancellations within 24 hours or missed
+        appointments may be charged up to the full price of the service.
+      </p>
+    </div>
   );
 }
 
