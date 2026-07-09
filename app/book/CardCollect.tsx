@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import { CardElement, useElements, useStripe } from "@stripe/react-stripe-js";
 
-// Renders Stripe's Payment Element (Apple Pay / Google Pay / card) and, on
-// confirm, saves the card to the customer (SetupIntent) then runs onConfirmed
-// to create the booking. No charge is made here.
+// A clean, card-only input for saving a card on file (SetupIntent). No bank /
+// Link / other payment methods — just card number, expiry, CVC.
 export default function CardCollect({
+  clientSecret,
   onConfirmed,
 }: {
+  clientSecret: string;
   onConfirmed: () => Promise<void>;
 }) {
   const stripe = useStripe();
@@ -18,14 +19,15 @@ export default function CardCollect({
 
   async function handle() {
     if (!stripe || !elements) return;
+    const card = elements.getElement(CardElement);
+    if (!card) return;
     setBusy(true);
     setError(null);
 
-    const { error: err, setupIntent } = await stripe.confirmSetup({
-      elements,
-      confirmParams: { return_url: window.location.href },
-      redirect: "if_required",
-    });
+    const { error: err, setupIntent } = await stripe.confirmCardSetup(
+      clientSecret,
+      { payment_method: { card } },
+    );
 
     if (err) {
       setError(err.message ?? "Your card couldn't be saved. Please try again.");
@@ -48,7 +50,19 @@ export default function CardCollect({
 
   return (
     <div className="grid gap-5">
-      <PaymentElement />
+      <div className="rounded-xl border border-foreground/15 bg-white px-4 py-3.5">
+        <CardElement
+          options={{
+            style: {
+              base: {
+                fontSize: "16px",
+                color: "#32251f",
+                "::placeholder": { color: "#6f5c52" },
+              },
+            },
+          }}
+        />
+      </div>
       {error && (
         <p className="rounded-xl border border-accent-dark/30 bg-accent/5 px-4 py-3 text-sm text-accent-dark">
           {error}
