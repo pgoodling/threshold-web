@@ -584,17 +584,18 @@ export default function BookPage() {
                 </p>
                 {clientSecret && (
                   <Elements
-                    key={clientSecret}
                     stripe={stripePromise}
                     options={{
-                      clientSecret,
                       appearance: {
                         theme: "flat",
                         variables: { colorPrimary: "#bd6b4d" },
                       },
                     }}
                   >
-                    <CardCollect onConfirmed={finishBooking} />
+                    <CardCollect
+                      clientSecret={clientSecret}
+                      onConfirmed={finishBooking}
+                    />
                   </Elements>
                 )}
                 {submitError && <ErrorNote>{submitError}</ErrorNote>}
