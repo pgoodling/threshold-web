@@ -5,6 +5,7 @@ import { Elements } from "@stripe/react-stripe-js";
 import { supabase } from "../../lib/supabase";
 import { stripePromise } from "../../lib/stripe";
 import CardCollect from "./CardCollect";
+import WalletCollect from "./WalletCollect";
 
 const TZ = "America/New_York";
 const MONTHS_AHEAD = 6; // how far out clients may book
@@ -583,20 +584,38 @@ export default function BookPage() {
                   now.
                 </p>
                 {clientSecret && (
-                  <Elements
-                    stripe={stripePromise}
-                    options={{
-                      appearance: {
-                        theme: "flat",
-                        variables: { colorPrimary: "#bd6b4d" },
-                      },
-                    }}
-                  >
-                    <CardCollect
-                      clientSecret={clientSecret}
-                      onConfirmed={finishBooking}
-                    />
-                  </Elements>
+                  <div className="grid gap-4">
+                    <Elements
+                      stripe={stripePromise}
+                      options={{
+                        mode: "setup",
+                        currency: "usd",
+                        appearance: {
+                          theme: "flat",
+                          variables: { colorPrimary: "#bd6b4d" },
+                        },
+                      }}
+                    >
+                      <WalletCollect
+                        clientSecret={clientSecret}
+                        onConfirmed={finishBooking}
+                      />
+                    </Elements>
+                    <Elements
+                      stripe={stripePromise}
+                      options={{
+                        appearance: {
+                          theme: "flat",
+                          variables: { colorPrimary: "#bd6b4d" },
+                        },
+                      }}
+                    >
+                      <CardCollect
+                        clientSecret={clientSecret}
+                        onConfirmed={finishBooking}
+                      />
+                    </Elements>
+                  </div>
                 )}
                 {submitError && <ErrorNote>{submitError}</ErrorNote>}
                 <button
