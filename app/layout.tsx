@@ -29,6 +29,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#faf6f1",
+  width: "device-width",
+  initialScale: 1,
 };
 
 // Local-business structured data for Google Search/Maps discoverability.

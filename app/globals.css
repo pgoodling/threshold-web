@@ -18,10 +18,22 @@
   --font-display: var(--font-display);
 }
 
+/* App-like feel on phones: no rubber-band bounce / pull-to-refresh, no iOS
+   text auto-resize. */
+html {
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
+  /* Stop scroll-chaining/bounce, remove the tap flash, and kill the
+     double-tap-to-zoom jump (pinch-to-zoom still works). */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* Shared form field styling for the booking flow. */
