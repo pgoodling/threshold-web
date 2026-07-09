@@ -7,6 +7,8 @@ import {
   salonWallToISO,
   timeLabel,
   statusLabel,
+  statusPillClass,
+  liveStatus,
 } from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
 
@@ -31,6 +33,12 @@ export default function Overview({
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  // Re-render every minute so a passed start time flips to "Running late".
+  const [, setMinute] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setMinute((m) => m + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const n = salonNow();
@@ -97,11 +105,14 @@ export default function Overview({
                 {timeLabel(a.starts_at)}
               </span>
               <span className="font-medium">{a.clients?.full_name ?? "—"}</span>
-              {a.status !== "booked" && a.status !== "confirmed" && (
-                <span className={`rounded-full px-2 py-0.5 text-xs ${statusPill(a.status)}`}>
-                  {statusLabel(a.status)}
-                </span>
-              )}
+              {(() => {
+                const eff = liveStatus(a.status, a.starts_at);
+                return eff !== "booked" && eff !== "confirmed" ? (
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(eff)}`}>
+                    {statusLabel(eff)}
+                  </span>
+                ) : null;
+              })()}
               <span className="ml-auto text-sm text-muted">
                 {a.services?.name}
               </span>
@@ -120,20 +131,6 @@ export default function Overview({
       )}
     </div>
   );
-}
-
-function statusPill(status: string): string {
-  switch (status) {
-    case "checked_in":
-      return "bg-accent/15 text-accent-dark";
-    case "checked_out":
-    case "completed":
-      return "bg-foreground/5 text-muted";
-    case "no_show":
-      return "bg-accent-dark/10 text-accent-dark";
-    default:
-      return "bg-foreground/5 text-muted";
-  }
 }
 
 function Stat({ label, value }: { label: string; value: string }) {

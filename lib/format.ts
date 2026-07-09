@@ -80,11 +80,58 @@ export const statusLabel = (status: string): string =>
       completed: "Checked out", // legacy — pre-check-in/out data
       no_show: "No-show",
       cancelled: "Cancelled",
+      late: "Running late",
     }) as Record<string, string>
   )[status] ?? status;
 
+// A booked/confirmed appointment whose start time has passed without a
+// check-in is "running late" — a computed display state, never stored.
+export function liveStatus(status: string, startsAtISO: string): string {
+  if (
+    (status === "booked" || status === "confirmed") &&
+    new Date(startsAtISO).getTime() < Date.now()
+  ) {
+    return "late";
+  }
+  return status;
+}
+
 // Statuses that count as paid revenue (checked_out, plus legacy completed).
 export const PAID_STATUSES = ["checked_out", "completed"];
+
+// Green = checked in (in the chair now), charcoal = checked out & paid,
+// red = running late (past start, not checked in).
+const STATUS_IN = { bg: "#1e7a46", fg: "#ffffff" };
+const STATUS_OUT = { bg: "#2b2320", fg: "#f2ece6" };
+const STATUS_LATE = { bg: "#a32d2d", fg: "#ffffff" };
+
+// Calendar block color for a (live) status, or null to fall back to the service
+// color — used for booked/upcoming, where the service type is the useful signal.
+export function statusBlockColor(
+  status: string,
+): { bg: string; fg: string } | null {
+  if (status === "checked_in") return STATUS_IN;
+  if (status === "checked_out" || status === "completed") return STATUS_OUT;
+  if (status === "late") return STATUS_LATE;
+  return null;
+}
+
+// Matching pill/badge classes for lists (Overview, client history, modal).
+export function statusPillClass(status: string): string {
+  switch (status) {
+    case "checked_in":
+      return "bg-[#1e7a46] text-white";
+    case "checked_out":
+    case "completed":
+      return "bg-[#2b2320] text-[#f2ece6]";
+    case "late":
+      return "bg-[#a32d2d] text-white";
+    case "no_show":
+      return "bg-accent-dark/10 text-accent-dark";
+    default:
+      return "bg-foreground/5 text-muted";
+  }
+}
 
 // Payment methods captured at check-out. The split matters for reconciling
 // against Intuit: only "card" flows through Intuit's deposits; the rest don't.
