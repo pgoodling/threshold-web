@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { salonWallToISO, whenLabel } from "../../lib/format";
+import { salonWallToISO, whenLabel, statusLabel } from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
 
 type Client = {
@@ -357,7 +357,7 @@ function VisitList({
             {whenLabel(v.starts_at)}
             {v.status !== "booked" && v.status !== "confirmed" && (
               <span className="ml-2 rounded-full bg-foreground/5 px-2 py-0.5 text-xs">
-                {v.status}
+                {statusLabel(v.status)}
               </span>
             )}
           </span>

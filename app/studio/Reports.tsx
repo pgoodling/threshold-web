@@ -2,18 +2,31 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { dateLabel, money } from "../../lib/format";
+import {
+  dateLabel,
+  money,
+  PAID_STATUSES,
+  PAYMENT_METHODS,
+  paymentLabel,
+} from "../../lib/format";
 
 type Row = {
   id: string;
   starts_at: string;
   status: string;
   price_cents: number | null;
+  paid_cents: number | null;
+  payment_method: string | null;
   client_id: string;
   service_id: string;
   services: { name: string } | null;
   clients: { full_name: string } | null;
 };
+
+// Checked-out (paid) appointments count as revenue; use the actual amount
+// collected at check-out, falling back to the service price for legacy data.
+const isPaid = (status: string) => PAID_STATUSES.includes(status);
+const paidAmount = (r: Row) => r.paid_cents ?? r.price_cents ?? 0;
 
 type Range = "30" | "90" | "365" | "all";
 const RANGES: [Range, string][] = [
@@ -32,9 +45,8 @@ export default function Reports() {
   useEffect(() => {
     supabase
       .from("appointments")
-      .select(
-        "id,starts_at,status,price_cents,client_id,service_id,services(name),clients(full_name)",
-      )
+      // `*` so payment columns are tolerated even before the migration runs.
+      .select("*,services(name),clients(full_name)")
       .order("starts_at", { ascending: false })
       .then(({ data, error }) => {
         setLoading(false);
@@ -50,16 +62,36 @@ export default function Reports() {
   }, [rows, range]);
 
   const stats = useMemo(() => {
-    const completed = inRange.filter((r) => r.status === "completed");
+    const paid = inRange.filter((r) => isPaid(r.status));
     const noShow = inRange.filter((r) => r.status === "no_show");
-    const revenue = completed.reduce((s, r) => s + (r.price_cents ?? 0), 0);
-    const decided = completed.length + noShow.length;
+    const revenue = paid.reduce((s, r) => s + paidAmount(r), 0);
+    const decided = paid.length + noShow.length;
     return {
       revenue,
-      completedCount: completed.length,
-      avgTicket: completed.length ? Math.round(revenue / completed.length) : 0,
+      paidCount: paid.length,
+      avgTicket: paid.length ? Math.round(revenue / paid.length) : 0,
       noShowRate: decided ? Math.round((noShow.length / decided) * 100) : null,
     };
+  }, [inRange]);
+
+  // Reconciliation: totals by how they paid. Only "card" flows through Intuit,
+  // so its total is what should match Evelyn's Intuit deposits.
+  const byMethod = useMemo(() => {
+    const m = new Map<string, { total: number; count: number }>();
+    for (const r of inRange) {
+      if (!isPaid(r.status)) continue;
+      const key = r.payment_method ?? "other";
+      const e = m.get(key) ?? { total: 0, count: 0 };
+      e.total += paidAmount(r);
+      e.count += 1;
+      m.set(key, e);
+    }
+    return PAYMENT_METHODS.map((pm) => ({
+      value: pm.value,
+      label: pm.label,
+      total: m.get(pm.value)?.total ?? 0,
+      count: m.get(pm.value)?.count ?? 0,
+    })).filter((row) => row.count > 0);
   }, [inRange]);
 
   const byService = useMemo(() => {
@@ -73,9 +105,9 @@ export default function Reports() {
       const e =
         m.get(key) ?? { name, total: 0, completed: 0, revenue: 0, noShow: 0 };
       e.total += 1;
-      if (r.status === "completed") {
+      if (isPaid(r.status)) {
         e.completed += 1;
-        e.revenue += r.price_cents ?? 0;
+        e.revenue += paidAmount(r);
       }
       if (r.status === "no_show") e.noShow += 1;
       m.set(key, e);
@@ -92,9 +124,9 @@ export default function Reports() {
       const key = r.client_id;
       const name = r.clients?.full_name ?? "Unknown";
       const e = m.get(key) ?? { name, visits: 0, spent: 0, last: null, noShow: 0 };
-      if (r.status === "completed") {
+      if (isPaid(r.status)) {
         e.visits += 1;
-        e.spent += r.price_cents ?? 0;
+        e.spent += paidAmount(r);
         if (!e.last || new Date(r.starts_at) > new Date(e.last))
           e.last = r.starts_at;
       }
@@ -113,7 +145,7 @@ export default function Reports() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted">Revenue counts completed appointments.</p>
+        <p className="text-muted">Revenue counts checked-out (paid) visits.</p>
         <div className="flex gap-1 text-xs">
           {RANGES.map(([key, label]) => (
             <button
@@ -133,13 +165,46 @@ export default function Reports() {
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Revenue" value={money(stats.revenue)} />
-        <Stat label="Completed" value={String(stats.completedCount)} />
+        <Stat label="Checked out" value={String(stats.paidCount)} />
         <Stat label="Avg ticket" value={money(stats.avgTicket)} />
         <Stat
           label="No-show rate"
           value={stats.noShowRate === null ? "—" : `${stats.noShowRate}%`}
         />
       </div>
+
+      <h3 className="mt-8 font-display text-lg">By payment method</h3>
+      {byMethod.length === 0 ? (
+        <p className="mt-2 text-muted">
+          No checked-out visits in this range yet.
+        </p>
+      ) : (
+        <>
+          <div className="mt-3 grid gap-2">
+            {byMethod.map((m) => (
+              <div
+                key={m.value}
+                className="flex items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm"
+              >
+                <span>
+                  {m.label}
+                  <span className="ml-2 text-xs text-muted">
+                    {m.count} visit{m.count === 1 ? "" : "s"}
+                  </span>
+                </span>
+                <span className="font-medium text-accent">
+                  {money(m.total)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            The <span className="text-foreground">{paymentLabel("card")}</span>{" "}
+            total is what should match your Intuit deposits — the rest never
+            touch Intuit.
+          </p>
+        </>
+      )}
 
       <h3 className="mt-8 font-display text-lg">By service</h3>
       {byService.length === 0 ? (
