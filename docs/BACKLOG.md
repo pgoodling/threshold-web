@@ -50,6 +50,7 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 - Top-level "New appointment" in Appointments (manual booking is per-client only today)
 
 ## Also shipped
+- **Card on file at booking** (Stripe SetupIntent, no charge) — clean **card-only** field, plus an **Apple Pay / Google Pay** button that appears only on wallet-capable devices. Needs the domain registered in Stripe → Payment method domains (per mode: test now, **live before launch**).
 - **Calendar** in `/studio` — Month / Week / Day views, color-coded, click-to-manage; old list kept as "List" tab.
 - **PWA install** — web manifest + Apple touch icon + theme color; "Add to Home Screen" launches standalone on iPad/iPhone.
 - **Date-range time off** (block weeks/months in one entry, e.g. "closed until September") — the way to pause online booking until she's ready.
