@@ -11,6 +11,22 @@ import Services from "./Services";
 import Reports from "./Reports";
 import Messages from "./Messages";
 import ApptDetailModal from "./ApptDetailModal";
+import {
+  LayoutDashboard,
+  ListChecks,
+  MessageSquare,
+  Calendar as CalendarIcon,
+  List as ListIcon,
+  Users,
+  Scissors,
+  BarChart3,
+  Clock,
+  CalendarOff,
+  Menu,
+  X,
+  LogOut,
+  type LucideIcon,
+} from "lucide-react";
 import { salonWallToISO, dayKey, dateLabel, timeLabel } from "../../lib/format";
 
 const TZ = "America/New_York";
@@ -154,17 +170,17 @@ type Tab =
   | "hours"
   | "timeoff";
 
-const TABS: [Tab, string][] = [
-  ["overview", "Overview"],
-  ["tasks", "Tasks"],
-  ["messages", "Messages"],
-  ["calendar", "Calendar"],
-  ["appointments", "List"],
-  ["clients", "Clients"],
-  ["services", "Services"],
-  ["reports", "Reports"],
-  ["hours", "Hours"],
-  ["timeoff", "Time off"],
+const TABS: [Tab, string, LucideIcon][] = [
+  ["overview", "Overview", LayoutDashboard],
+  ["tasks", "Tasks", ListChecks],
+  ["messages", "Messages", MessageSquare],
+  ["calendar", "Calendar", CalendarIcon],
+  ["appointments", "List", ListIcon],
+  ["clients", "Clients", Users],
+  ["services", "Services", Scissors],
+  ["reports", "Reports", BarChart3],
+  ["hours", "Hours", Clock],
+  ["timeoff", "Time off", CalendarOff],
 ];
 
 function Dashboard() {
@@ -201,95 +217,90 @@ function Dashboard() {
     setTab(key);
     setMenuOpen(false);
   };
-  const currentLabel = TABS.find(([k]) => k === tab)?.[1] ?? "";
-
   return (
-    <Shell>
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-3xl">Dashboard</h1>
+    <div className="min-h-screen bg-background sm:flex">
+      {/* Desktop sidebar */}
+      <aside className="hidden w-56 shrink-0 flex-col border-r border-foreground/10 bg-[#f4ede5] p-4 sm:flex">
+        <a href="/" aria-label="Threshold home" className="mb-6 block px-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/threshold-logos/threshold-wordmark-terracotta-transparent.svg"
+            alt="Threshold — Studio by Evelyn"
+            className="h-8 w-auto"
+          />
+        </a>
+        <nav className="flex flex-col gap-0.5">
+          {TABS.map(([key, label, Icon]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+                tab === key
+                  ? "bg-accent/15 font-medium text-accent-dark"
+                  : "text-muted hover:bg-foreground/5 hover:text-foreground"
+              }`}
+            >
+              <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+              <span className="flex-1 text-left">{label}</span>
+              {key === "messages" && unread > 0 && (
+                <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">
+                  {unread}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
         <button
           onClick={() => supabase.auth.signOut()}
-          className="text-sm text-muted hover:text-accent"
+          className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted transition hover:text-accent"
         >
+          <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
           Sign out
         </button>
-      </div>
+      </aside>
 
-      {/* Desktop: horizontal tab bar */}
-      <div className="mt-6 hidden gap-1 border-b border-foreground/10 text-sm sm:flex">
-        {TABS.map(([key, label]) => (
+      {/* Mobile top bar + slide-down menu */}
+      <div className="relative sm:hidden">
+        <div className="flex items-center justify-between border-b border-foreground/10 bg-background/90 px-5 py-3 backdrop-blur">
+          <a href="/" aria-label="Threshold home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/threshold-logos/threshold-wordmark-terracotta-transparent.svg"
+              alt="Threshold — Studio by Evelyn"
+              className="h-8 w-auto"
+            />
+          </a>
           <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`-mb-px border-b-2 px-4 py-3 transition ${
-              tab === key
-                ? "border-accent text-foreground"
-                : "border-transparent text-muted hover:text-accent"
-            }`}
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-expanded={menuOpen}
+            aria-label="Menu"
+            className="relative flex h-9 w-9 items-center justify-center text-foreground"
           >
-            {label}
-            {key === "messages" && unread > 0 && (
-              <span className="ml-1.5 align-middle rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">
-                {unread}
-              </span>
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            {unread > 0 && !menuOpen && (
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-accent" />
             )}
           </button>
-        ))}
-      </div>
-
-      {/* Mobile: hamburger menu showing the current tab */}
-      <div className="relative mt-6 sm:hidden">
-        <button
-          onClick={() => setMenuOpen((o) => !o)}
-          aria-expanded={menuOpen}
-          aria-haspopup="true"
-          className="flex w-full items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm"
-        >
-          <span className="flex items-center gap-2 font-medium">
-            {currentLabel}
-            {unread > 0 && tab !== "messages" && (
-              <span className="h-2 w-2 rounded-full bg-accent" />
-            )}
-          </span>
-          <span
-            className="relative flex h-4 w-5 flex-col justify-between"
-            aria-hidden="true"
-          >
-            <span
-              className={`h-0.5 w-full rounded-full bg-foreground transition ${
-                menuOpen ? "translate-y-[7px] rotate-45" : ""
-              }`}
-            />
-            <span
-              className={`h-0.5 w-full rounded-full bg-foreground transition ${
-                menuOpen ? "opacity-0" : ""
-              }`}
-            />
-            <span
-              className={`h-0.5 w-full rounded-full bg-foreground transition ${
-                menuOpen ? "-translate-y-[7px] -rotate-45" : ""
-              }`}
-            />
-          </span>
-        </button>
+        </div>
         {menuOpen && (
           <>
             <div
               className="fixed inset-0 z-10"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-foreground/10 bg-white shadow-lg">
-              {TABS.map(([key, label]) => (
+            <div className="absolute left-0 right-0 z-20 overflow-hidden border-b border-foreground/10 bg-white shadow-lg">
+              {TABS.map(([key, label, Icon]) => (
                 <button
                   key={key}
                   onClick={() => select(key)}
-                  className={`flex w-full items-center gap-2 px-4 py-3 text-left text-sm transition ${
+                  className={`flex w-full items-center gap-3 px-5 py-3 text-left text-sm transition ${
                     tab === key
                       ? "bg-accent/10 font-medium text-accent-dark"
                       : "text-foreground hover:bg-foreground/5"
                   }`}
                 >
-                  {label}
+                  <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+                  <span className="flex-1">{label}</span>
                   {key === "messages" && unread > 0 && (
                     <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">
                       {unread}
@@ -297,29 +308,48 @@ function Dashboard() {
                   )}
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  supabase.auth.signOut();
+                }}
+                className="flex w-full items-center gap-3 border-t border-foreground/10 px-5 py-3 text-left text-sm text-muted"
+              >
+                <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
+                Sign out
+              </button>
             </div>
           </>
         )}
       </div>
 
-      <div className="mt-8">
-        {tab === "overview" && <Overview onOpenClient={goToClient} />}
-        {tab === "tasks" && <Tasks />}
-        {tab === "messages" && <Messages />}
-        {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
-        {tab === "appointments" && <Appointments onOpenClient={goToClient} />}
-        {tab === "clients" && (
-          <Clients
-            initialClientId={pendingClient}
-            onOpened={() => setPendingClient(null)}
-          />
-        )}
-        {tab === "services" && <Services />}
-        {tab === "reports" && <Reports />}
-        {tab === "hours" && <Hours />}
-        {tab === "timeoff" && <TimeOff />}
-      </div>
-    </Shell>
+      {/* Main content */}
+      <main className="min-w-0 flex-1 px-5 py-6 sm:px-10 sm:py-10">
+        <div className="mx-auto max-w-4xl">
+          {tab === "overview" && (
+            <Overview
+              onOpenClient={goToClient}
+              onGoto={(t) => setTab(t as Tab)}
+              unread={unread}
+            />
+          )}
+          {tab === "tasks" && <Tasks />}
+          {tab === "messages" && <Messages />}
+          {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
+          {tab === "appointments" && <Appointments onOpenClient={goToClient} />}
+          {tab === "clients" && (
+            <Clients
+              initialClientId={pendingClient}
+              onOpened={() => setPendingClient(null)}
+            />
+          )}
+          {tab === "services" && <Services />}
+          {tab === "reports" && <Reports />}
+          {tab === "hours" && <Hours />}
+          {tab === "timeoff" && <TimeOff />}
+        </div>
+      </main>
+    </div>
   );
 }
 

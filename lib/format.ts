@@ -99,6 +99,23 @@ export function liveStatus(status: string, startsAtISO: string): string {
 // Statuses that count as paid revenue (checked_out, plus legacy completed).
 export const PAID_STATUSES = ["checked_out", "completed"];
 
+// One distinct color per service (booked / upcoming). Kept off the status hues
+// (green, red, charcoal) so status coloring never collides. Order matters:
+// "men" is checked before "cut" since "Men's Cuts" contains both.
+export function serviceColors(name: string | undefined): {
+  bg: string;
+  fg: string;
+} {
+  const n = (name ?? "").toLowerCase();
+  if (n.includes("highlight")) return { bg: "#f6e7a8", fg: "#6e5410" }; // soft yellow
+  if (n.includes("men")) return { bg: "#e0edfb", fg: "#0c447c" }; // blue
+  if (n.includes("color")) return { bg: "#f3d1bf", fg: "#7a3a1a" }; // peach terracotta
+  if (n.includes("cut")) return { bg: "#f8dbe8", fg: "#7a2a45" }; // rose
+  if (n.includes("treatment")) return { bg: "#eae7fb", fg: "#3c3489" }; // lavender
+  if (n.includes("blowout")) return { bg: "#faeeda", fg: "#633806" }; // clay
+  return { bg: "#faeeda", fg: "#633806" }; // clay (fallback)
+}
+
 // Green = checked in (in the chair now), charcoal = checked out & paid,
 // red = running late (past start, not checked in).
 const STATUS_IN = { bg: "#1e7a46", fg: "#ffffff" };
