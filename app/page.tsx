@@ -197,7 +197,7 @@ export default function Home() {
             <h2 className="font-display text-3xl">
               The stylist behind Threshold
             </h2>
-            <p className="mt-6 text-lg text-muted">
+            <p className="mt-6 text-muted">
               Hi, I&apos;m Evelyn! I&apos;ve called Dayton home for the past 10
               years and been behind the chair for 5 of them. When I&apos;m not in
               the salon, you&apos;ll usually find me at a live concert or curled up
