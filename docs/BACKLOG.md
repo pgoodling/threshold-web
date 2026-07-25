@@ -119,6 +119,17 @@ Deep-research pass on GlossGenius, Boulevard, Fresha, Vagaro (Square/Mangomint n
 - **Client lifecycle badge** — New / Regular / At risk / Lapsed / Won back, auto-derived from visit history (no manual tagging). Answers #11.
 - **Rebooking-rate metric** — headline retention KPI on the Reports tab.
 
+## Just shipped (2026-07-24) — the "regrowth" client view
+Design direction: a stylist reads overdue clients by **grown-out roots**, so the whole Clients experience is built on hair color + regrowth. (Client-approved after design exploration; see mocks.)
+- **Client list** — each client is a **strand of her color** with dark regrowth that grows the longer since their last visit; avatar with a **gold dot (new)** / **lavender dot (won back)**; serif colorist captions ("gold blonde · roots at 6w"). No pills; stage/color on the left.
+- **Filterable stage key** — New / Regular / Roots showing / Grown out / Won back, each a mini-strand + live count; doubles as the legend.
+- **Color-ring summary** — the whole book fanned open like her swatch ring (fresh → grown out), with counts.
+- **Strand color source:** her **formula (level + tone)** — "9G", "5N" — mapped to a swatch (`lib/hair.ts`); **service-type default** when none (highlights → blonde). Stored in `clients.hair_formula` (migration `0009`).
+- **Client card interior** — hero strand, her formula + swatch, stats (visits / since last / spent), Tasks & follow-ups, appointments, win-back. Complements the list.
+- **Intake form** — phone now required; a **formula field with a live swatch preview**; prefilled-from-booking friendly ("complete her card"). Writes degrade gracefully pre-migration (retry without hair_formula).
+- **Needs migration `0009_client_hair_formula.sql`** to store formulas; works with service-default colors until then.
+- Later: **photo-suggested color** (sample from her uploaded photos), and wiring the color ring / "who needs attention" onto the dashboard.
+
 ## Roadmap (next, defined — no info needed)
 - **Projected vs. actual earnings (#14)** — actual = checked-out revenue (have it); projected = value of upcoming booked appts. Add to Reports.
 - **New-client retention (#15)** — % of first-time clients who book a 2nd visit within 90 days (window TBC with Evelyn).

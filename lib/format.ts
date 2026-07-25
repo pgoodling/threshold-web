@@ -206,6 +206,13 @@ export function clientStage(opts: {
   return "regular";
 }
 
+// Accent dot for the milestone stages (new client / won back); null otherwise.
+export function stageDot(stage: ClientStage): string | null {
+  if (stage === "new") return "#c9a24b"; // gold
+  if (stage === "won_back") return "#7f77dd"; // lavender
+  return null;
+}
+
 export function stageBadge(stage: ClientStage): {
   label: string;
   className: string;
