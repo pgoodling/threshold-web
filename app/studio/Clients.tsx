@@ -201,8 +201,12 @@ function ColorRing({ views }: { views: View[] }) {
   const fresh = has("new") + has("regular") + has("won_back");
 
   return (
-    <div className="flex shrink-0 flex-col items-center">
-      <svg width="300" height="140" viewBox="0 0 320 146" aria-hidden="true">
+    <div className="flex w-full shrink-0 flex-col items-center sm:w-auto">
+      <svg
+        viewBox="0 0 320 146"
+        aria-hidden="true"
+        className="h-auto w-[280px] max-w-full"
+      >
         <g transform="translate(160,136)">
           {blades.map((b) => (
             <g key={b.i} transform={`rotate(${b.ang})`}>
@@ -463,8 +467,8 @@ export default function Clients({
                   dot={v.stage ? stageDot(v.stage) : null}
                 />
                 <div className="min-w-0">
-                  <div className="font-medium">{v.c.full_name}</div>
-                  <div className="mt-0.5 font-display text-sm italic text-muted">
+                  <div className="truncate font-medium">{v.c.full_name}</div>
+                  <div className="mt-0.5 truncate font-display text-sm italic text-muted">
                     {stageText(v.stage, v.weeks, descriptorFor(v.c, v.agg))}
                   </div>
                 </div>
@@ -601,7 +605,7 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
           </div>
         ) : (
           <>
-            <div className="flex items-stretch gap-4 bg-[#f7f0e8] p-6">
+            <div className="flex items-stretch gap-3 bg-[#f7f0e8] p-4 sm:gap-4 sm:p-6">
               <Strand
                 hair={strand.hair}
                 root={strand.root}
@@ -615,7 +619,7 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
                 size={52}
               />
               <div className="min-w-0 flex-1">
-                <h2 className="font-display text-2xl">{c.full_name}</h2>
+                <h2 className="truncate font-display text-2xl">{c.full_name}</h2>
                 <p className="font-display text-sm italic text-muted">
                   {stageText(stage, weeksSince, descriptor)}
                 </p>
@@ -646,7 +650,7 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
             </div>
 
             {/* Her formula + swatch */}
-            <div className="flex items-center gap-3 border-t border-foreground/10 px-6 py-4">
+            <div className="flex flex-wrap items-center gap-3 border-t border-foreground/10 px-4 py-4 sm:px-6">
               <p className="text-xs uppercase tracking-wide text-muted">
                 Her formula
               </p>
@@ -668,7 +672,7 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-3 px-6 pb-5">
+            <div className="grid grid-cols-3 gap-3 px-4 pb-5 sm:px-6">
               <Stat label="visits" value={String(attendedPast.length)} />
               <Stat
                 label="since last"
@@ -678,10 +682,10 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
             </div>
 
             {c.birthday && (
-              <p className="px-6 pb-4 text-sm text-muted">🎂 {c.birthday}</p>
+              <p className="px-4 pb-4 text-sm text-muted sm:px-6">🎂 {c.birthday}</p>
             )}
             {c.notes && (
-              <p className="mx-6 mb-5 whitespace-pre-wrap rounded-xl bg-background px-4 py-3 text-sm">
+              <p className="mx-4 mb-5 whitespace-pre-wrap rounded-xl bg-background px-4 py-3 text-sm sm:mx-6">
                 {c.notes}
               </p>
             )}
