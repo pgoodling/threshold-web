@@ -201,8 +201,8 @@ function ColorRing({ views }: { views: View[] }) {
   const fresh = has("new") + has("regular") + has("won_back");
 
   return (
-    <div className="mt-4 flex flex-col items-center rounded-2xl border border-foreground/10 bg-white py-4">
-      <svg width="320" height="146" viewBox="0 0 320 146" aria-hidden="true">
+    <div className="flex shrink-0 flex-col items-center">
+      <svg width="300" height="140" viewBox="0 0 320 146" aria-hidden="true">
         <g transform="translate(160,136)">
           {blades.map((b) => (
             <g key={b.i} transform={`rotate(${b.ang})`}>
@@ -352,26 +352,51 @@ export default function Clients({
         </button>
       </div>
 
-      {!loading && views.length > 0 && <ColorRing views={views} />}
-
-      {/* Lifecycle key — reads as a legend and filters the list. */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        {KEY_STAGES.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setStageFilter(s.key)}
-            className={`flex items-center gap-2 rounded-lg border border-foreground/10 border-b-2 bg-white px-3 py-1.5 transition ${
-              stageFilter === s.key
-                ? "border-b-accent text-foreground"
-                : "border-b-foreground/10 text-muted hover:border-accent/40"
-            }`}
-          >
-            <Strand hair="#e4c98c" root={ROOT_HEX} pct={s.pct} w={8} h={24} dot={s.dot} />
-            <span className="text-sm">{s.label}</span>
-            <span className="text-xs text-muted">{counts[s.key] ?? 0}</span>
-          </button>
-        ))}
-      </div>
+      {!loading && views.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-foreground/10 bg-white p-5">
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-8">
+            <ColorRing views={views} />
+            <div className="w-full flex-1">
+              <p className="font-display text-lg">Your book</p>
+              <p className="font-display text-sm italic text-muted">
+                every client, by how grown-out they are — tap a stage to focus
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {KEY_STAGES.map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => setStageFilter(s.key)}
+                    className={`flex items-stretch overflow-hidden rounded-xl border text-left transition ${
+                      stageFilter === s.key
+                        ? "border-accent bg-accent/5"
+                        : "border-foreground/10 hover:border-accent/40"
+                    }`}
+                  >
+                    <span className="flex items-center py-2.5 pl-2.5 pr-1">
+                      <Strand
+                        hair="#e4c98c"
+                        root={ROOT_HEX}
+                        pct={s.pct}
+                        w={7}
+                        h={38}
+                        dot={s.dot}
+                      />
+                    </span>
+                    <span className="min-w-0 py-2 pr-3">
+                      <span className="block text-xl font-medium leading-none">
+                        {counts[s.key] ?? 0}
+                      </span>
+                      <span className="mt-1 block text-[11px] uppercase tracking-wide text-muted">
+                        {s.label}
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <input
         className="input mt-4"
