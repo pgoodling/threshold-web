@@ -4,10 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { dateLabel } from "../../lib/format";
 
-export default function Tasks() {
+export default function Tasks({
+  onOpenClient,
+}: {
+  onOpenClient?: (clientId: string) => void;
+}) {
   return (
     <div className="grid gap-10">
-      <Reminders />
+      <Reminders onOpenClient={onOpenClient} />
       <ToDos />
     </div>
   );
@@ -30,13 +34,13 @@ type Reminder = {
   weeks: number;
 };
 
-const winBackHref = (name: string, phone: string) =>
-  `sms:${phone}?&body=${encodeURIComponent(
-    `Hi ${name.split(" ")[0]}, it's Evelyn at Threshold! It's been a while — I'd love to get you back in the chair. Want me to save you a spot?`,
-  )}`;
-
-function Reminders() {
+function Reminders({
+  onOpenClient,
+}: {
+  onOpenClient?: (clientId: string) => void;
+}) {
   const [rows, setRows] = useState<ApptRow[]>([]);
+  const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +54,21 @@ function Reminders() {
         if (error) setError(error.message);
         else setRows((data ?? []) as unknown as ApptRow[]);
       });
+    // Clients with an open follow-up task are "handled" — drop them off the
+    // list until that task is done (added on the client card). Silently ignored
+    // if tasks aren't migrated yet.
+    supabase
+      .from("tasks")
+      .select("client_id")
+      .eq("done", false)
+      .not("client_id", "is", null)
+      .then(({ data }) =>
+        setSnoozed(
+          new Set(
+            (data ?? []).map((r) => (r as { client_id: string }).client_id),
+          ),
+        ),
+      );
   }, []);
 
   const reminders = useMemo(() => {
@@ -75,7 +94,7 @@ function Reminders() {
     }
     const out: Reminder[] = [];
     for (const [clientId, e] of byClient) {
-      if (e.hasUpcoming || e.lastVisit === null) continue;
+      if (e.hasUpcoming || e.lastVisit === null || snoozed.has(clientId)) continue;
       out.push({
         clientId,
         name: e.name,
@@ -85,7 +104,7 @@ function Reminders() {
       });
     }
     return out.sort((a, b) => b.weeks - a.weeks);
-  }, [rows]);
+  }, [rows, snoozed]);
 
   return (
     <div>
@@ -96,7 +115,8 @@ function Reminders() {
         )}
       </div>
       <p className="mt-1 text-sm text-muted">
-        Clients with no next appointment booked. Overdue ones first.
+        Clients with no next appointment booked. Tap one to open their card —
+        call, text, add a note, book, or set a follow-up from there.
       </p>
 
       {error && <ErrorNote>{error}</ErrorNote>}
@@ -111,9 +131,10 @@ function Reminders() {
           {reminders.map((r) => {
             const lapsed = r.weeks >= 8;
             return (
-              <div
+              <button
                 key={r.clientId}
-                className={`flex flex-wrap items-center gap-3 rounded-xl border bg-white px-4 py-3 ${
+                onClick={() => onOpenClient?.(r.clientId)}
+                className={`flex w-full flex-wrap items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left transition hover:border-accent ${
                   lapsed ? "border-accent/40" : "border-foreground/10"
                 }`}
               >
@@ -126,23 +147,10 @@ function Reminders() {
                     </span>
                   )}
                 </span>
-                {r.phone && (
-                  <div className="ml-auto flex gap-2 text-xs">
-                    <a
-                      href={`tel:${r.phone}`}
-                      className="rounded-full border border-foreground/15 px-3 py-1 hover:border-accent hover:text-accent"
-                    >
-                      Call
-                    </a>
-                    <a
-                      href={winBackHref(r.name, r.phone)}
-                      className="rounded-full bg-accent px-3 py-1 text-white hover:bg-accent-dark"
-                    >
-                      Text
-                    </a>
-                  </div>
-                )}
-              </div>
+                <span className="ml-auto text-sm text-muted" aria-hidden="true">
+                  Open →
+                </span>
+              </button>
             );
           })}
         </div>

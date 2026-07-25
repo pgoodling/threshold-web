@@ -333,7 +333,7 @@ function Dashboard() {
               unread={unread}
             />
           )}
-          {tab === "tasks" && <Tasks />}
+          {tab === "tasks" && <Tasks onOpenClient={goToClient} />}
           {tab === "messages" && <Messages />}
           {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
           {tab === "appointments" && <Appointments onOpenClient={goToClient} />}
