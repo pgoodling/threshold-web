@@ -23,6 +23,10 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
+    // Explicit icon so the browser-tab favicon is emitted. Defining this
+    // `icons` object otherwise suppresses Next's auto-detection of app/icon.svg,
+    // which left the tab with no <link rel="icon"> (default globe).
+    icon: [{ url: "/icon.svg", type: "image/svg+xml", sizes: "any" }],
     apple: "/threshold-logos/threshold-logo-cream.png",
   },
 };
