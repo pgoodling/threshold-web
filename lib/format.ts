@@ -180,6 +180,50 @@ export function statusPillClass(status: string): string {
   }
 }
 
+// Client lifecycle stage, derived purely from visit history — no manual
+// tagging. Thresholds match the salon's ~4–6 week rebook cadence: past 5 weeks
+// with nothing booked is slipping; 8+ weeks is lapsed. A lapsed client who
+// books again reads as "won back".
+export type ClientStage = "new" | "regular" | "at_risk" | "lapsed" | "won_back";
+
+const AT_RISK_WEEKS = 5;
+const LAPSED_WEEKS = 8;
+
+export function clientStage(opts: {
+  pastCount: number; // attended past visits (excludes cancelled + no-show)
+  upcomingCount: number; // future booked visits (excludes cancelled)
+  weeksSinceLast: number | null; // since most recent attended visit
+}): ClientStage | null {
+  const { pastCount, upcomingCount, weeksSinceLast } = opts;
+  const total = pastCount + upcomingCount;
+  if (total === 0) return null;
+  const hasUpcoming = upcomingCount > 0;
+  if (weeksSinceLast != null && weeksSinceLast >= LAPSED_WEEKS)
+    return hasUpcoming ? "won_back" : "lapsed";
+  if (total <= 1) return "new";
+  if (!hasUpcoming && weeksSinceLast != null && weeksSinceLast >= AT_RISK_WEEKS)
+    return "at_risk";
+  return "regular";
+}
+
+export function stageBadge(stage: ClientStage): {
+  label: string;
+  className: string;
+} {
+  switch (stage) {
+    case "new":
+      return { label: "New", className: "bg-[#e0edfb] text-[#0c447c]" };
+    case "regular":
+      return { label: "Regular", className: "bg-[#1e7a46]/12 text-[#1e7a46]" };
+    case "at_risk":
+      return { label: "At risk", className: "bg-[#faeeda] text-[#8a5a1a]" };
+    case "lapsed":
+      return { label: "Lapsed", className: "bg-accent/10 text-accent-dark" };
+    case "won_back":
+      return { label: "Won back", className: "bg-[#eae7fb] text-[#3c3489]" };
+  }
+}
+
 // Payment methods captured at check-out. The split matters for reconciling
 // against Intuit: only "card" flows through Intuit's deposits; the rest don't.
 export const PAYMENT_METHODS: { value: string; label: string }[] = [

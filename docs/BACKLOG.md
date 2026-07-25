@@ -99,6 +99,31 @@ Goal: automate as much client texting as possible around the appointment lifecyc
 - **Mass-text a discount to fill an open slot** — blast lapsed/all clients when there's a last-minute opening. Needs Twilio + **A2P 10DLC registration** (US business-texting approval) + opt-out compliance; ~1¢/text. (Same channel as two-way texting above.)
 - **AI-generated promo graphics** (Canva-like) — yes, that's an image-generation feature. Either an image-gen API (type the offer → branded graphic) or editable templates. Its own mini-project.
 
+## Competitor research (2026-07-24) — lifecycle & AI content
+Deep-research pass on GlossGenius, Boulevard, Fresha, Vagaro (Square/Mangomint not primary-verified). GlossGenius findings are from primary sources; competitor findings are softer/secondary. Full memory: `salon-competitor-research.md`.
+
+**Client lifecycle:** No researched platform exposes a named-stage model (new/regular/VIP/lapsed/at-risk) as first-class UX — genuine whitespace. The industry KPI is **rebooking rate** (GlossGenius markets 75%+), driven by a rebook prompt at checkout + auto "we miss you" texts at ~60 days. Threshold's "Reach out" list already matches best practice. → **Shipped:** auto lifecycle badge on the client card + rebooking-rate metric on Reports (below).
+
+**AI social content:** Nobody in the category generates AI social posts. GlossGenius "Genius AI" (GPT-4) only drafts **email/SMS copy**; its social feature is a static Canva-style template library. So:
+- AI **campaign copy** (email/SMS) = emerging table-stakes — easy win once texting is live.
+- AI **branded graphics / carousel images** = real differentiator whitespace — the core of what Evelyn's asking for (#16).
+- AI **TikTok/Reels video** = heaviest lift, nobody offers it — **defer**.
+→ Plan for #16: captions + branded graphic templates first; carousel image-gen as the differentiator; video later. Its own mini-project.
+
+## Just shipped (2026-07-24) — quick wins + lifecycle
+- **Photo lightbox** — client photos enlarge in-page (Esc / click to close), no more leaving the app.
+- **Prebook presets** — +4 / +6 week buttons on the Rebook form, based on the visit being rebooked from.
+- **Tasks: start date + client link** — a task can be scheduled for a day (start + due) and attached to a client; shows on the client card (needs migration `0008`).
+- **No-show → follow-up task** — marking no-show drops a dated task on the client's file (groundwork for charging the fee).
+- **Reach-out reminders open the client card** — one tap into the client to call/text/note/book/resolve; a client with an open follow-up task drops off the list until it's done.
+- **Client lifecycle badge** — New / Regular / At risk / Lapsed / Won back, auto-derived from visit history (no manual tagging). Answers #11.
+- **Rebooking-rate metric** — headline retention KPI on the Reports tab.
+
+## Roadmap (next, defined — no info needed)
+- **Projected vs. actual earnings (#14)** — actual = checked-out revenue (have it); projected = value of upcoming booked appts. Add to Reports.
+- **New-client retention (#15)** — % of first-time clients who book a 2nd visit within 90 days (window TBC with Evelyn).
+- **AI content tab (#16)** — own mini-project, per research above.
+
 ---
 
 ## New item detail

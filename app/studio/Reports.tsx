@@ -74,6 +74,29 @@ export default function Reports() {
     };
   }, [inRange]);
 
+  // Rebooking rate — the salon retention KPI: of attended visits in range, the
+  // share where the client had booked another visit afterward (their next
+  // appointment, past or upcoming). Uses full history so a visit near the range
+  // edge can still count a later booking.
+  const rebookingRate = useMemo(() => {
+    const times = new Map<string, number[]>();
+    for (const r of rows) {
+      if (r.status === "cancelled") continue;
+      const arr = times.get(r.client_id) ?? [];
+      arr.push(new Date(r.starts_at).getTime());
+      times.set(r.client_id, arr);
+    }
+    let attended = 0;
+    let rebooked = 0;
+    for (const r of inRange) {
+      if (!isPaid(r.status)) continue;
+      attended += 1;
+      const t = new Date(r.starts_at).getTime();
+      if ((times.get(r.client_id) ?? []).some((x) => x > t)) rebooked += 1;
+    }
+    return attended ? Math.round((rebooked / attended) * 100) : null;
+  }, [rows, inRange]);
+
   // Reconciliation: totals by how they paid. Only "card" flows through Intuit,
   // so its total is what should match Evelyn's Intuit deposits.
   const byMethod = useMemo(() => {
@@ -163,15 +186,23 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Revenue" value={money(stats.revenue)} />
         <Stat label="Checked out" value={String(stats.paidCount)} />
         <Stat label="Avg ticket" value={money(stats.avgTicket)} />
+        <Stat
+          label="Rebooking rate"
+          value={rebookingRate === null ? "—" : `${rebookingRate}%`}
+        />
         <Stat
           label="No-show rate"
           value={stats.noShowRate === null ? "—" : `${stats.noShowRate}%`}
         />
       </div>
+      <p className="mt-2 text-xs text-muted">
+        Rebooking rate = share of checked-out visits where the client had their
+        next appointment booked — the clearest sign of retention.
+      </p>
 
       <h3 className="mt-8 font-display text-lg">By payment method</h3>
       {byMethod.length === 0 ? (

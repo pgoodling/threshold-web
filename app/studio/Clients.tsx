@@ -8,6 +8,8 @@ import {
   dateLabel,
   statusLabel,
   statusPillClass,
+  clientStage,
+  stageBadge,
 } from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
 
@@ -188,6 +190,18 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
     ? (now - new Date(lastPast).getTime()) / (7 * 86400000)
     : null;
   const lapsed = upcoming.length === 0 && weeksSince !== null && weeksSince >= 8;
+
+  // Lifecycle stage from attended history (ignore cancelled / no-shows).
+  const attended = (v: Visit) => v.status !== "cancelled" && v.status !== "no_show";
+  const attendedPast = past.filter(attended);
+  const lastAttended = attendedPast[0]?.starts_at ?? null;
+  const stage = clientStage({
+    pastCount: attendedPast.length,
+    upcomingCount: upcoming.filter((v) => v.status !== "cancelled").length,
+    weeksSinceLast: lastAttended
+      ? (now - new Date(lastAttended).getTime()) / (7 * 86400000)
+      : null,
+  });
   const contactCls =
     "rounded-full border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
   const [openId, setOpenId] = useState<string | null>(null);
@@ -235,7 +249,16 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
           <>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-display text-2xl">{c.full_name}</h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-display text-2xl">{c.full_name}</h2>
+                  {stage && (
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs ${stageBadge(stage).className}`}
+                    >
+                      {stageBadge(stage).label}
+                    </span>
+                  )}
+                </div>
                 {c.birthday && (
                   <p className="mt-1 text-sm text-muted">🎂 {c.birthday}</p>
                 )}
