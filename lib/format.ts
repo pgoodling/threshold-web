@@ -69,6 +69,36 @@ export function salonWallToISO(localDateTime: string): string {
   return new Date(guess.getTime() - offset).toISOString();
 }
 
+// Format an instant as a datetime-local value ("YYYY-MM-DDTHH:MM") in salon time,
+// suitable for a <input type="datetime-local"> value.
+export function salonDateTimeLocal(base: string | number | Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(base));
+  const get = (t: string) => parts.find((p) => p.type === t)!.value;
+  const hour = get("hour") === "24" ? "00" : get("hour"); // en-CA midnight quirk
+  return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}`;
+}
+
+// N weeks after `base`, returned as a salon datetime-local string. Adds whole
+// weeks to the calendar date and keeps the same wall-clock time (no DST drift),
+// so "+4 weeks" from a 10:00 visit is another 10:00 slot. Used for prebooking.
+export function plusWeeksLocal(base: string | number | Date, weeks: number): string {
+  const [datePart, timePart] = salonDateTimeLocal(base).split("T");
+  const [y, mo, d] = datePart.split("-").map(Number);
+  const shifted = new Date(Date.UTC(y, mo - 1, d));
+  shifted.setUTCDate(shifted.getUTCDate() + weeks * 7);
+  const mm = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(shifted.getUTCDate()).padStart(2, "0");
+  return `${shifted.getUTCFullYear()}-${mm}-${dd}T${timePart}`;
+}
+
 // Appointment lifecycle: booked → confirmed → checked_in → checked_out (paid).
 export const statusLabel = (status: string): string =>
   (

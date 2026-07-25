@@ -156,10 +156,15 @@ function Reminders() {
 type Task = {
   id: string;
   title: string;
+  start_date: string | null;
   due_date: string | null;
   recurrence: string;
   done: boolean;
+  client_id: string | null;
+  clients: { full_name: string } | null;
 };
+
+type ClientOpt = { id: string; full_name: string };
 
 const RECURRENCE: [string, string][] = [
   ["none", "One-off"],
@@ -167,6 +172,19 @@ const RECURRENCE: [string, string][] = [
   ["biweekly", "Every 2 weeks"],
   ["monthly", "Monthly"],
 ];
+
+const dayText = (d: string) => dateLabel(`${d}T12:00:00`);
+
+// Compact date label for a task: a single day, a start→due range, or one side.
+function taskDates(t: Task): string {
+  if (t.start_date && t.due_date)
+    return t.start_date === t.due_date
+      ? dayText(t.due_date)
+      : `${dayText(t.start_date)} → ${dayText(t.due_date)}`;
+  if (t.due_date) return `due ${dayText(t.due_date)}`;
+  if (t.start_date) return `from ${dayText(t.start_date)}`;
+  return "";
+}
 
 function nextDue(from: string | null, recurrence: string): string | null {
   const base = from ? new Date(`${from}T12:00:00`) : new Date();
@@ -179,62 +197,91 @@ function nextDue(from: string | null, recurrence: string): string | null {
 
 function ToDos() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [clients, setClients] = useState<ClientOpt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [needsMigration, setNeedsMigration] = useState(false);
+  const [migrationMsg, setMigrationMsg] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  const [start, setStart] = useState("");
   const [due, setDue] = useState("");
   const [recurrence, setRecurrence] = useState("none");
+  const [clientId, setClientId] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
     supabase
       .from("tasks")
-      .select("id,title,due_date,recurrence,done")
+      .select(
+        "id,title,start_date,due_date,recurrence,done,client_id,clients(full_name)",
+      )
       .eq("done", false)
       .order("due_date", { nullsFirst: false })
       .then(({ data, error }) => {
         setLoading(false);
         if (error) {
           const m = error.message.toLowerCase();
-          if (
+          const tableMissing =
             error.code === "PGRST205" ||
-            m.includes("does not exist") ||
             m.includes("schema cache") ||
-            m.includes("could not find the table")
-          )
-            setNeedsMigration(true);
+            m.includes("could not find the table") ||
+            (m.includes("relation") && m.includes("does not exist"));
+          const columnMissing =
+            m.includes("start_date") ||
+            m.includes("client_id") ||
+            (m.includes("column") && m.includes("does not exist"));
+          if (tableMissing)
+            setMigrationMsg("Run migration 0005_tasks.sql to enable your to-do list.");
+          else if (columnMissing)
+            setMigrationMsg(
+              "Run migration 0008_tasks_client_and_range.sql to enable start dates and client links.",
+            );
           else setError(error.message);
-        } else setTasks((data ?? []) as Task[]);
+        } else setTasks((data ?? []) as unknown as Task[]);
       });
   }, []);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    supabase
+      .from("clients")
+      .select("id,full_name")
+      .order("full_name")
+      .then(({ data }) => setClients((data ?? []) as ClientOpt[]));
+  }, []);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     const { error } = await supabase.from("tasks").insert({
       title: title.trim(),
+      start_date: start || null,
       due_date: due || null,
       recurrence,
+      client_id: clientId || null,
     });
     if (error) setError(error.message);
     else {
       setTitle("");
+      setStart("");
       setDue("");
       setRecurrence("none");
+      setClientId("");
       load();
     }
   }
 
   async function complete(t: Task) {
-    // Recurring: spin up the next occurrence before marking this done.
+    // Recurring: spin up the next occurrence before marking this done, carrying
+    // the client link and shifting both start + due dates by the interval.
     if (t.recurrence !== "none") {
-      const nd = nextDue(t.due_date, t.recurrence);
-      await supabase
-        .from("tasks")
-        .insert({ title: t.title, due_date: nd, recurrence: t.recurrence });
+      await supabase.from("tasks").insert({
+        title: t.title,
+        start_date: nextDue(t.start_date, t.recurrence),
+        due_date: nextDue(t.due_date, t.recurrence),
+        recurrence: t.recurrence,
+        client_id: t.client_id,
+      });
     }
     const { error } = await supabase
       .from("tasks")
@@ -253,9 +300,9 @@ function ToDos() {
   return (
     <div>
       <h3 className="font-display text-lg">To-do</h3>
-      {needsMigration ? (
+      {migrationMsg ? (
         <p className="mt-2 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm text-muted">
-          Run migration <code>0005_tasks.sql</code> to enable your to-do list.
+          {migrationMsg}
         </p>
       ) : (
         <>
@@ -273,13 +320,39 @@ function ToDos() {
               />
             </label>
             <label className="block">
+              <span className="mb-1 block text-sm">Start</span>
+              <input
+                type="date"
+                className="input w-auto"
+                value={start}
+                max={due || undefined}
+                onChange={(e) => setStart(e.target.value)}
+              />
+            </label>
+            <label className="block">
               <span className="mb-1 block text-sm">Due</span>
               <input
                 type="date"
                 className="input w-auto"
                 value={due}
+                min={start || undefined}
                 onChange={(e) => setDue(e.target.value)}
               />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm">Client (optional)</span>
+              <select
+                className="input w-auto"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+              >
+                <option value="">— none —</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.full_name}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="block">
               <span className="mb-1 block text-sm">Repeat</span>
@@ -322,14 +395,21 @@ function ToDos() {
                 >
                   ✓
                 </button>
-                <span className="flex-1">{t.title}</span>
+                <span className="flex-1">
+                  {t.title}
+                  {t.clients && (
+                    <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent-dark">
+                      {t.clients.full_name}
+                    </span>
+                  )}
+                </span>
                 {t.recurrence !== "none" && (
                   <span className="rounded-full bg-foreground/5 px-2 py-0.5 text-xs text-muted">
                     {RECURRENCE.find(([v]) => v === t.recurrence)?.[1]}
                   </span>
                 )}
-                {t.due_date && (
-                  <span className="text-sm text-muted">{dateLabel(`${t.due_date}T12:00:00`)}</span>
+                {(t.start_date || t.due_date) && (
+                  <span className="text-sm text-muted">{taskDates(t)}</span>
                 )}
                 <button
                   onClick={() => remove(t.id)}

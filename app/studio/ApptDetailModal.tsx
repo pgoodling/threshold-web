@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
+  plusWeeksLocal,
+  dayKey,
   statusLabel,
   statusPillClass,
   liveStatus,
@@ -117,6 +119,19 @@ export default function ApptDetailModal({
     if (error) {
       setError(error.message);
       return;
+    }
+    // A no-show should never quietly disappear: drop a dated follow-up task on
+    // the client's file so Evelyn circles back (and can charge the fee later).
+    // Best-effort — don't block the status change if tasks aren't migrated yet.
+    if (status === "no_show" && appt) {
+      const name = appt.clients?.full_name ?? "client";
+      await supabase.from("tasks").insert({
+        title: `Follow up: ${name} no-showed`,
+        client_id: appt.client_id,
+        start_date: dayKey(new Date().toISOString()),
+        due_date: dayKey(new Date().toISOString()),
+        recurrence: "none",
+      });
     }
     onChanged?.();
     if (status === "cancelled") onClose();
@@ -290,6 +305,7 @@ export default function ApptDetailModal({
             ) : mode === "rebook" ? (
               <RebookForm
                 clientId={appt.client_id}
+                baseISO={appt.starts_at}
                 onDone={() => {
                   setMode("view");
                   onChanged?.();
@@ -429,10 +445,13 @@ type SvcOpt = {
 
 export function RebookForm({
   clientId,
+  baseISO,
   onDone,
   onCancel,
 }: {
   clientId: string;
+  // The visit being rebooked from — enables "+4 / +6 weeks" prebook presets.
+  baseISO?: string;
   onDone: () => void;
   onCancel: () => void;
 }) {
@@ -493,6 +512,21 @@ export function RebookForm({
           </option>
         ))}
       </select>
+      {baseISO && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-muted">Prebook:</span>
+          {[4, 6].map((wk) => (
+            <button
+              key={wk}
+              type="button"
+              onClick={() => setWhen(plusWeeksLocal(baseISO, wk))}
+              className="rounded-full border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
+            >
+              +{wk} weeks
+            </button>
+          ))}
+        </div>
+      )}
       <input
         type="datetime-local"
         className="input w-auto"

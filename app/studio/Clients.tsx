@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
   whenLabel,
+  dateLabel,
   statusLabel,
   statusPillClass,
 } from "../../lib/format";
@@ -290,6 +291,8 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
         </div>
       )}
 
+      <ClientTasks clientId={client.id} />
+
       {/* Visit history */}
       <div className="mt-6 flex items-center justify-between">
         <h3 className="font-display text-lg">Appointments</h3>
@@ -368,6 +371,114 @@ function VisitList({
           </span>
         </button>
       ))}
+    </div>
+  );
+}
+
+type ClientTask = {
+  id: string;
+  title: string;
+  start_date: string | null;
+  due_date: string | null;
+};
+
+// Open to-dos linked to this client — the client-file side of task linking.
+// Hidden entirely if the tasks table/columns aren't migrated yet (best-effort).
+function ClientTasks({ clientId }: { clientId: string }) {
+  const [tasks, setTasks] = useState<ClientTask[] | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+  const [title, setTitle] = useState("");
+  const [due, setDue] = useState("");
+
+  const load = useCallback(() => {
+    supabase
+      .from("tasks")
+      .select("id,title,start_date,due_date")
+      .eq("client_id", clientId)
+      .eq("done", false)
+      .order("due_date", { nullsFirst: false })
+      .then(({ data, error }) => {
+        if (error) setUnavailable(true);
+        else setTasks((data ?? []) as ClientTask[]);
+      });
+  }, [clientId]);
+
+  useEffect(load, [load]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    const { error } = await supabase.from("tasks").insert({
+      title: title.trim(),
+      due_date: due || null,
+      client_id: clientId,
+      recurrence: "none",
+    });
+    if (!error) {
+      setTitle("");
+      setDue("");
+      load();
+    }
+  }
+
+  async function complete(id: string) {
+    await supabase
+      .from("tasks")
+      .update({ done: true, done_at: new Date().toISOString() })
+      .eq("id", id);
+    load();
+  }
+
+  if (unavailable || tasks === null) return null;
+
+  return (
+    <div className="mt-6">
+      <h3 className="font-display text-lg">Tasks &amp; follow-ups</h3>
+      <form onSubmit={add} className="mt-3 flex flex-wrap items-end gap-2">
+        <input
+          className="input flex-1"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Follow up, patch test, order color…"
+        />
+        <input
+          type="date"
+          className="input w-auto"
+          value={due}
+          onChange={(e) => setDue(e.target.value)}
+        />
+        <button
+          type="submit"
+          className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark"
+        >
+          Add
+        </button>
+      </form>
+
+      {tasks.length > 0 && (
+        <div className="mt-3 grid gap-2">
+          {tasks.map((t) => (
+            <div
+              key={t.id}
+              className="flex items-center gap-3 rounded-xl border border-foreground/10 bg-white px-4 py-3"
+            >
+              <button
+                onClick={() => complete(t.id)}
+                aria-label="Mark done"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-foreground/25 text-xs hover:border-accent hover:text-accent"
+              >
+                ✓
+              </button>
+              <span className="flex-1 text-sm">{t.title}</span>
+              {t.due_date && (
+                <span className="text-sm text-muted">
+                  {dateLabel(`${t.due_date}T12:00:00`)}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
