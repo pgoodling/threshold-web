@@ -500,7 +500,18 @@ async function saveClient(
     delete rest.hair_formula;
     res = await run(rest);
   }
+  // Migration 0010 blocks a second row with the same phone + first name, and
+  // email is still unique. Raw Postgres index errors mean nothing to Evelyn.
+  if (res.error) res.error.message = friendlyClientError(res.error.message);
   return res;
+}
+
+function friendlyClientError(message: string) {
+  if (/clients_phone_name_idx/.test(message))
+    return "Someone with that first name and phone number is already in your clients — open their file instead of adding a second one.";
+  if (/clients_email_lower_idx/.test(message))
+    return "That email address is already on another client's file.";
+  return message;
 }
 
 type Visit = {
