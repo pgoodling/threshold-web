@@ -39,10 +39,13 @@ type Detail = {
   price_cents: number | null;
   paid_cents: number | null;
   payment_method: string | null;
+  no_show_fee_cents: number | null;
+  no_show_charged_at: string | null;
   clients: {
     full_name: string;
     phone: string | null;
     email: string | null;
+    stripe_customer_id: string | null;
   } | null;
   services: { name: string; duration_minutes: number } | null;
 };
@@ -85,7 +88,7 @@ export default function ApptDetailModal({
   const [appt, setAppt] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<
-    "view" | "reschedule" | "rebook" | "checkout"
+    "view" | "reschedule" | "rebook" | "checkout" | "noShowFee"
   >("view");
   const [when, setWhen] = useState("");
   const [amount, setAmount] = useState("");
@@ -97,7 +100,7 @@ export default function ApptDetailModal({
       .from("appointments")
       // `*` so new payment columns are tolerated even before the migration runs.
       .select(
-        "*,clients(full_name,phone,email),services(name,duration_minutes)",
+        "*,clients(full_name,phone,email,stripe_customer_id),services(name,duration_minutes)",
       )
       .eq("id", appointmentId)
       .single()
@@ -136,6 +139,49 @@ export default function ApptDetailModal({
     onChanged?.();
     if (status === "cancelled") onClose();
     else load();
+  }
+
+  function openNoShowFee() {
+    if (!appt) return;
+    // Prefill the full service price — the posted policy allows up to that, and
+    // Evelyn can dial it down. She charges nothing unless she taps through.
+    const cents = appt.price_cents ?? 0;
+    setAmount(cents ? (cents / 100).toFixed(2) : "");
+    setError(null);
+    setMode("noShowFee");
+  }
+
+  async function chargeNoShowFee() {
+    if (!appt) return;
+    const cents = Math.round(parseFloat(amount || "0") * 100);
+    if (!cents || cents <= 0) {
+      setError("Enter an amount to charge.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const res = await fetch("/api/stripe/charge-no-show", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ appointmentId: appt.id, amountCents: cents }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "The card couldn't be charged.");
+      setMode("view");
+      onChanged?.();
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The card couldn't be charged.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function openCheckout() {
@@ -368,8 +414,60 @@ export default function ApptDetailModal({
                   </button>
                 </div>
               </div>
+            ) : mode === "noShowFee" ? (
+              <div className="mt-4 grid gap-3">
+                <p className="text-sm text-muted">
+                  Charge {appt.clients?.full_name ?? "this client"}&rsquo;s card
+                  on file. Your policy allows up to the full service price
+                  {appt.price_cents ? ` (${money(appt.price_cents)})` : ""}.
+                </p>
+                <label className="block">
+                  <span className="mb-1 block text-sm">Fee ($)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="input w-32"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={chargeNoShowFee}
+                    disabled={busy}
+                    className="rounded-full bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                  >
+                    {busy ? "Charging…" : "Charge this card"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      setMode("view");
+                    }}
+                    className="text-sm text-muted hover:text-accent"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                {appt.status === "no_show" &&
+                  (appt.no_show_charged_at ? (
+                    <span className="rounded-full bg-foreground/5 px-3 py-1.5 text-muted">
+                      Fee charged
+                      {appt.no_show_fee_cents
+                        ? ` · ${money(appt.no_show_fee_cents)}`
+                        : ""}
+                    </span>
+                  ) : (
+                    appt.clients?.stripe_customer_id && (
+                      <ActionBtn primary onClick={openNoShowFee}>
+                        Charge no-show fee
+                      </ActionBtn>
+                    )
+                  ))}
                 {appt.status === "booked" && (
                   <ActionBtn onClick={() => setStatus("confirmed")}>
                     Confirm

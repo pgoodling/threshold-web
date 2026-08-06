@@ -46,14 +46,50 @@ const emptyDraft: Draft = {
   active: true,
 };
 
+// A service shorter than this is a typo, not a real appointment. Duration is
+// what blocks the calendar — `create_booking` derives `ends_at` from it, and
+// the no-double-booking constraint only protects that window. A service saved
+// at 1 minute lets two clients book the same afternoon.
+const MIN_DURATION = 5;
+const MAX_DURATION = 480; // 8 hours
+
+// Returns a message to show the user, or null when the draft is safe to save.
+// This exists because the old code coerced a blank duration to 1 minute
+// silently — every service on the live site ended up at "1 min" that way.
+function validateDraft(d: Draft): string | null {
+  if (!d.name.trim()) return "Give the service a name.";
+
+  const duration = Number(d.duration.trim());
+  if (!d.duration.trim() || !Number.isInteger(duration)) {
+    return "Enter how long the service takes, in whole minutes.";
+  }
+  if (duration < MIN_DURATION || duration > MAX_DURATION) {
+    return `Duration must be between ${MIN_DURATION} and ${MAX_DURATION} minutes.`;
+  }
+
+  const price = Number(d.price.trim());
+  if (!d.price.trim() || !Number.isFinite(price) || price < 0) {
+    return "Enter a price (use 0 if the service is free).";
+  }
+
+  if (d.deposit.trim()) {
+    const deposit = Number(d.deposit.trim());
+    if (!Number.isFinite(deposit) || deposit < 0) return "Deposit isn't a valid amount.";
+    if (deposit > price) return "Deposit can't be more than the price.";
+  }
+
+  return null;
+}
+
+// Assumes validateDraft() has already passed — no silent coercion here.
 function draftToRow(d: Draft) {
   return {
     name: d.name.trim(),
     description: d.description.trim() || null,
-    duration_minutes: Math.max(1, parseInt(d.duration, 10) || 0),
-    price_cents: Math.max(0, Math.round(parseFloat(d.price || "0") * 100)),
+    duration_minutes: Number(d.duration.trim()),
+    price_cents: Math.round(Number(d.price.trim()) * 100),
     price_is_from: d.price_is_from,
-    deposit_cents: Math.max(0, Math.round(parseFloat(d.deposit || "0") * 100)),
+    deposit_cents: d.deposit.trim() ? Math.round(Number(d.deposit.trim()) * 100) : 0,
     active: d.active,
   };
 }
@@ -257,11 +293,19 @@ function ServiceForm({
 }) {
   const [d, setD] = useState<Draft>(initial);
   const [busy, setBusy] = useState(false);
-  const set = (patch: Partial<Draft>) => setD((prev) => ({ ...prev, ...patch }));
+  const [invalid, setInvalid] = useState<string | null>(null);
+  const set = (patch: Partial<Draft>) => {
+    setInvalid(null);
+    setD((prev) => ({ ...prev, ...patch }));
+  };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!d.name.trim()) return;
+    const problem = validateDraft(d);
+    if (problem) {
+      setInvalid(problem);
+      return;
+    }
     setBusy(true);
     await onSubmit(d);
     setBusy(false);
@@ -289,22 +333,35 @@ function ServiceForm({
       </label>
       <div className="flex flex-wrap gap-4">
         <label className="block">
-          <span className="mb-1 block text-sm">Duration (min)</span>
+          <span className="mb-1 block text-sm">
+            Duration (min)
+            <span className="text-accent"> *</span>
+          </span>
+          {/* step="1", NOT step="5". With a step, the browser only accepts
+              values of min + n*step — the old min="1" step="5" silently
+              rejected 60 and 180 (the two most common salon durations) with a
+              tooltip, which is why services couldn't be saved. */}
           <input
             type="number"
-            min="1"
-            step="5"
+            min={MIN_DURATION}
+            max={MAX_DURATION}
+            step="1"
+            required
             className="input w-32"
             value={d.duration}
             onChange={(e) => set({ duration: e.target.value })}
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm">Price ($)</span>
+          <span className="mb-1 block text-sm">
+            Price ($)
+            <span className="text-accent"> *</span>
+          </span>
           <input
             type="number"
             min="0"
             step="1"
+            required
             className="input w-28"
             value={d.price}
             onChange={(e) => set({ price: e.target.value })}
@@ -340,6 +397,11 @@ function ServiceForm({
           Visible on booking page
         </label>
       </div>
+      {invalid && (
+        <p className="rounded-xl border border-accent-dark/30 bg-accent/5 px-4 py-3 text-sm text-accent-dark">
+          {invalid}
+        </p>
+      )}
       <div className="flex items-center gap-3">
         <button
           type="submit"

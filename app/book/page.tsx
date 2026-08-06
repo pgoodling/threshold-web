@@ -101,6 +101,7 @@ export default function BookPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cardStage, setCardStage] = useState<"details" | "card">("details");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [hasCardOnFile, setHasCardOnFile] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
 
   const photoPreviews = useMemo(
@@ -206,8 +207,17 @@ export default function BookPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Couldn't start card entry.");
-      setClientSecret(json.clientSecret);
       setCustomerId(json.customerId);
+      // Returning client who already saved a card — don't make her type it
+      // again. The server resolved her by phone + first name; we only learn
+      // that a card exists, never any card details.
+      if (json.hasCardOnFile) {
+        setHasCardOnFile(true);
+        setClientSecret(null);
+      } else {
+        setHasCardOnFile(false);
+        setClientSecret(json.clientSecret);
+      }
       setCardStage("card");
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong.");
@@ -245,17 +255,16 @@ export default function BookPage() {
         }),
       ).catch(() => {});
     }
-    // Best-effort confirmation text — never blocks the booking.
-    fetch("/api/sms/booking-confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: phone.trim(),
-        name: name.trim(),
-        service: service.name,
-        startsAt: slot,
-      }),
-    }).catch(() => {});
+    // Best-effort confirmation text — never blocks the booking. Sends only the
+    // appointment id; the route reads the name, number, service, and time from
+    // the database so nothing from the browser can shape the outgoing text.
+    if (appointmentId) {
+      fetch("/api/sms/booking-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ appointmentId }),
+      }).catch(() => {});
+    }
     setStep(4);
   }
 
@@ -579,7 +588,37 @@ export default function BookPage() {
             ) : (
               <div className="mt-8">
                 <PolicyNote className="mb-5" />
-                {clientSecret && (
+                {hasCardOnFile ? (
+                  <div className="grid gap-4">
+                    <p className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm text-muted">
+                      Welcome back — we already have a card on file for you.
+                      Nothing to re-enter.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={async () => {
+                        setSubmitting(true);
+                        setSubmitError(null);
+                        try {
+                          await finishBooking();
+                        } catch (err) {
+                          setSubmitError(
+                            err instanceof Error
+                              ? err.message
+                              : "Couldn't complete the booking.",
+                          );
+                        } finally {
+                          setSubmitting(false);
+                        }
+                      }}
+                      className="rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    >
+                      {submitting ? "Booking…" : "Confirm booking"}
+                    </button>
+                  </div>
+                ) : (
+                  clientSecret && (
                   <div className="grid gap-4">
                     <Elements
                       stripe={stripePromise}
@@ -612,6 +651,7 @@ export default function BookPage() {
                       />
                     </Elements>
                   </div>
+                  )
                 )}
                 {submitError && <ErrorNote>{submitError}</ErrorNote>}
                 <button

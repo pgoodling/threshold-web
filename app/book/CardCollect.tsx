@@ -1,10 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { CardElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import {
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
 
 // A clean, card-only input for saving a card on file (SetupIntent). No bank /
-// Link / other payment methods — just card number, expiry, CVC.
+// Link / other payment methods. Split into three separate fields — number on
+// its own row, expiry and CVC side by side — because the combined single-line
+// CardElement is fiddly to tap accurately on a phone.
+// 16px keeps iOS Safari from zooming the page when a field is focused.
+const elementStyle = {
+  base: {
+    fontSize: "16px",
+    color: "#32251f",
+    "::placeholder": { color: "#6f5c52" },
+  },
+};
+
 export default function CardCollect({
   clientSecret,
   onConfirmed,
@@ -19,7 +36,8 @@ export default function CardCollect({
 
   async function handle() {
     if (!stripe || !elements) return;
-    const card = elements.getElement(CardElement);
+    // Stripe links the sibling expiry/CVC elements to this one automatically.
+    const card = elements.getElement(CardNumberElement);
     if (!card) return;
     setBusy(true);
     setError(null);
@@ -50,18 +68,36 @@ export default function CardCollect({
 
   return (
     <div className="grid gap-5">
-      <div className="rounded-xl border border-foreground/15 bg-white px-4 py-3.5">
-        <CardElement
-          options={{
-            style: {
-              base: {
-                fontSize: "16px",
-                color: "#32251f",
-                "::placeholder": { color: "#6f5c52" },
-              },
-            },
-          }}
-        />
+      <div className="grid gap-4">
+        <label className="block">
+          <span className="mb-1 block text-sm">
+            Card number
+            <span className="text-accent"> *</span>
+          </span>
+          <div className="rounded-xl border border-foreground/15 bg-white px-4 py-3.5">
+            <CardNumberElement options={{ style: elementStyle }} />
+          </div>
+        </label>
+        <div className="grid grid-cols-2 gap-4">
+          <label className="block">
+            <span className="mb-1 block text-sm">
+              Expiration
+              <span className="text-accent"> *</span>
+            </span>
+            <div className="rounded-xl border border-foreground/15 bg-white px-4 py-3.5">
+              <CardExpiryElement options={{ style: elementStyle }} />
+            </div>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm">
+              CVC
+              <span className="text-accent"> *</span>
+            </span>
+            <div className="rounded-xl border border-foreground/15 bg-white px-4 py-3.5">
+              <CardCvcElement options={{ style: elementStyle }} />
+            </div>
+          </label>
+        </div>
       </div>
       {error && (
         <p className="rounded-xl border border-accent-dark/30 bg-accent/5 px-4 py-3 text-sm text-accent-dark">
