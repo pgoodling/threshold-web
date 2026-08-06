@@ -2,7 +2,25 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { durationLabel, priceLabel } from "../../lib/format";
 
 type Service = {
@@ -204,14 +222,10 @@ export default function Services() {
     return true;
   }
 
-  // Move a service up or down the menu. Renumbers every row sequentially rather
-  // than swapping two values, so a menu with duplicate or gappy sort_orders
-  // (the seed used 1-6, new services get max+1) heals itself on the first move.
-  async function move(index: number, delta: number) {
-    const next = [...services];
-    const target = index + delta;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
+  // Renumbers every row sequentially rather than swapping two values, so a menu
+  // with duplicate or gappy sort_orders (the seed used 1-6, new services get
+  // max+1) heals itself on the first move.
+  async function persistOrder(next: Service[]) {
     setServices(next); // optimistic — the list reorders under her finger
     setReordering(true);
     const results = await Promise.all(
@@ -227,30 +241,71 @@ export default function Services() {
     }
   }
 
+  function move(index: number, delta: number) {
+    const target = index + delta;
+    if (target < 0 || target >= services.length) return;
+    persistOrder(arrayMove(services, index, target));
+  }
+
+  // Pointer for mouse; Touch with a hold delay so a swipe still scrolls the
+  // page on her phone instead of picking a service up; Keyboard so the grip
+  // handle can be tabbed to and moved with the arrow keys.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = services.findIndex((s) => s.id === active.id);
+    const to = services.findIndex((s) => s.id === over.id);
+    if (from < 0 || to < 0) return;
+    persistOrder(arrayMove(services, from, to));
+  }
+
   if (loading) return <p className="text-muted">Loading services…</p>;
 
   return (
     <div>
       <p className="text-muted">
-        Your service menu, in the order clients see it on the booking page. Use
-        the arrows to move a service up or down — edit prices, timings, and
-        descriptions any time.
+        Your service menu, in the order clients see it on the booking page. Drag
+        a service by its handle to reorder — or use the arrows. Edit prices,
+        timings, and descriptions any time.
       </p>
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      <div className="mt-6 grid gap-3">
-        {services.map((s, i) => (
-          <ServiceRow
-            key={s.id}
-            service={s}
-            onChange={load}
-            onError={setError}
-            onMoveUp={i > 0 ? () => move(i, -1) : undefined}
-            onMoveDown={i < services.length - 1 ? () => move(i, 1) : undefined}
-            busy={reordering}
-          />
-        ))}
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={services.map((s) => s.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="mt-6 grid gap-3">
+            {services.map((s, i) => (
+              <ServiceRow
+                key={s.id}
+                service={s}
+                onChange={load}
+                onError={setError}
+                onMoveUp={i > 0 ? () => move(i, -1) : undefined}
+                onMoveDown={
+                  i < services.length - 1 ? () => move(i, 1) : undefined
+                }
+                busy={reordering}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {adding ? (
         <div className="mt-4 rounded-2xl border border-accent/30 bg-white p-5">
@@ -290,6 +345,23 @@ function ServiceRow({
   busy?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  // Dragging is disabled while the row is an open form — otherwise a drag
+  // gesture inside the inputs would pick the whole card up.
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: service.id, disabled: editing || !!busy });
+  const dragStyle: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+    position: isDragging ? "relative" : undefined,
+    boxShadow: isDragging ? "0 8px 24px rgba(50,37,31,0.18)" : undefined,
+  };
 
   async function save(d: Draft) {
     const { error } = await supabase
@@ -328,7 +400,11 @@ function ServiceRow({
 
   if (editing) {
     return (
-      <div className="rounded-2xl border border-accent/30 bg-white p-5">
+      <div
+        ref={setNodeRef}
+        style={dragStyle}
+        className="rounded-2xl border border-accent/30 bg-white p-5"
+      >
         <ServiceForm
           initial={toDraft(service)}
           submitLabel="Save"
@@ -342,12 +418,23 @@ function ServiceRow({
 
   return (
     <div
+      ref={setNodeRef}
+      style={dragStyle}
       className={`rounded-2xl border border-foreground/10 bg-white p-5 ${
         service.active ? "" : "opacity-60"
       }`}
     >
       <div className="flex items-baseline justify-between gap-4">
-        <h3 className="font-display text-lg">
+        <button
+          type="button"
+          aria-label={`Reorder ${service.name}`}
+          {...attributes}
+          {...listeners}
+          className="-ml-1 flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center self-center rounded text-muted transition hover:text-accent active:cursor-grabbing"
+        >
+          <GripVertical size={16} />
+        </button>
+        <h3 className="mr-auto font-display text-lg">
           {service.name}
           {!service.active && (
             <span className="ml-2 rounded-full bg-foreground/5 px-2 py-0.5 text-xs text-muted">
