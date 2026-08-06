@@ -8,7 +8,10 @@ type Service = {
   id: string;
   name: string;
   description: string | null;
-  duration_minutes: number;
+  duration_minutes: number; // generated in the database: start + process + finish
+  start_minutes: number;
+  process_minutes: number;
+  finish_minutes: number;
   price_cents: number;
   price_is_from: boolean;
   deposit_cents: number;
@@ -19,7 +22,9 @@ type Service = {
 type Draft = {
   name: string;
   description: string;
-  duration: string; // minutes
+  start: string; // minutes she's working, before any processing
+  process: string; // minutes the colour develops — she's free
+  finish: string; // minutes she's working again, after processing
   price: string; // dollars
   price_is_from: boolean;
   deposit: string; // dollars
@@ -29,7 +34,9 @@ type Draft = {
 const toDraft = (s: Service): Draft => ({
   name: s.name,
   description: s.description ?? "",
-  duration: String(s.duration_minutes),
+  start: String(s.start_minutes ?? s.duration_minutes),
+  process: s.process_minutes ? String(s.process_minutes) : "",
+  finish: s.finish_minutes ? String(s.finish_minutes) : "",
   price: String(Math.round(s.price_cents / 100)),
   price_is_from: s.price_is_from,
   deposit: s.deposit_cents ? String(Math.round(s.deposit_cents / 100)) : "",
@@ -39,7 +46,9 @@ const toDraft = (s: Service): Draft => ({
 const emptyDraft: Draft = {
   name: "",
   description: "",
-  duration: "60",
+  start: "60",
+  process: "",
+  finish: "",
   price: "",
   price_is_from: true,
   deposit: "",
@@ -56,15 +65,35 @@ const MAX_DURATION = 480; // 8 hours
 // Returns a message to show the user, or null when the draft is safe to save.
 // This exists because the old code coerced a blank duration to 1 minute
 // silently — every service on the live site ended up at "1 min" that way.
+// Optional segment: blank means zero. Returns null when the text is unusable.
+function optionalMinutes(raw: string): number | null {
+  if (!raw.trim()) return 0;
+  const n = Number(raw.trim());
+  return Number.isInteger(n) && n >= 0 && n <= MAX_DURATION ? n : null;
+}
+
 function validateDraft(d: Draft): string | null {
   if (!d.name.trim()) return "Give the service a name.";
 
-  const duration = Number(d.duration.trim());
-  if (!d.duration.trim() || !Number.isInteger(duration)) {
-    return "Enter how long the service takes, in whole minutes.";
+  const start = Number(d.start.trim());
+  if (!d.start.trim() || !Number.isInteger(start)) {
+    return "Enter the start time — how long you're working before any processing.";
   }
-  if (duration < MIN_DURATION || duration > MAX_DURATION) {
-    return `Duration must be between ${MIN_DURATION} and ${MAX_DURATION} minutes.`;
+  if (start < MIN_DURATION || start > MAX_DURATION) {
+    return `Start time must be between ${MIN_DURATION} and ${MAX_DURATION} minutes.`;
+  }
+
+  const process = optionalMinutes(d.process);
+  if (process === null) return "Processing time isn't a valid number of minutes.";
+  const finish = optionalMinutes(d.finish);
+  if (finish === null) return "Finish time isn't a valid number of minutes.";
+
+  // Finish time only means something on the far side of a gap.
+  if (finish > 0 && process === 0) {
+    return "Add processing time before finish time — finish is the work after the gap.";
+  }
+  if (start + process + finish > MAX_DURATION) {
+    return `The whole service can't be longer than ${MAX_DURATION} minutes.`;
   }
 
   const price = Number(d.price.trim());
@@ -81,12 +110,28 @@ function validateDraft(d: Draft): string | null {
   return null;
 }
 
+// Changing a service's segments re-times every future appointment using it
+// (trigger `services_resync_busy`), so a save can now fail because the new
+// shape would double-book her. The raw Postgres text is meaningless to her.
+function friendlyServiceError(message: string) {
+  if (/appointment_busy_no_overlap|exclusion|conflicting key/i.test(message)) {
+    return "Those timings would overlap an appointment already on the calendar. Adjust the affected bookings first, or change this service by a smaller amount.";
+  }
+  if (/duration_minutes.*generated|generated column/i.test(message)) {
+    return "The app is out of date with the database — reload the page and try again.";
+  }
+  return message;
+}
+
 // Assumes validateDraft() has already passed — no silent coercion here.
 function draftToRow(d: Draft) {
   return {
     name: d.name.trim(),
     description: d.description.trim() || null,
-    duration_minutes: Number(d.duration.trim()),
+    // duration_minutes is generated in the database — never written here.
+    start_minutes: Number(d.start.trim()),
+    process_minutes: optionalMinutes(d.process) ?? 0,
+    finish_minutes: optionalMinutes(d.finish) ?? 0,
     price_cents: Math.round(Number(d.price.trim()) * 100),
     price_is_from: d.price_is_from,
     deposit_cents: d.deposit.trim() ? Math.round(Number(d.deposit.trim()) * 100) : 0,
@@ -105,7 +150,7 @@ export default function Services() {
     supabase
       .from("services")
       .select(
-        "id,name,description,duration_minutes,price_cents,price_is_from,deposit_cents,active,sort_order",
+        "id,name,description,duration_minutes,start_minutes,process_minutes,finish_minutes,price_cents,price_is_from,deposit_cents,active,sort_order",
       )
       .order("sort_order")
       .then(({ data, error }) => {
@@ -124,7 +169,7 @@ export default function Services() {
       .from("services")
       .insert({ ...draftToRow(d), sort_order: nextOrder });
     if (error) {
-      setError(error.message);
+      setError(friendlyServiceError(error.message));
       return false;
     }
     setAdding(false);
@@ -187,7 +232,7 @@ function ServiceRow({
       .update(draftToRow(d))
       .eq("id", service.id);
     if (error) {
-      onError(error.message);
+      onError(friendlyServiceError(error.message));
       return false;
     }
     setEditing(false);
@@ -331,27 +376,74 @@ function ServiceForm({
           onChange={(e) => set({ description: e.target.value })}
         />
       </label>
+      <div className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5">
+        <p className="text-sm text-muted">
+          Split the service into what you&rsquo;re <em>doing</em> and what
+          you&rsquo;re <em>waiting on</em>. During processing you&rsquo;re free,
+          so the booking site can offer that window to another client. Leave
+          processing and finish blank for a service that&rsquo;s one solid block.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-4">
+          <label className="block">
+            <span className="mb-1 block text-sm">
+              Start (min)
+              <span className="text-accent"> *</span>
+            </span>
+            {/* step="1", NOT step="5". With a step, the browser only accepts
+                values of min + n*step — the old min="1" step="5" silently
+                rejected 60 and 180 (the two most common salon durations) with
+                a tooltip, which is why services couldn't be saved. */}
+            <input
+              type="number"
+              min={MIN_DURATION}
+              max={MAX_DURATION}
+              step="1"
+              required
+              className="input w-28"
+              value={d.start}
+              onChange={(e) => set({ start: e.target.value })}
+            />
+            <span className="mt-1 block text-xs text-muted">You&rsquo;re busy</span>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm">Processing (min)</span>
+            <input
+              type="number"
+              min="0"
+              max={MAX_DURATION}
+              step="1"
+              className="input w-28"
+              value={d.process}
+              onChange={(e) => set({ process: e.target.value })}
+            />
+            <span className="mt-1 block text-xs text-muted">You&rsquo;re free</span>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm">Finish (min)</span>
+            <input
+              type="number"
+              min="0"
+              max={MAX_DURATION}
+              step="1"
+              className="input w-28"
+              value={d.finish}
+              onChange={(e) => set({ finish: e.target.value })}
+            />
+            <span className="mt-1 block text-xs text-muted">You&rsquo;re busy</span>
+          </label>
+          <div className="self-start pt-6 text-sm text-muted">
+            Total{" "}
+            <strong className="text-foreground">
+              {durationLabel(
+                (Number(d.start) || 0) +
+                  (Number(d.process) || 0) +
+                  (Number(d.finish) || 0),
+              )}
+            </strong>
+          </div>
+        </div>
+      </div>
       <div className="flex flex-wrap gap-4">
-        <label className="block">
-          <span className="mb-1 block text-sm">
-            Duration (min)
-            <span className="text-accent"> *</span>
-          </span>
-          {/* step="1", NOT step="5". With a step, the browser only accepts
-              values of min + n*step — the old min="1" step="5" silently
-              rejected 60 and 180 (the two most common salon durations) with a
-              tooltip, which is why services couldn't be saved. */}
-          <input
-            type="number"
-            min={MIN_DURATION}
-            max={MAX_DURATION}
-            step="1"
-            required
-            className="input w-32"
-            value={d.duration}
-            onChange={(e) => set({ duration: e.target.value })}
-          />
-        </label>
         <label className="block">
           <span className="mb-1 block text-sm">
             Price ($)

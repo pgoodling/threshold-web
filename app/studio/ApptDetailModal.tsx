@@ -41,13 +41,23 @@ type Detail = {
   payment_method: string | null;
   no_show_fee_cents: number | null;
   no_show_charged_at: string | null;
+  start_minutes: number | null; // null = inherit the service's timing
+  process_minutes: number | null;
+  finish_minutes: number | null;
+  block_processing: boolean | null;
   clients: {
     full_name: string;
     phone: string | null;
     email: string | null;
     stripe_customer_id: string | null;
   } | null;
-  services: { name: string; duration_minutes: number } | null;
+  services: {
+    name: string;
+    duration_minutes: number;
+    start_minutes: number | null;
+    process_minutes: number | null;
+    finish_minutes: number | null;
+  } | null;
 };
 
 export function Modal({
@@ -88,8 +98,10 @@ export default function ApptDetailModal({
   const [appt, setAppt] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<
-    "view" | "reschedule" | "rebook" | "checkout" | "noShowFee"
+    "view" | "reschedule" | "rebook" | "checkout" | "noShowFee" | "timing"
   >("view");
+  const [seg, setSeg] = useState({ start: "", process: "", finish: "" });
+  const [blockGap, setBlockGap] = useState(false);
   const [when, setWhen] = useState("");
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string | null>(null);
@@ -100,7 +112,7 @@ export default function ApptDetailModal({
       .from("appointments")
       // `*` so new payment columns are tolerated even before the migration runs.
       .select(
-        "*,clients(full_name,phone,email,stripe_customer_id),services(name,duration_minutes)",
+        "*,clients(full_name,phone,email,stripe_customer_id),services(name,duration_minutes,start_minutes,process_minutes,finish_minutes)",
       )
       .eq("id", appointmentId)
       .single()
@@ -139,6 +151,92 @@ export default function ApptDetailModal({
     onChanged?.();
     if (status === "cancelled") onClose();
     else load();
+  }
+
+  // Effective timing for this appointment: its own overrides, else the service.
+  function effectiveSegments(a: Detail) {
+    return {
+      start: a.start_minutes ?? a.services?.start_minutes ?? 0,
+      process: a.process_minutes ?? a.services?.process_minutes ?? 0,
+      finish: a.finish_minutes ?? a.services?.finish_minutes ?? 0,
+    };
+  }
+
+  function openTiming() {
+    if (!appt) return;
+    const e = effectiveSegments(appt);
+    setSeg({
+      start: e.start ? String(e.start) : "",
+      process: e.process ? String(e.process) : "",
+      finish: e.finish ? String(e.finish) : "",
+    });
+    setBlockGap(!!appt.block_processing);
+    setError(null);
+    setMode("timing");
+  }
+
+  async function saveTiming() {
+    if (!appt) return;
+    const start = parseInt(seg.start, 10);
+    if (!Number.isInteger(start) || start < 5) {
+      setError("Start time is required — at least 5 minutes.");
+      return;
+    }
+    const process = seg.process.trim() ? parseInt(seg.process, 10) : 0;
+    const finish = seg.finish.trim() ? parseInt(seg.finish, 10) : 0;
+    if (!Number.isInteger(process) || process < 0 || !Number.isInteger(finish) || finish < 0) {
+      setError("Processing and finish must be whole minutes, or left blank.");
+      return;
+    }
+    if (finish > 0 && process === 0) {
+      setError("Add processing time before finish time.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    // ends_at and the busy blocks are recomputed by trigger, so we only write
+    // the segments. A clash with a neighbouring appointment surfaces here as an
+    // exclusion violation from appointment_busy.
+    const { error: err } = await supabase
+      .from("appointments")
+      .update({
+        start_minutes: start,
+        process_minutes: process,
+        finish_minutes: finish,
+        block_processing: blockGap,
+      })
+      .eq("id", appointmentId);
+    setBusy(false);
+    if (err) {
+      setError(
+        /exclusion|overlap|conflict/i.test(err.message)
+          ? "That timing collides with another appointment."
+          : err.message,
+      );
+      return;
+    }
+    setMode("view");
+    onChanged?.();
+    load();
+  }
+
+  async function toggleBlockGap(next: boolean) {
+    setBusy(true);
+    const { error: err } = await supabase
+      .from("appointments")
+      .update({ block_processing: next })
+      .eq("id", appointmentId);
+    setBusy(false);
+    if (err) {
+      setError(
+        /exclusion|overlap|conflict/i.test(err.message)
+          ? "Someone is already booked in that window."
+          : err.message,
+      );
+      return;
+    }
+    onChanged?.();
+    load();
   }
 
   function openNoShowFee() {
@@ -414,6 +512,66 @@ export default function ApptDetailModal({
                   </button>
                 </div>
               </div>
+            ) : mode === "timing" ? (
+              <div className="mt-4 grid gap-3">
+                <p className="text-sm text-muted">
+                  Adjust this client&rsquo;s timing. During processing
+                  you&rsquo;re free and the slot can be booked by someone else —
+                  tick the box to keep it for yourself.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {(
+                    [
+                      ["Start", "start", true],
+                      ["Processing", "process", false],
+                      ["Finish", "finish", false],
+                    ] as const
+                  ).map(([label, k, req]) => (
+                    <label key={k} className="block">
+                      <span className="mb-1 block text-sm">
+                        {label} (min)
+                        {req && <span className="text-accent"> *</span>}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        className="input w-24"
+                        value={seg[k]}
+                        onChange={(e) =>
+                          setSeg((p) => ({ ...p, [k]: e.target.value }))
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={blockGap}
+                    onChange={(e) => setBlockGap(e.target.checked)}
+                  />
+                  Keep the processing time for myself
+                </label>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={saveTiming}
+                    disabled={busy}
+                    className="rounded-full bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                  >
+                    {busy ? "Saving…" : "Save timing"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      setMode("view");
+                    }}
+                    className="text-sm text-muted hover:text-accent"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : mode === "noShowFee" ? (
               <div className="mt-4 grid gap-3">
                 <p className="text-sm text-muted">
@@ -511,6 +669,23 @@ export default function ApptDetailModal({
                     </ActionBtn>
                   )}
                 <ActionBtn onClick={() => setMode("rebook")}>Rebook</ActionBtn>
+                {appt.status !== "checked_out" &&
+                  appt.status !== "completed" &&
+                  appt.status !== "cancelled" && (
+                    <ActionBtn onClick={openTiming}>Timing</ActionBtn>
+                  )}
+                {/* One-tap guard for the common case: she wants this gap back. */}
+                {effectiveSegments(appt).process > 0 &&
+                  appt.status !== "checked_out" &&
+                  appt.status !== "completed" && (
+                    <ActionBtn
+                      onClick={() => toggleBlockGap(!appt.block_processing)}
+                    >
+                      {appt.block_processing
+                        ? "Free up processing"
+                        : "Block processing"}
+                    </ActionBtn>
+                  )}
                 {appt.status !== "no_show" &&
                   appt.status !== "checked_out" &&
                   appt.status !== "completed" && (
