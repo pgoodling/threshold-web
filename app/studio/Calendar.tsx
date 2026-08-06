@@ -20,9 +20,51 @@ type Appt = {
   ends_at: string;
   status: string;
   notes: string | null;
+  start_minutes: number | null; // per-appointment override; null = use service
+  process_minutes: number | null;
+  finish_minutes: number | null;
+  block_processing: boolean | null;
   clients: { full_name: string; phone: string | null; email: string | null } | null;
-  services: { name: string; duration_minutes: number } | null;
+  services: {
+    name: string;
+    duration_minutes: number;
+    start_minutes: number | null;
+    process_minutes: number | null;
+    finish_minutes: number | null;
+  } | null;
 };
+
+// The processing gap, in minutes from the appointment start, or null when she's
+// busy the whole way through (no gap, or she's keeping it for herself).
+function gapOf(a: Appt): { from: number; to: number } | null {
+  if (a.block_processing) return null;
+  const start = a.start_minutes ?? a.services?.start_minutes ?? 0;
+  const process = a.process_minutes ?? a.services?.process_minutes ?? 0;
+  if (process <= 0 || start <= 0) return null;
+  return { from: start, to: start + process };
+}
+
+// Appointments can now legitimately overlap — that's the whole point of
+// processing time — so they need side-by-side lanes or the client filling a gap
+// renders hidden underneath the colour client. Greedy first-fit: one lane per
+// concurrent appointment, widened across the whole day for simplicity (she's
+// one stylist, so this is 1 or 2 in practice).
+function layoutLanes<T extends { starts_at: string; ends_at: string }>(items: T[]) {
+  const laneEnds: number[] = [];
+  const placed = items.map((a) => {
+    const s = salonMinutes(a.starts_at);
+    const e = salonMinutes(a.ends_at);
+    let lane = laneEnds.findIndex((end) => end <= s);
+    if (lane === -1) {
+      laneEnds.push(e);
+      lane = laneEnds.length - 1;
+    } else {
+      laneEnds[lane] = e;
+    }
+    return { item: a, startMin: s, endMin: e, lane };
+  });
+  return { placed, laneCount: Math.max(1, laneEnds.length) };
+}
 
 type View = "month" | "week" | "day";
 
@@ -101,7 +143,7 @@ export default function Calendar({
     supabase
       .from("appointments")
       .select(
-        "id,client_id,starts_at,ends_at,status,notes,clients(full_name,phone,email),services(name,duration_minutes)",
+        "id,client_id,starts_at,ends_at,status,notes,start_minutes,process_minutes,finish_minutes,block_processing,clients(full_name,phone,email),services(name,duration_minutes,start_minutes,process_minutes,finish_minutes)",
       )
       .gte("starts_at", fromISO)
       .lt("starts_at", toISO)
@@ -436,40 +478,68 @@ function TimeGrid({
                   className="border-t border-foreground/10"
                 />
               ))}
-              {(byDay.get(k) ?? []).map((a) => {
-                const startMin = salonMinutes(a.starts_at);
-                const endMin = salonMinutes(a.ends_at);
-                const top = Math.max(0, ((startMin - GRID_TOP_MIN) / 60) * HOUR_PX);
-                const h = Math.max(22, ((endMin - startMin) / 60) * HOUR_PX);
-                // Checked-in/out + running-late get their own status color;
-                // everything else keeps the service color. No-shows stay dimmed.
-                const c =
-                  statusBlockColor(liveStatus(a.status, a.starts_at)) ??
-                  catColors(a.services?.name);
-                const dim = a.status === "no_show";
-                return (
-                  <button
-                    key={a.id}
-                    onClick={() => onSelect(a)}
-                    style={{
-                      position: "absolute",
-                      top,
-                      left: 3,
-                      right: 3,
-                      height: h,
-                      background: c.bg,
-                      color: c.fg,
-                      opacity: dim ? 0.6 : 1,
-                    }}
-                    className="overflow-hidden rounded-md px-1.5 py-1 text-left text-[11px] leading-tight"
-                  >
-                    <div className="font-medium">
-                      {timeLabel(a.starts_at)} {a.clients?.full_name?.split(" ")[0]}
-                    </div>
-                    {h > 34 && <div className="truncate">{a.services?.name}</div>}
-                  </button>
-                );
-              })}
+              {(() => {
+                const { placed, laneCount } = layoutLanes(byDay.get(k) ?? []);
+                return placed.map(({ item: a, startMin, endMin, lane }) => {
+                  const top = Math.max(
+                    0,
+                    ((startMin - GRID_TOP_MIN) / 60) * HOUR_PX,
+                  );
+                  const h = Math.max(22, ((endMin - startMin) / 60) * HOUR_PX);
+                  // Checked-in/out + running-late get their own status color;
+                  // everything else keeps the service color. No-shows stay dimmed.
+                  const c =
+                    statusBlockColor(liveStatus(a.status, a.starts_at)) ??
+                    catColors(a.services?.name);
+                  const dim = a.status === "no_show";
+                  const gap = gapOf(a);
+                  const lanePct = 100 / laneCount;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => onSelect(a)}
+                      style={{
+                        position: "absolute",
+                        top,
+                        left: `calc(${lane * lanePct}% + 3px)`,
+                        width: `calc(${lanePct}% - 6px)`,
+                        height: h,
+                        background: c.bg,
+                        color: c.fg,
+                        opacity: dim ? 0.6 : 1,
+                      }}
+                      className="overflow-hidden rounded-md px-1.5 py-1 text-left text-[11px] leading-tight"
+                    >
+                      {/* The processing window: she's free here, so it reads as
+                          hollow rather than solid. This is what explains why
+                          another appointment is allowed to sit alongside. */}
+                      {gap && (
+                        <span
+                          aria-hidden
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            right: 0,
+                            top: (gap.from / 60) * HOUR_PX,
+                            height: ((gap.to - gap.from) / 60) * HOUR_PX,
+                            background:
+                              "repeating-linear-gradient(45deg, rgba(255,255,255,0.62) 0 5px, rgba(255,255,255,0.16) 5px 10px)",
+                          }}
+                        />
+                      )}
+                      <div className="relative font-medium">
+                        {timeLabel(a.starts_at)}{" "}
+                        {a.clients?.full_name?.split(" ")[0]}
+                      </div>
+                      {h > 34 && (
+                        <div className="relative truncate">
+                          {a.services?.name}
+                        </div>
+                      )}
+                    </button>
+                  );
+                });
+              })()}
             </div>
           ))}
         </div>
