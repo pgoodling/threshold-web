@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { durationLabel, priceLabel } from "../../lib/format";
 
 type Service = {
@@ -110,6 +111,31 @@ function validateDraft(d: Draft): string | null {
   return null;
 }
 
+// Generous tap target (36px) — she reorders these on a phone.
+function MoveBtn({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={!onClick || disabled}
+      className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-25"
+    >
+      {children}
+    </button>
+  );
+}
+
 // Changing a service's segments re-times every future appointment using it
 // (trigger `services_resync_busy`), so a save can now fail because the new
 // shape would double-book her. The raw Postgres text is meaningless to her.
@@ -144,6 +170,7 @@ export default function Services() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [reordering, setReordering] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -177,19 +204,51 @@ export default function Services() {
     return true;
   }
 
+  // Move a service up or down the menu. Renumbers every row sequentially rather
+  // than swapping two values, so a menu with duplicate or gappy sort_orders
+  // (the seed used 1-6, new services get max+1) heals itself on the first move.
+  async function move(index: number, delta: number) {
+    const next = [...services];
+    const target = index + delta;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    setServices(next); // optimistic — the list reorders under her finger
+    setReordering(true);
+    const results = await Promise.all(
+      next.map((s, i) =>
+        supabase.from("services").update({ sort_order: i + 1 }).eq("id", s.id),
+      ),
+    );
+    setReordering(false);
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      setError(failed.error.message);
+      load(); // put the list back the way the database actually has it
+    }
+  }
+
   if (loading) return <p className="text-muted">Loading services…</p>;
 
   return (
     <div>
       <p className="text-muted">
-        Your service menu. These appear on the booking page — edit prices,
-        durations, and descriptions any time.
+        Your service menu, in the order clients see it on the booking page. Use
+        the arrows to move a service up or down — edit prices, timings, and
+        descriptions any time.
       </p>
       {error && <ErrorNote>{error}</ErrorNote>}
 
       <div className="mt-6 grid gap-3">
-        {services.map((s) => (
-          <ServiceRow key={s.id} service={s} onChange={load} onError={setError} />
+        {services.map((s, i) => (
+          <ServiceRow
+            key={s.id}
+            service={s}
+            onChange={load}
+            onError={setError}
+            onMoveUp={i > 0 ? () => move(i, -1) : undefined}
+            onMoveDown={i < services.length - 1 ? () => move(i, 1) : undefined}
+            busy={reordering}
+          />
         ))}
       </div>
 
@@ -219,10 +278,16 @@ function ServiceRow({
   service,
   onChange,
   onError,
+  onMoveUp,
+  onMoveDown,
+  busy,
 }: {
   service: Service;
   onChange: () => void;
   onError: (m: string) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  busy?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -290,9 +355,29 @@ function ServiceRow({
             </span>
           )}
         </h3>
-        <span className="whitespace-nowrap text-sm text-accent">
-          {priceLabel(service.price_cents, service.price_is_from)}
-        </span>
+        <div className="flex items-center gap-2">
+          {/* Arrows rather than drag-and-drop: HTML5 drag events don't fire on
+              touch at all, and she runs the studio from a phone and iPad. */}
+          <div className="flex items-center">
+            <MoveBtn
+              label={`Move ${service.name} up`}
+              onClick={onMoveUp}
+              disabled={busy}
+            >
+              <ChevronUp size={16} />
+            </MoveBtn>
+            <MoveBtn
+              label={`Move ${service.name} down`}
+              onClick={onMoveDown}
+              disabled={busy}
+            >
+              <ChevronDown size={16} />
+            </MoveBtn>
+          </div>
+          <span className="whitespace-nowrap text-sm text-accent">
+            {priceLabel(service.price_cents, service.price_is_from)}
+          </span>
+        </div>
       </div>
       {service.description && (
         <p className="mt-2 text-sm text-muted">{service.description}</p>
