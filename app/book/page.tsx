@@ -81,6 +81,9 @@ export default function BookPage() {
 
   const [services, setServices] = useState<Service[]>([]);
   const [servicesError, setServicesError] = useState<string | null>(null);
+  // Distinct from "loaded but empty" — conflating the two showed "Loading
+  // services…" forever when every service was hidden from the booking page.
+  const [servicesLoading, setServicesLoading] = useState(true);
   const [service, setService] = useState<Service | null>(null);
 
   const now = useMemo(salonNow, []);
@@ -126,6 +129,7 @@ export default function BookPage() {
       .eq("active", true)
       .order("sort_order")
       .then(({ data, error }) => {
+        setServicesLoading(false);
         if (error) setServicesError(error.message);
         else setServices(data ?? []);
       });
@@ -304,8 +308,14 @@ export default function BookPage() {
             <p className="mt-2 text-muted">Choose a service to get started.</p>
 
             {servicesError && <ErrorNote>{servicesError}</ErrorNote>}
-            {!servicesError && services.length === 0 && (
+            {!servicesError && servicesLoading && (
               <p className="mt-8 text-muted">Loading services…</p>
+            )}
+            {!servicesError && !servicesLoading && services.length === 0 && (
+              <p className="mt-8 text-muted">
+                Online booking is being updated right now — please check back
+                shortly, or call the salon and we&rsquo;ll get you in.
+              </p>
             )}
 
             <div className="mt-8 grid gap-4">
