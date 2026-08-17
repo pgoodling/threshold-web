@@ -18,7 +18,36 @@ type Service = {
   duration_minutes: number;
   price_cents: number;
   price_is_from: boolean;
+  category_id: string | null;
 };
+
+type Category = { id: string; name: string; sort_order: number };
+
+// Services grouped under the headers clients see. Categories in Evelyn's order,
+// each keeping the service order she set; anything uncategorised is collected at
+// the end so a service can never go missing from the menu by lacking a category.
+function groupByCategory(services: Service[], categories: Category[]) {
+  const groups = categories
+    .map((c) => ({
+      key: c.id,
+      title: c.name,
+      items: services.filter((s) => s.category_id === c.id),
+    }))
+    .filter((g) => g.items.length > 0);
+  const loose = services.filter(
+    (s) => !s.category_id || !categories.some((c) => c.id === s.category_id),
+  );
+  if (loose.length) {
+    groups.push({
+      key: "uncategorised",
+      // With no categories at all this is the entire menu, so a header would be
+      // noise — the caller drops it when it's the only group.
+      title: "More services",
+      items: loose,
+    });
+  }
+  return groups;
+}
 
 const money = (cents: number) => `$${Math.round(cents / 100)}`;
 const priceLabel = (s: Service) =>
@@ -85,7 +114,12 @@ export default function BookPage() {
   // Distinct from "loaded but empty" — conflating the two showed "Loading
   // services…" forever when every service was hidden from the booking page.
   const [servicesLoading, setServicesLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [service, setService] = useState<Service | null>(null);
+  const serviceGroups = useMemo(
+    () => groupByCategory(services, categories),
+    [services, categories],
+  );
 
   const now = useMemo(salonNow, []);
   const [viewY, setViewY] = useState(now.year);
@@ -130,18 +164,30 @@ export default function BookPage() {
     setPhotos((prev) => [...prev, ...picked].slice(0, 3));
   }
 
-  // Load services once.
+  // Load services once. `*` rather than a column list so category_id is picked
+  // up once migration 0016 runs and its absence before then isn't fatal.
   useEffect(() => {
     supabase
       .from("services")
-      .select("id,name,description,duration_minutes,price_cents,price_is_from")
+      .select("*")
       .eq("active", true)
       .order("sort_order")
       .then(({ data, error }) => {
         setServicesLoading(false);
         if (error) setServicesError(error.message);
-        else setServices(data ?? []);
+        else setServices((data ?? []) as Service[]);
       });
+  }, []);
+
+  // Categories are cosmetic grouping — if the table isn't there yet, the menu
+  // just renders flat.
+  useEffect(() => {
+    supabase
+      .from("service_categories")
+      .select("id,name,sort_order")
+      .order("sort_order")
+      .order("name")
+      .then(({ data }) => setCategories((data ?? []) as Category[]));
   }, []);
 
   // Load open slots for the visible month whenever service or month changes.
@@ -339,29 +385,44 @@ export default function BookPage() {
               </p>
             )}
 
-            <div className="mt-8 grid gap-4">
-              {services.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => chooseService(s)}
-                  className="group rounded-2xl border border-foreground/10 bg-white p-6 text-left transition hover:border-accent hover:shadow-sm"
-                >
-                  <div className="flex items-baseline justify-between gap-4">
-                    <h2 className="font-display text-xl group-hover:text-accent">
-                      {s.name}
+            <div className="mt-8 grid gap-10">
+              {serviceGroups.map((group) => (
+                <section key={group.key}>
+                  {/* A lone "More services" header means she hasn't set any
+                      categories up — don't label the whole menu. */}
+                  {serviceGroups.length > 1 && (
+                    <h2 className="mb-4 font-display text-2xl text-accent">
+                      {group.title}
                     </h2>
-                    <span className="whitespace-nowrap text-sm text-accent">
-                      {priceLabel(s)}
-                    </span>
-                  </div>
-                  {s.description && (
-                    <p className="mt-2 text-sm text-muted">{s.description}</p>
                   )}
-                  <p className="mt-3 text-xs uppercase tracking-wide text-muted">
-                    {durationLabel(s.duration_minutes)}
-                  </p>
-                </button>
+                  <div className="grid gap-4">
+                    {group.items.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => chooseService(s)}
+                        className="group rounded-2xl border border-foreground/10 bg-white p-6 text-left transition hover:border-accent hover:shadow-sm"
+                      >
+                        <div className="flex items-baseline justify-between gap-4">
+                          <h3 className="font-display text-xl group-hover:text-accent">
+                            {s.name}
+                          </h3>
+                          <span className="whitespace-nowrap text-sm text-accent">
+                            {priceLabel(s)}
+                          </span>
+                        </div>
+                        {s.description && (
+                          <p className="mt-2 text-sm text-muted">
+                            {s.description}
+                          </p>
+                        )}
+                        <p className="mt-3 text-xs uppercase tracking-wide text-muted">
+                          {durationLabel(s.duration_minutes)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           </section>

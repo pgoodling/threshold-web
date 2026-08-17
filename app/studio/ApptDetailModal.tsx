@@ -536,10 +536,56 @@ export default function ApptDetailModal({
             ) : mode === "timing" ? (
               <div className="mt-4 grid gap-3">
                 <p className="text-sm text-muted">
-                  Adjust this client&rsquo;s timing. During processing
-                  you&rsquo;re free and the slot can be booked by someone else —
-                  tick the box to keep it for yourself.
+                  <span className="font-medium text-foreground">
+                    This appointment only
+                  </span>{" "}
+                  — {appt.clients?.full_name?.split(" ")[0] ?? "this client"} on{" "}
+                  {dayKey(appt.starts_at)}. It won&rsquo;t change{" "}
+                  {appt.services?.name ?? "the service"} for anyone else. To
+                  change it for every future booking, edit the service under
+                  Services instead.
                 </p>
+                <p className="text-sm text-muted">
+                  During processing you&rsquo;re free and the slot can be booked
+                  by someone else — tick the box to keep it for yourself.
+                </p>
+                {appt.services && (
+                  <p className="text-xs text-muted">
+                    {appt.services.name} default:{" "}
+                    {appt.services.start_minutes ?? 0} min start
+                    {appt.services.process_minutes
+                      ? ` · ${appt.services.process_minutes} min processing`
+                      : ""}
+                    {appt.services.finish_minutes
+                      ? ` · ${appt.services.finish_minutes} min finish`
+                      : ""}
+                    {(appt.start_minutes !== null ||
+                      appt.process_minutes !== null ||
+                      appt.finish_minutes !== null) && (
+                      <>
+                        {" · "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const s = appt.services!;
+                            setSeg({
+                              start: s.start_minutes ? String(s.start_minutes) : "",
+                              process: s.process_minutes
+                                ? String(s.process_minutes)
+                                : "",
+                              finish: s.finish_minutes
+                                ? String(s.finish_minutes)
+                                : "",
+                            });
+                          }}
+                          className="text-accent hover:underline"
+                        >
+                          reset to default
+                        </button>
+                      </>
+                    )}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-3">
                   {(
                     [

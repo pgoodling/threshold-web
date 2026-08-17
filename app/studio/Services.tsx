@@ -36,11 +36,16 @@ type Service = {
   deposit_cents: number;
   active: boolean;
   sort_order: number;
+  category_id: string | null;
 };
+
+export type Category = { id: string; name: string; sort_order: number };
 
 type Draft = {
   name: string;
   description: string;
+  category_id: string; // "" = uncategorised
+
   start: string; // minutes she's working, before any processing
   process: string; // minutes the colour develops — she's free
   finish: string; // minutes she's working again, after processing
@@ -53,6 +58,7 @@ type Draft = {
 const toDraft = (s: Service): Draft => ({
   name: s.name,
   description: s.description ?? "",
+  category_id: s.category_id ?? "",
   start: String(s.start_minutes ?? s.duration_minutes),
   process: s.process_minutes ? String(s.process_minutes) : "",
   finish: s.finish_minutes ? String(s.finish_minutes) : "",
@@ -65,6 +71,7 @@ const toDraft = (s: Service): Draft => ({
 const emptyDraft: Draft = {
   name: "",
   description: "",
+  category_id: "",
   start: "60",
   process: "",
   finish: "",
@@ -167,11 +174,33 @@ function friendlyServiceError(message: string) {
   return message;
 }
 
+// Resilient write, like saveClient vs migration 0009: if 0016 hasn't run there
+// is no category_id column, so retry without it rather than blocking every
+// service edit until the SQL is applied.
+async function writeService(
+  op: "insert" | "update",
+  row: Record<string, unknown>,
+  id?: string,
+) {
+  const run = (payload: Record<string, unknown>) =>
+    op === "insert"
+      ? supabase.from("services").insert(payload)
+      : supabase.from("services").update(payload).eq("id", id!);
+  let res = await run(row);
+  if (res.error && /category_id|column/i.test(res.error.message)) {
+    const rest = { ...row };
+    delete rest.category_id;
+    res = await run(rest);
+  }
+  return res;
+}
+
 // Assumes validateDraft() has already passed — no silent coercion here.
 function draftToRow(d: Draft) {
   return {
     name: d.name.trim(),
     description: d.description.trim() || null,
+    category_id: d.category_id || null,
     // duration_minutes is generated in the database — never written here.
     start_minutes: Number(d.start.trim()),
     process_minutes: optionalMinutes(d.process) ?? 0,
@@ -189,14 +218,18 @@ export default function Services() {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  // Null until we know: false means migration 0016 hasn't run, so the category
+  // UI stays hidden rather than showing controls that can't save.
+  const [hasCategories, setHasCategories] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
     supabase
       .from("services")
-      .select(
-        "id,name,description,duration_minutes,start_minutes,process_minutes,finish_minutes,price_cents,price_is_from,deposit_cents,active,sort_order",
-      )
+      // `*` so category_id is picked up once 0016 runs, and its absence before
+      // then doesn't fail the whole select.
+      .select("*")
       .order("sort_order")
       .then(({ data, error }) => {
         setLoading(false);
@@ -205,14 +238,29 @@ export default function Services() {
       });
   }, []);
 
+  const loadCategories = useCallback(() => {
+    supabase
+      .from("service_categories")
+      .select("id,name,sort_order")
+      .order("sort_order")
+      .order("name")
+      .then(({ data, error }) => {
+        // A missing table just means the migration is pending.
+        setHasCategories(!error);
+        setCategories((data ?? []) as Category[]);
+      });
+  }, []);
+
   useEffect(load, [load]);
+  useEffect(loadCategories, [loadCategories]);
 
   async function addService(d: Draft) {
     const nextOrder =
       services.reduce((m, s) => Math.max(m, s.sort_order), 0) + 1;
-    const { error } = await supabase
-      .from("services")
-      .insert({ ...draftToRow(d), sort_order: nextOrder });
+    const { error } = await writeService("insert", {
+      ...draftToRow(d),
+      sort_order: nextOrder,
+    });
     if (error) {
       setError(friendlyServiceError(error.message));
       return false;
@@ -287,6 +335,8 @@ export default function Services() {
           <p className="mb-4 font-medium">New service</p>
           <ServiceForm
             initial={emptyDraft}
+            categories={categories}
+            showCategory={hasCategories}
             submitLabel="Add service"
             onSubmit={addService}
             onCancel={() => setAdding(false)}
@@ -299,6 +349,18 @@ export default function Services() {
         >
           + Add service
         </button>
+      )}
+
+      {hasCategories && (
+        <CategoryManager
+          categories={categories}
+          services={services}
+          onChanged={() => {
+            loadCategories();
+            load();
+          }}
+          onError={setError}
+        />
       )}
 
       <DndContext
@@ -315,6 +377,8 @@ export default function Services() {
               <ServiceRow
                 key={s.id}
                 service={s}
+                categories={categories}
+                showCategory={hasCategories}
                 onChange={load}
                 onError={setError}
                 onMoveUp={i > 0 ? () => move(i, -1) : undefined}
@@ -331,8 +395,241 @@ export default function Services() {
   );
 }
 
+// Create, rename, reorder and delete the headers the booking menu groups under.
+// Below the service list because she'll set these up once and then rarely touch
+// them, unlike adding a service.
+function CategoryManager({
+  categories,
+  services,
+  onChanged,
+  onError,
+}: {
+  categories: Category[];
+  services: Service[];
+  onChanged: () => void;
+  onError: (m: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const countIn = (id: string) =>
+    services.filter((s) => s.category_id === id).length;
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setBusy(true);
+    const nextOrder =
+      categories.reduce((m, c) => Math.max(m, c.sort_order), 0) + 1;
+    const { error } = await supabase
+      .from("service_categories")
+      .insert({ name: name.trim(), sort_order: nextOrder });
+    setBusy(false);
+    if (error) {
+      onError(
+        /service_categories_name_lower_idx|duplicate/i.test(error.message)
+          ? `You already have a category called “${name.trim()}”.`
+          : error.message,
+      );
+      return;
+    }
+    setName("");
+    onChanged();
+  }
+
+  async function rename(id: string) {
+    if (!editName.trim()) return;
+    setBusy(true);
+    const { error } = await supabase
+      .from("service_categories")
+      .update({ name: editName.trim() })
+      .eq("id", id);
+    setBusy(false);
+    if (error) {
+      onError(
+        /service_categories_name_lower_idx|duplicate/i.test(error.message)
+          ? `You already have a category called “${editName.trim()}”.`
+          : error.message,
+      );
+      return;
+    }
+    setEditingId(null);
+    onChanged();
+  }
+
+  // The foreign key is ON DELETE SET NULL, so the services survive and simply
+  // fall back to "More services" on the booking page.
+  async function remove(id: string) {
+    setBusy(true);
+    const { error } = await supabase
+      .from("service_categories")
+      .delete()
+      .eq("id", id);
+    setBusy(false);
+    setConfirmDelete(null);
+    if (error) onError(error.message);
+    else onChanged();
+  }
+
+  async function reorder(index: number, dir: -1 | 1) {
+    const next = arrayMove(categories, index, index + dir);
+    setBusy(true);
+    await Promise.all(
+      next.map((c, i) =>
+        supabase
+          .from("service_categories")
+          .update({ sort_order: i + 1 })
+          .eq("id", c.id),
+      ),
+    );
+    setBusy(false);
+    onChanged();
+  }
+
+  return (
+    <div className="mt-10 rounded-2xl border border-foreground/10 bg-background p-5">
+      <h3 className="font-display text-lg">Categories</h3>
+      <p className="mt-1 text-sm text-muted">
+        Headings the booking page groups your services under, in this order. A
+        service without a category is listed last under &ldquo;More
+        services&rdquo;.
+      </p>
+
+      {categories.length > 0 && (
+        <div className="mt-4 grid gap-2">
+          {categories.map((c, i) => (
+            <div
+              key={c.id}
+              className="flex items-center gap-2 rounded-xl border border-foreground/10 bg-white px-3 py-2"
+            >
+              {editingId === c.id ? (
+                <>
+                  <input
+                    className="input flex-1"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => rename(c.id)}
+                    className="rounded-full bg-accent px-4 py-1.5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(null)}
+                    className="text-sm text-muted hover:text-accent"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="mr-auto">
+                    {c.name}
+                    <span className="ml-2 text-sm text-muted">
+                      {countIn(c.id) === 1
+                        ? "1 service"
+                        : `${countIn(c.id)} services`}
+                    </span>
+                  </span>
+                  <div className="flex items-center">
+                    <MoveBtn
+                      label={`Move ${c.name} up`}
+                      onClick={i > 0 ? () => reorder(i, -1) : undefined}
+                      disabled={busy}
+                    >
+                      <ChevronUp size={16} />
+                    </MoveBtn>
+                    <MoveBtn
+                      label={`Move ${c.name} down`}
+                      onClick={
+                        i < categories.length - 1
+                          ? () => reorder(i, 1)
+                          : undefined
+                      }
+                      disabled={busy}
+                    >
+                      <ChevronDown size={16} />
+                    </MoveBtn>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(c.id);
+                      setEditName(c.name);
+                    }}
+                    className="text-sm text-muted hover:text-accent"
+                  >
+                    Rename
+                  </button>
+                  {confirmDelete === c.id ? (
+                    <span className="flex items-center gap-2 text-sm">
+                      <span className="text-muted">Delete?</span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => remove(c.id)}
+                        className="text-accent-dark hover:underline"
+                      >
+                        Yes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(null)}
+                        className="text-muted hover:text-accent"
+                      >
+                        No
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(c.id)}
+                      className="text-sm text-muted hover:text-accent-dark"
+                    >
+                      Delete
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={add} className="mt-4 flex flex-wrap items-end gap-2">
+        <label className="block flex-1">
+          <span className="mb-1 block text-sm">New category</span>
+          <input
+            className="input"
+            placeholder="e.g. Color"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={busy || !name.trim()}
+          className="rounded-full border border-foreground/15 px-5 py-2.5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
+        >
+          + Add category
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function ServiceRow({
   service,
+  categories,
+  showCategory,
   onChange,
   onError,
   onMoveUp,
@@ -340,6 +637,8 @@ function ServiceRow({
   busy,
 }: {
   service: Service;
+  categories: Category[];
+  showCategory: boolean;
   onChange: () => void;
   onError: (m: string) => void;
   onMoveUp?: () => void;
@@ -366,10 +665,7 @@ function ServiceRow({
   };
 
   async function save(d: Draft) {
-    const { error } = await supabase
-      .from("services")
-      .update(draftToRow(d))
-      .eq("id", service.id);
+    const { error } = await writeService("update", draftToRow(d), service.id);
     if (error) {
       onError(friendlyServiceError(error.message));
       return false;
@@ -409,6 +705,8 @@ function ServiceRow({
       >
         <ServiceForm
           initial={toDraft(service)}
+          categories={categories}
+          showCategory={showCategory}
           submitLabel="Save"
           onSubmit={save}
           onCancel={() => setEditing(false)}
@@ -441,6 +739,12 @@ function ServiceRow({
           {!service.active && (
             <span className="ml-2 rounded-full bg-foreground/5 px-2 py-0.5 text-xs text-muted">
               hidden
+            </span>
+          )}
+          {showCategory && (
+            <span className="ml-2 font-sans text-sm text-muted">
+              {categories.find((c) => c.id === service.category_id)?.name ??
+                "uncategorised"}
             </span>
           )}
         </h3>
@@ -499,12 +803,16 @@ function ServiceRow({
 
 function ServiceForm({
   initial,
+  categories,
+  showCategory,
   submitLabel,
   onSubmit,
   onCancel,
   onDelete,
 }: {
   initial: Draft;
+  categories: Category[];
+  showCategory: boolean;
   submitLabel: string;
   onSubmit: (d: Draft) => Promise<boolean>;
   onCancel: () => void;
@@ -550,12 +858,45 @@ function ServiceForm({
           onChange={(e) => set({ description: e.target.value })}
         />
       </label>
+      {showCategory && (
+        <label className="block">
+          <span className="mb-1 block text-sm">Category</span>
+          <select
+            className="input"
+            value={d.category_id}
+            onChange={(e) => set({ category_id: e.target.value })}
+          >
+            <option value="">No category — listed under “More services”</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {categories.length === 0 && (
+            <span className="mt-1 block text-xs text-muted">
+              Add a category below the service list first.
+            </span>
+          )}
+        </label>
+      )}
       <div className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5">
         <p className="text-sm text-muted">
           Split the service into what you&rsquo;re <em>doing</em> and what
           you&rsquo;re <em>waiting on</em>. During processing you&rsquo;re free,
           so the booking site can offer that window to another client. Leave
           processing and finish blank for a service that&rsquo;s one solid block.
+        </p>
+        {/* The timing here is the DEFAULT for the service, and saving it
+            re-times every future appointment using it (trigger
+            services_resync_busy). To change one visit only, use Timing on that
+            appointment in the calendar. */}
+        <p className="mt-2 text-sm text-muted">
+          <span className="font-medium text-foreground">
+            This is the default for every booking of this service
+          </span>{" "}
+          — saving re-times appointments already on the calendar. To change a
+          single visit, open it in the calendar and use Timing there.
         </p>
         <div className="mt-3 flex flex-wrap gap-4">
           <label className="block">
