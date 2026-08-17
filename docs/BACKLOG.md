@@ -76,10 +76,15 @@ Goal: automate as much client texting as possible around the appointment lifecyc
 
 *Status 2026-08-17:* Path is **Low-Volume Standard**, not Sole Proprietor — the business is **Threshold Salon LLC** with an EIN, which avoids the OTP-to-a-personal-mobile step that stalled this since July, and allows multiple sending numbers and up to 5 campaigns at <6,000 segments/day.
 
-- ✅ Business (secondary) Customer Profile submitted — **In Review**, up to 48h (72h per some docs); outcome arrives by email.
+- ✅ Business (secondary) Customer Profile — **approved**.
+- ✅ A2P Brand (Low-Volume Standard, Threshold Salon LLC) — **approved**.
+- ✅ **Campaign submitted 2026-08-17** — now in carrier vetting, **10–15 days**. Opt-in declared as Web Form only (not Verbal). Outcome arrives by email.
 - ✅ `evelyn@threshold.salon` set up as Namecheap email forwarding → her Gmail, and **confirmed working**. Needed because Standard brands get rejected for free/personal email, and because both the profile-approval notice and the brand 2FA code go there. Note Namecheap forwarding is receive-only and dies if the nameservers ever move off Namecheap (see the Cloudflare note below).
-- ✅ Site prerequisites live: `threshold.salon` reachable, `/privacy` privacy policy + SMS terms (states opt-in data is never sold/shared), and `/book` as the opt-in evidence URL with an unchecked consent box.
-- ▢ Next, once the profile approves: brand registration (approves in minutes) → campaign, use case **Customer Care**, which is the 10–15 day vetting wait. Ready-to-paste campaign copy — description, 2 samples, message flow, opt-out/help — was drafted in the 2026-08-17 session.
+- ✅ Site prerequisites live: `threshold.salon` reachable, `/privacy`, `/terms` (a real page, not a redirect — redirecting URLs are a rejection cause), and `/book` with two separate unchecked consent boxes, each linking to both.
+
+**🔒 FROZEN until the campaign is approved.** Vetting inspects the live site against the submitted description, so until it clears, do not change: the consent wording or checkboxes on `/book`, `/terms`, `/privacy`, or DNS. A mismatch found during review is a rejection and another 10–15 day cycle.
+
+*Note on the consent model:* it briefly moved to notice-at-point-of-collection (no checkbox) on the correct reading that the TCPA doesn't require written consent for appointment texts. That was reverted — A2P vetting applies CTIA best practice, and Twilio's web-form requirements explicitly demand a checkbox that is not pre-selected. Migration `0019` backfilled existing clients as `provided_at_booking` and that stands; `0020` returned new web bookings to checkbox-driven consent.
 - ⚠️ Deferred on purpose: **moving DNS to Cloudflare**. Namecheap's free forwarding only works on Namecheap nameservers, so that move swaps it for Cloudflare Email Routing and must be done in one sitting. Doing it during vetting risks the site being unreachable exactly when carriers check it — a documented rejection cause. Migrate after approval. Records to rebuild: A `216.198.79.1`, CNAME `www` → `cname.vercel-dns.com`, and set them **DNS-only**, not proxied.
 - ⚠️ The consent wording covers confirmations, reminders and replies — **not marketing**. A mass-discount blast needs its own separate opt-in and campaign use case.
 
