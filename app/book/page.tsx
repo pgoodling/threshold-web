@@ -7,8 +7,8 @@ import { stripePromise } from "../../lib/stripe";
 import CardCollect from "./CardCollect";
 import WalletCollect from "./WalletCollect";
 import {
-  SMS_NOTICE_HEADING,
-  SMS_NOTICE_TEXT,
+  SMS_CONSENT_HEADING,
+  SMS_CONSENT_TEXT,
   SMS_MARKETING_HEADING,
   SMS_MARKETING_TEXT,
 } from "../../lib/smsConsent";
@@ -148,8 +148,10 @@ export default function BookPage() {
   // whole point of capturing these is that they survive carrier scrutiny.
   // They're independent: marketing is a higher legal bar than transactional and
   // has to be agreed to on its own, so neither box implies the other.
-  // Only marketing is a choice now. Appointment-text consent comes from giving
-  // the number at all, and is recorded server-side by create_booking.
+  // Both unticked by default — A2P vetting requires the box be actively
+  // selected, never pre-checked. They stay independent: marketing is a higher
+  // bar and neither box implies the other.
+  const [smsConsent, setSmsConsent] = useState(false);
   const [smsMarketing, setSmsMarketing] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -316,7 +318,8 @@ export default function BookPage() {
     // deploy can land ahead of migrations 0018 / 0013 without taking bookings
     // down. Only the consent flags are lost in a fallback, never the booking.
     const attempts = [
-      { ...args, p_sms_marketing_consent: smsMarketing },
+      { ...args, p_sms_consent: smsConsent, p_sms_marketing_consent: smsMarketing },
+      { ...args, p_sms_consent: smsConsent },
       args,
     ];
     let data = null;
@@ -637,7 +640,12 @@ export default function BookPage() {
               </Field>
 
               <div className="grid gap-3">
-                <SmsNotice />
+                <SmsConsent
+                  checked={smsConsent}
+                  onChange={setSmsConsent}
+                  heading={SMS_CONSENT_HEADING}
+                  body={SMS_CONSENT_TEXT}
+                />
                 <SmsConsent
                   checked={smsMarketing}
                   onChange={setSmsMarketing}
@@ -892,34 +900,10 @@ function Field({
   );
 }
 
-// Appointment texts: notice, not a checkbox. Giving a mobile number to book is
-// itself consent for texts about that booking, so what's owed the client is a
-// clear statement of what they'll get and how to stop — not another box to tick
-// before they can book.
-function SmsNotice() {
-  return (
-    <div className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm text-muted">
-      <span className="block font-medium text-foreground">
-        {SMS_NOTICE_HEADING}
-      </span>
-      <span className="mt-1.5 block leading-relaxed">
-        {SMS_NOTICE_TEXT}{" "}
-        <a
-          href="/privacy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-accent underline"
-        >
-          Privacy &amp; text terms
-        </a>
-      </span>
-    </div>
-  );
-}
-
-// Marketing IS a checkbox, and stays one. Promotional texts need express
-// written consent, which notice alone can't provide. The wording lives in
-// lib/smsConsent.ts because the A2P campaign submission must quote it exactly.
+// Both opt-ins render through this. Never pre-checked: A2P vetting requires the
+// user to actively select it. Wording lives in lib/smsConsent.ts because the
+// campaign submission has to quote it exactly, and the links beside it are the
+// Terms and Privacy Policy that vetting checks for.
 function SmsConsent({
   checked,
   onChange,
@@ -947,13 +931,23 @@ function SmsConsent({
               consent point links to the policy, and a client agreeing to texts
               should be one tap from what we do with the number. */}
           <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-accent underline"
+          >
+            Text terms
+          </a>{" "}
+          &middot;{" "}
+          <a
             href="/privacy"
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             className="text-accent underline"
           >
-            Privacy &amp; text terms
+            Privacy policy
           </a>
         </span>
       </span>
