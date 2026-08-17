@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SMS_CONSENT_TEXT, SMS_MARKETING_TEXT } from "../../lib/smsConsent";
+import { SMS_NOTICE_TEXT, SMS_MARKETING_TEXT } from "../../lib/smsConsent";
 
 // Privacy policy + SMS terms.
 //
@@ -112,16 +112,19 @@ export default function PrivacyPage() {
 
         <Section title="Text messages">
           <p>
-            Appointment texts are optional. You opt in by ticking the box at
-            booking, which reads:
+            When you give us your mobile number to book an appointment, we use
+            it to text you about that appointment. The booking form says so at
+            the point you enter it:
           </p>
           <blockquote className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm">
-            {SMS_CONSENT_TEXT}
+            {SMS_NOTICE_TEXT}
           </blockquote>
           <p>
-            If you don&rsquo;t tick it, we don&rsquo;t text you. You can book
-            either way &mdash; consent is not a condition of getting an
-            appointment.
+            That covers confirmations, reminders, and Evelyn replying to you
+            &mdash; nothing else. Reply{" "}
+            <strong className="text-foreground">STOP</strong> at any time and
+            they stop, and you can still book by phone or in person if
+            you&rsquo;d rather not be texted at all.
           </p>
           <p>
             There is a <strong className="text-foreground">separate</strong> box

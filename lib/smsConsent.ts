@@ -11,13 +11,19 @@
 // If this wording changes, update the campaign submission in the Twilio console
 // to match.
 
-export const SMS_CONSENT_HEADING = "Text me about my appointment";
+// Appointment texts are NOT a checkbox. Giving the salon a mobile number in
+// order to book is consent to be texted about that booking — written consent is
+// only required for marketing. So this is notice at the point of collection
+// rather than an opt-in: it tells the client plainly what they'll get and how
+// to stop it, which is also the honest answer to the A2P campaign's "how do end
+// users consent?" question.
+export const SMS_NOTICE_HEADING = "About text messages";
 
-export const SMS_CONSENT_TEXT =
-  "Threshold Salon will text booking confirmations, appointment reminders, " +
-  "and replies from Evelyn to this number. Message frequency varies. " +
-  "Message and data rates may apply. Reply STOP to opt out or HELP for help. " +
-  "Consent isn't required to book.";
+export const SMS_NOTICE_TEXT =
+  "We'll text booking confirmations, appointment reminders, and replies from " +
+  "Evelyn to the number above. Message frequency varies. Message and data " +
+  "rates may apply. Reply STOP any time to stop appointment texts, or HELP " +
+  "for help.";
 
 // Marketing is a SEPARATE opt-in, and deliberately so. Promotional texts need
 // prior express written consent under the TCPA — a higher bar than the

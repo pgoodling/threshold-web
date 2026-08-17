@@ -7,8 +7,8 @@ import { stripePromise } from "../../lib/stripe";
 import CardCollect from "./CardCollect";
 import WalletCollect from "./WalletCollect";
 import {
-  SMS_CONSENT_HEADING,
-  SMS_CONSENT_TEXT,
+  SMS_NOTICE_HEADING,
+  SMS_NOTICE_TEXT,
   SMS_MARKETING_HEADING,
   SMS_MARKETING_TEXT,
 } from "../../lib/smsConsent";
@@ -148,7 +148,8 @@ export default function BookPage() {
   // whole point of capturing these is that they survive carrier scrutiny.
   // They're independent: marketing is a higher legal bar than transactional and
   // has to be agreed to on its own, so neither box implies the other.
-  const [smsConsent, setSmsConsent] = useState(false);
+  // Only marketing is a choice now. Appointment-text consent comes from giving
+  // the number at all, and is recorded server-side by create_booking.
   const [smsMarketing, setSmsMarketing] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -315,8 +316,7 @@ export default function BookPage() {
     // deploy can land ahead of migrations 0018 / 0013 without taking bookings
     // down. Only the consent flags are lost in a fallback, never the booking.
     const attempts = [
-      { ...args, p_sms_consent: smsConsent, p_sms_marketing_consent: smsMarketing },
-      { ...args, p_sms_consent: smsConsent },
+      { ...args, p_sms_marketing_consent: smsMarketing },
       args,
     ];
     let data = null;
@@ -637,7 +637,7 @@ export default function BookPage() {
               </Field>
 
               <div className="grid gap-3">
-                <SmsConsent checked={smsConsent} onChange={setSmsConsent} />
+                <SmsNotice />
                 <SmsConsent
                   checked={smsMarketing}
                   onChange={setSmsMarketing}
@@ -892,19 +892,44 @@ function Field({
   );
 }
 
-// Express opt-in for texts. Optional — booking works either way, and the copy
-// says so. The disclosure wording lives in lib/smsConsent.ts because the Twilio
-// A2P campaign submission has to quote the same text; see the notes there.
+// Appointment texts: notice, not a checkbox. Giving a mobile number to book is
+// itself consent for texts about that booking, so what's owed the client is a
+// clear statement of what they'll get and how to stop — not another box to tick
+// before they can book.
+function SmsNotice() {
+  return (
+    <div className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm text-muted">
+      <span className="block font-medium text-foreground">
+        {SMS_NOTICE_HEADING}
+      </span>
+      <span className="mt-1.5 block leading-relaxed">
+        {SMS_NOTICE_TEXT}{" "}
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent underline"
+        >
+          Privacy &amp; text terms
+        </a>
+      </span>
+    </div>
+  );
+}
+
+// Marketing IS a checkbox, and stays one. Promotional texts need express
+// written consent, which notice alone can't provide. The wording lives in
+// lib/smsConsent.ts because the A2P campaign submission must quote it exactly.
 function SmsConsent({
   checked,
   onChange,
-  heading = SMS_CONSENT_HEADING,
-  body = SMS_CONSENT_TEXT,
+  heading,
+  body,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
-  heading?: string;
-  body?: string;
+  heading: string;
+  body: string;
 }) {
   return (
     <label className="flex cursor-pointer gap-3 rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 transition hover:border-accent/40">
