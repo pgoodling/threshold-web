@@ -6,7 +6,12 @@ import { supabase } from "../../lib/supabase";
 import { stripePromise } from "../../lib/stripe";
 import CardCollect from "./CardCollect";
 import WalletCollect from "./WalletCollect";
-import { SMS_CONSENT_HEADING, SMS_CONSENT_TEXT } from "../../lib/smsConsent";
+import {
+  SMS_CONSENT_HEADING,
+  SMS_CONSENT_TEXT,
+  SMS_MARKETING_HEADING,
+  SMS_MARKETING_TEXT,
+} from "../../lib/smsConsent";
 
 const TZ = "America/New_York";
 const MONTHS_AHEAD = 6; // how far out clients may book
@@ -139,9 +144,12 @@ export default function BookPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
-  // Must start unticked — a pre-checked box isn't express consent, and the
-  // whole point of capturing this is that it survives carrier scrutiny.
+  // Both must start unticked — a pre-checked box isn't express consent, and the
+  // whole point of capturing these is that they survive carrier scrutiny.
+  // They're independent: marketing is a higher legal bar than transactional and
+  // has to be agreed to on its own, so neither box implies the other.
   const [smsConsent, setSmsConsent] = useState(false);
+  const [smsMarketing, setSmsMarketing] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -303,12 +311,21 @@ export default function BookPage() {
       p_notes: notes.trim(),
       p_stripe_customer_id: customerId,
     };
-    let { data, error } = await supabase.rpc("create_booking", {
-      ...args,
-      p_sms_consent: smsConsent,
-    });
-    if (error && /p_sms_consent|could not find|function/i.test(error.message)) {
-      ({ data, error } = await supabase.rpc("create_booking", args));
+    // Try the fullest signature first and fall back a step at a time, so a
+    // deploy can land ahead of migrations 0018 / 0013 without taking bookings
+    // down. Only the consent flags are lost in a fallback, never the booking.
+    const attempts = [
+      { ...args, p_sms_consent: smsConsent, p_sms_marketing_consent: smsMarketing },
+      { ...args, p_sms_consent: smsConsent },
+      args,
+    ];
+    let data = null;
+    let error = null;
+    for (const attempt of attempts) {
+      ({ data, error } = await supabase.rpc("create_booking", attempt));
+      // Only a signature mismatch is worth retrying; a real validation error
+      // (say, a missing last name) must surface rather than be retried away.
+      if (!error || !/p_sms|could not find|function/i.test(error.message)) break;
     }
     if (error) throw new Error(error.message);
     const appointmentId = (data as { appointment_id?: string } | null)
@@ -619,7 +636,15 @@ export default function BookPage() {
                 />
               </Field>
 
-              <SmsConsent checked={smsConsent} onChange={setSmsConsent} />
+              <div className="grid gap-3">
+                <SmsConsent checked={smsConsent} onChange={setSmsConsent} />
+                <SmsConsent
+                  checked={smsMarketing}
+                  onChange={setSmsMarketing}
+                  heading={SMS_MARKETING_HEADING}
+                  body={SMS_MARKETING_TEXT}
+                />
+              </div>
 
               <Field label="Anything Evelyn should know? (optional)">
                 <textarea
@@ -873,9 +898,13 @@ function Field({
 function SmsConsent({
   checked,
   onChange,
+  heading = SMS_CONSENT_HEADING,
+  body = SMS_CONSENT_TEXT,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
+  heading?: string;
+  body?: string;
 }) {
   return (
     <label className="flex cursor-pointer gap-3 rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 transition hover:border-accent/40">
@@ -886,11 +915,9 @@ function SmsConsent({
         className="mt-0.5 h-4 w-4 shrink-0 accent-[#bd6b4d]"
       />
       <span className="text-sm text-muted">
-        <span className="block font-medium text-foreground">
-          {SMS_CONSENT_HEADING}
-        </span>
+        <span className="block font-medium text-foreground">{heading}</span>
         <span className="mt-1.5 block leading-relaxed">
-          {SMS_CONSENT_TEXT}{" "}
+          {body}{" "}
           {/* Reachable from the opt-in itself — carrier vetting checks that the
               consent point links to the policy, and a client agreeing to texts
               should be one tap from what we do with the number. */}

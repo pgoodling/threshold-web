@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SMS_CONSENT_TEXT } from "../../lib/smsConsent";
+import { SMS_CONSENT_TEXT, SMS_MARKETING_TEXT } from "../../lib/smsConsent";
 
 // Privacy policy + SMS terms.
 //
@@ -122,6 +122,19 @@ export default function PrivacyPage() {
             If you don&rsquo;t tick it, we don&rsquo;t text you. You can book
             either way &mdash; consent is not a condition of getting an
             appointment.
+          </p>
+          <p>
+            There is a <strong className="text-foreground">separate</strong> box
+            for promotional texts &mdash; offers, and news from the salon:
+          </p>
+          <blockquote className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm">
+            {SMS_MARKETING_TEXT}
+          </blockquote>
+          <p>
+            The two are independent on purpose. Agreeing to appointment texts
+            does <strong className="text-foreground">not</strong> sign you up
+            for offers, and you can take either one without the other. Neither
+            is a condition of booking or of any purchase.
           </p>
           <p>
             <strong className="text-foreground">
