@@ -305,9 +305,14 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-foreground/10">
-        <div className="mx-auto max-w-5xl px-6 py-8 text-sm text-muted">
-          © {new Date().getFullYear()} Threshold · Studio by Evelyn. All rights
-          reserved.
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-8 text-sm text-muted">
+          <span>
+            © {new Date().getFullYear()} Threshold · Studio by Evelyn. All
+            rights reserved.
+          </span>
+          <a href="/privacy" className="hover:text-accent">
+            Privacy &amp; text terms
+          </a>
         </div>
       </footer>
     </main>

@@ -882,7 +882,21 @@ function SmsConsent({
         <span className="block font-medium text-foreground">
           {SMS_CONSENT_HEADING}
         </span>
-        <span className="mt-1.5 block leading-relaxed">{SMS_CONSENT_TEXT}</span>
+        <span className="mt-1.5 block leading-relaxed">
+          {SMS_CONSENT_TEXT}{" "}
+          {/* Reachable from the opt-in itself — carrier vetting checks that the
+              consent point links to the policy, and a client agreeing to texts
+              should be one tap from what we do with the number. */}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-accent underline"
+          >
+            Privacy &amp; text terms
+          </a>
+        </span>
       </span>
     </label>
   );
