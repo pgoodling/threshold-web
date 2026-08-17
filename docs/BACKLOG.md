@@ -72,14 +72,18 @@ Goal: on every page, she sees what she needs for *that* thing, and can act witho
 ## Two-way texting + SMS automation (planned — own feature, phased)
 Goal: automate as much client texting as possible around the appointment lifecycle, and put replies **in front of Evelyn even when she's busy with another client**. Everything here dovetails with the Design-C **"needs attention"** banner (that's where alerts/replies surface).
 
-**Hard dependency:** **A2P 10DLC registration** must clear before any of this can go live — automated/two-way US business texting legally requires it. (As of 2026-07-09: waiting for the pending registration to fail so Paul can resubmit with the correct number — the OTP had gone to his wife's number. This is the critical path.) Also needs opt-out (STOP) handling, quiet-hours rules, and the existing `/api/sms/booking-confirm` hardened.
+**Hard dependency:** **A2P 10DLC registration** must clear before any of this can go live — automated/two-way US business texting legally requires it. This is the critical path. Also needs quiet-hours rules and the existing `/api/sms/booking-confirm` hardened.
+
+*Status 2026-08-17:* Twilio support finally corrected the phone number, and the brand registration is back to **Draft** — nothing submitted, so the tier is still a free choice. Evelyn **has an EIN**, so the plan is **Low-Volume Standard**, not Sole Proprietor: no OTP-to-a-personal-mobile step (the thing that stalled this since July), more than one sending number, up to 5 campaigns, <6,000 segments/day. Open question: the Standard business-type list has no "Sole Proprietorship" option, so if she's unincorporated-with-an-EIN rather than an LLC, Twilio may force the sole-prop path anyway. Also blocking submission: the profile carries the typo "Evelun", and the contact email is a personal Gmail — Standard brands get rejected for free/personal email, so a `@threshold.salon` mailbox is needed. Legal business name must match the IRS CP 575 letter exactly.
 
 **Foundation (Phase 1) — ✅ BUILT (needs migration `0007_messages.sql` + env):**
 - ✅ `messages` table + `clients.sms_opt_out` + RLS (migration `0007_messages.sql`).
 - ✅ **Inbound webhook** `/api/sms/inbound` — Twilio-signature verified; matches `from` → client by last-10 digits; links to the client's nearest current/upcoming appt; logs the text; handles STOP/START. Writes via the service-role key.
 - ✅ **Authenticated send route** `/api/sms/send` — verifies Evelyn's session token, respects opt-out, sends via Twilio + logs. 503s until Twilio configured.
 - ✅ **Studio Messages tab** — conversation list + thread + reply, mark-read, unread badge on the tab (desktop + mobile).
-- Needs: run migration `0007`, set `SUPABASE_SERVICE_ROLE_KEY` (server env), and point Twilio's inbound webhook at `/api/sms/inbound`. Still gated on A2P for real sending.
+- ✅ **Express SMS consent** (migration `0013_sms_consent.sql`) — optional unticked checkbox at booking with full carrier-required disclosure (wording in `lib/smsConsent.ts`); `clients.sms_consent_at` + `sms_consent_source`; `create_booking` gained `p_sms_consent`; `merge_client` carries consent across a merge. `/api/sms/booking-confirm` now skips `no_consent`. Replaces the old implied-consent model (`sms_opt_out` defaulting to false), which was a realistic campaign-rejection reason.
+- Needs: run migrations `0007` + `0013`, set `SUPABASE_SERVICE_ROLE_KEY` (server env), and point Twilio's inbound webhook at `/api/sms/inbound`. Still gated on A2P for real sending.
+- ⚠️ Clients who booked before `0013` have `sms_consent_at = null` and will get **no** automated texts until they tick the box on a future booking. If Evelyn has consent for regulars by another route, record it as `sms_consent_source = 'in_person'`.
 - ▢ TODO next: surface inbound on the appointment detail + Overview "needs attention".
 
 **Late-arrival flow (Phase 2):**

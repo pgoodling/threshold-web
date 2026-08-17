@@ -485,7 +485,9 @@ export default function Clients({
 }
 
 // Resilient write: retries without hair_formula if migration 0009 hasn't run.
-async function saveClient(
+// Exported because the calendar's "add a new client" flow writes clients too,
+// and the friendly error mapping below is worth having in both places.
+export async function saveClient(
   op: "insert" | "update",
   vals: Record<string, unknown>,
   id?: string,

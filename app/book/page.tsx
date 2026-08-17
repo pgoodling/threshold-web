@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 import { stripePromise } from "../../lib/stripe";
 import CardCollect from "./CardCollect";
 import WalletCollect from "./WalletCollect";
+import { SMS_CONSENT_HEADING, SMS_CONSENT_TEXT } from "../../lib/smsConsent";
 
 const TZ = "America/New_York";
 const MONTHS_AHEAD = 6; // how far out clients may book
@@ -95,10 +96,18 @@ export default function BookPage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
 
-  const [name, setName] = useState("");
+  // Collected as two fields so a last name can actually be required — a single
+  // "Name" box can't tell "Sarah" from "Sarah Klein". The database still stores
+  // one `full_name`, so nothing downstream changes.
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  // Must start unticked — a pre-checked box isn't express consent, and the
+  // whole point of capturing this is that it survives carrier scrutiny.
+  const [smsConsent, setSmsConsent] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -196,7 +205,7 @@ export default function BookPage() {
   // can save a card on file (no charge).
   async function continueToCard(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !phone.trim()) return;
+    if (!firstName.trim() || !lastName.trim() || !phone.trim()) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -204,7 +213,7 @@ export default function BookPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
+          name: fullName,
           email: email.trim(),
           phone: phone.trim(),
         }),
@@ -237,11 +246,12 @@ export default function BookPage() {
     const { data, error } = await supabase.rpc("create_booking", {
       p_service_id: service.id,
       p_starts_at: slot,
-      p_full_name: name.trim(),
+      p_full_name: fullName,
       p_email: email.trim(),
       p_phone: phone.trim(),
       p_notes: notes.trim(),
       p_stripe_customer_id: customerId,
+      p_sms_consent: smsConsent,
     });
     if (error) throw new Error(error.message);
     const appointmentId = (data as { appointment_id?: string } | null)
@@ -484,16 +494,32 @@ export default function BookPage() {
 
             {cardStage === "details" ? (
             <form onSubmit={continueToCard} className="mt-8 grid gap-5">
-              <Field label="Name" required>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="input"
-                  autoComplete="name"
-                />
-              </Field>
+              <div className="flex flex-wrap gap-5">
+                <div className="min-w-[9rem] flex-1">
+                  <Field label="First name" required>
+                    <input
+                      type="text"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="input"
+                      autoComplete="given-name"
+                    />
+                  </Field>
+                </div>
+                <div className="min-w-[9rem] flex-1">
+                  <Field label="Last name" required>
+                    <input
+                      type="text"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="input"
+                      autoComplete="family-name"
+                    />
+                  </Field>
+                </div>
+              </div>
               <Field label="Email">
                 <input
                   type="email"
@@ -513,6 +539,9 @@ export default function BookPage() {
                   autoComplete="tel"
                 />
               </Field>
+
+              <SmsConsent checked={smsConsent} onChange={setSmsConsent} />
+
               <Field label="Anything Evelyn should know? (optional)">
                 <textarea
                   value={notes}
@@ -755,6 +784,34 @@ function Field({
         {required && <span className="text-accent"> *</span>}
       </span>
       {children}
+    </label>
+  );
+}
+
+// Express opt-in for texts. Optional — booking works either way, and the copy
+// says so. The disclosure wording lives in lib/smsConsent.ts because the Twilio
+// A2P campaign submission has to quote the same text; see the notes there.
+function SmsConsent({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer gap-3 rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 transition hover:border-accent/40">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 accent-[#bd6b4d]"
+      />
+      <span className="text-sm text-muted">
+        <span className="block font-medium text-foreground">
+          {SMS_CONSENT_HEADING}
+        </span>
+        <span className="mt-1.5 block leading-relaxed">{SMS_CONSENT_TEXT}</span>
+      </span>
     </label>
   );
 }

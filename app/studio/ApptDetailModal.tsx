@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
+  salonDateTimeLocal,
   plusWeeksLocal,
   dayKey,
   statusLabel,
@@ -103,6 +104,7 @@ export default function ApptDetailModal({
   const [seg, setSeg] = useState({ start: "", process: "", finish: "" });
   const [blockGap, setBlockGap] = useState(false);
   const [when, setWhen] = useState("");
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -426,13 +428,32 @@ export default function ApptDetailModal({
             {error && <p className="mt-4 text-sm text-accent-dark">{error}</p>}
 
             {mode === "reschedule" ? (
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-                <input
-                  type="datetime-local"
-                  className="input w-auto"
-                  value={when}
-                  onChange={(e) => setWhen(e.target.value)}
-                />
+              <div className="mt-4 flex flex-wrap items-end gap-2 text-sm">
+                {/* Separate date and time inputs rather than one
+                    datetime-local — iOS renders the combined control poorly,
+                    and these two are reliable on every phone she uses. */}
+                <label className="block">
+                  <span className="mb-1 block text-xs text-muted">Date</span>
+                  <input
+                    type="date"
+                    className="input w-auto"
+                    value={when.split("T")[0] ?? ""}
+                    onChange={(e) =>
+                      setWhen(`${e.target.value}T${when.split("T")[1] ?? "09:00"}`)
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs text-muted">Time</span>
+                  <input
+                    type="time"
+                    className="input w-auto"
+                    value={when.split("T")[1] ?? ""}
+                    onChange={(e) =>
+                      setWhen(`${when.split("T")[0] ?? ""}T${e.target.value}`)
+                    }
+                  />
+                </label>
                 <button
                   onClick={reschedule}
                   className="rounded-full bg-accent px-4 py-2 text-white hover:bg-accent-dark"
@@ -661,7 +682,12 @@ export default function ApptDetailModal({
                   appt.status !== "completed" && (
                     <ActionBtn
                       onClick={() => {
-                        setWhen("");
+                        // Start from the current appointment time. This used to
+                        // clear the field: desktop renders an empty
+                        // datetime-local as typable mm/dd/yyyy slots, but iOS
+                        // renders it as effectively nothing, so Reschedule
+                        // looked broken on her phone.
+                        setWhen(salonDateTimeLocal(appt.starts_at));
                         setMode("reschedule");
                       }}
                     >
@@ -695,11 +721,33 @@ export default function ApptDetailModal({
                   )}
                 {appt.status !== "cancelled" &&
                   appt.status !== "checked_out" &&
-                  appt.status !== "completed" && (
-                    <ActionBtn danger onClick={() => setStatus("cancelled")}>
+                  appt.status !== "completed" &&
+                  (confirmCancel ? (
+                    // Cancelling frees the slot and drops the client off the
+                    // day — too destructive for a single mistaken tap on a
+                    // phone, where these buttons sit close together.
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted">
+                        Cancel this appointment?
+                      </span>
+                      <ActionBtn
+                        danger
+                        onClick={() => {
+                          setConfirmCancel(false);
+                          setStatus("cancelled");
+                        }}
+                      >
+                        Yes, cancel it
+                      </ActionBtn>
+                      <ActionBtn onClick={() => setConfirmCancel(false)}>
+                        Keep it
+                      </ActionBtn>
+                    </span>
+                  ) : (
+                    <ActionBtn danger onClick={() => setConfirmCancel(true)}>
                       Cancel
                     </ActionBtn>
-                  )}
+                  ))}
               </div>
             )}
           </>
@@ -719,20 +767,37 @@ type SvcOpt = {
 export function RebookForm({
   clientId,
   baseISO,
+  heading = "Book their next visit:",
+  defaultDate = "",
+  defaultTime = "",
   onDone,
   onCancel,
 }: {
   clientId: string;
   // The visit being rebooked from — enables "+4 / +6 weeks" prebook presets.
   baseISO?: string;
+  heading?: string;
+  // Date and time are separate so the calendar can prefill a day on its own —
+  // clicking "+ New" while looking at Tuesday knows the day but not the time,
+  // and a single datetime-local input can't hold one without the other.
+  defaultDate?: string;
+  defaultTime?: string;
   onDone: () => void;
   onCancel: () => void;
 }) {
   const [services, setServices] = useState<SvcOpt[]>([]);
   const [serviceId, setServiceId] = useState("");
-  const [when, setWhen] = useState("");
+  const [date, setDate] = useState(defaultDate);
+  const [time, setTime] = useState(defaultTime);
+  const when = date && time ? `${date}T${time}` : "";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const setWhen = (v: string) => {
+    const [d, t] = v.split("T");
+    setDate(d ?? "");
+    setTime(t ?? "");
+  };
 
   useEffect(() => {
     supabase
@@ -772,7 +837,7 @@ export function RebookForm({
 
   return (
     <div className="mt-4 grid gap-3">
-      <p className="text-sm text-muted">Book their next visit:</p>
+      <p className="text-sm text-muted">{heading}</p>
       <select
         className="input"
         value={serviceId}
@@ -800,12 +865,26 @@ export function RebookForm({
           ))}
         </div>
       )}
-      <input
-        type="datetime-local"
-        className="input w-auto"
-        value={when}
-        onChange={(e) => setWhen(e.target.value)}
-      />
+      <div className="flex flex-wrap gap-2">
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted">Date</span>
+          <input
+            type="date"
+            className="input w-auto"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-muted">Time</span>
+          <input
+            type="time"
+            className="input w-auto"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </label>
+      </div>
       {error && <p className="text-sm text-accent-dark">{error}</p>}
       <div className="flex gap-2">
         <button

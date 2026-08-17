@@ -280,6 +280,27 @@ export default function Services() {
       </p>
       {error && <ErrorNote>{error}</ErrorNote>}
 
+      {/* Above the list, not below it — with a full menu the old bottom button
+          meant scrolling past every service to add one. */}
+      {adding ? (
+        <div className="mt-6 rounded-2xl border border-accent/30 bg-white p-5">
+          <p className="mb-4 font-medium">New service</p>
+          <ServiceForm
+            initial={emptyDraft}
+            submitLabel="Add service"
+            onSubmit={addService}
+            onCancel={() => setAdding(false)}
+          />
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="mt-6 rounded-full border border-foreground/15 px-6 py-3 text-sm transition hover:border-accent hover:text-accent"
+        >
+          + Add service
+        </button>
+      )}
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -306,25 +327,6 @@ export default function Services() {
           </div>
         </SortableContext>
       </DndContext>
-
-      {adding ? (
-        <div className="mt-4 rounded-2xl border border-accent/30 bg-white p-5">
-          <p className="mb-4 font-medium">New service</p>
-          <ServiceForm
-            initial={emptyDraft}
-            submitLabel="Add service"
-            onSubmit={addService}
-            onCancel={() => setAdding(false)}
-          />
-        </div>
-      ) : (
-        <button
-          onClick={() => setAdding(true)}
-          className="mt-4 rounded-full border border-foreground/15 px-6 py-3 text-sm transition hover:border-accent hover:text-accent"
-        >
-          + Add service
-        </button>
-      )}
     </div>
   );
 }

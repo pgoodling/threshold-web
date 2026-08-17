@@ -54,7 +54,7 @@ export async function POST(req: Request) {
   const { data: appt } = await admin
     .from("appointments")
     .select(
-      "id, starts_at, created_at, client_id, services(name), clients(full_name, phone, sms_opt_out)",
+      "id, starts_at, created_at, client_id, services(name), clients(full_name, phone, sms_opt_out, sms_consent_at)",
     )
     .eq("id", appointmentId)
     .single();
@@ -73,13 +73,23 @@ export async function POST(req: Request) {
     .eq("direction", "outbound");
   if (count) return skip("already_sent");
 
-  type ClientRow = { full_name: string; phone: string | null; sms_opt_out: boolean };
+  type ClientRow = {
+    full_name: string;
+    phone: string | null;
+    sms_opt_out: boolean;
+    sms_consent_at: string | null;
+  };
   type ServiceRow = { name: string };
   const client = one(appt.clients as unknown as ClientRow | ClientRow[] | null);
   const service = one(appt.services as unknown as ServiceRow | ServiceRow[] | null);
 
   if (!client?.phone) return skip("no_phone");
   if (client.sms_opt_out) return skip("opted_out");
+  // No express opt-in on record, no automated text. Clients who booked before
+  // the consent checkbox existed (migration 0013) have a null here, so they
+  // stay silent until they tick the box on their next booking — that's the
+  // honest answer to the carrier's "how did they consent?" question.
+  if (!client.sms_consent_at) return skip("no_consent");
 
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;

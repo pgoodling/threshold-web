@@ -40,9 +40,12 @@ const services: { name: string; description: string; price?: string }[] = [
 ];
 
 const hours = [
-  ["Tuesday – Friday", "9am – 7pm"],
-  ["Saturday", "9am – 4pm"],
-  ["Sunday – Monday", "Closed"],
+  ["Monday", "9am – 7pm"],
+  ["Tuesday", "9am – 7pm"],
+  ["Wednesday – Thursday", "Closed"],
+  ["Friday", "9am – 6pm"],
+  ["Saturday", "9am – 5pm"],
+  ["Sunday", "Closed"],
 ];
 
 // Recent client work. Filenames contain spaces, so paths are URL-encoded.
@@ -258,8 +261,8 @@ export default function Home() {
               Kettering, OH 45429
             </p>
             <p className="mt-4">
-              <a href="tel:+15555555555" className="text-accent hover:underline">
-                (555) 555-5555
+              <a href="tel:+19379362138" className="text-accent hover:underline">
+                (937) 936-2138
               </a>
               <br />
               <a
@@ -280,6 +283,23 @@ export default function Home() {
                 </div>
               ))}
             </dl>
+            <p className="mt-6 rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm text-muted">
+              Need a day or time that isn&rsquo;t listed?{" "}
+              <a
+                href="tel:+19379362138"
+                className="text-accent hover:underline"
+              >
+                Give us a call
+              </a>{" "}
+              or{" "}
+              <a
+                href="mailto:hello@threshold.salon"
+                className="text-accent hover:underline"
+              >
+                send a note
+              </a>{" "}
+              — Evelyn can often make something work outside her posted hours.
+            </p>
           </div>
         </div>
       </section>

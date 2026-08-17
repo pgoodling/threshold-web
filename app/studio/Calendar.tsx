@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
@@ -11,7 +11,8 @@ import {
   liveStatus,
   serviceColors,
 } from "../../lib/format";
-import ApptDetailModal from "./ApptDetailModal";
+import ApptDetailModal, { RebookForm } from "./ApptDetailModal";
+import { saveClient } from "./Clients";
 
 type Appt = {
   id: string;
@@ -127,7 +128,11 @@ export default function Calendar({
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState(todayKey);
   const [selected, setSelected] = useState<Appt | null>(null);
-  const [newAppt, setNewAppt] = useState(false);
+  // What the new-appointment panel should start from. `time` is "" when only the
+  // day is known (the "+ New" button) and set when she clicked a slot.
+  const [newAppt, setNewAppt] = useState<{ date: string; time: string } | null>(
+    null,
+  );
 
   // Visible date range for the current view.
   const range = useMemo(() => {
@@ -156,6 +161,34 @@ export default function Calendar({
   }, [range.start, range.days]);
 
   useEffect(load, [load]);
+
+  // Drag-and-drop landing: keep the appointment's length and just move its
+  // start. The database's overlap constraint is the referee — if she drops onto
+  // something, the update fails and `load()` snaps the block back where it was.
+  const moveAppt = useCallback(
+    async (a: Appt, day: string, startMin: number) => {
+      const durMs =
+        new Date(a.ends_at).getTime() - new Date(a.starts_at).getTime();
+      const startsISO = salonWallToISO(`${day}T${hhmm(startMin)}`);
+      const endsISO = new Date(
+        new Date(startsISO).getTime() + durMs,
+      ).toISOString();
+      setError(null);
+      const { error } = await supabase
+        .from("appointments")
+        .update({ starts_at: startsISO, ends_at: endsISO })
+        .eq("id", a.id);
+      if (error)
+        setError(
+          error.message.includes("overlap") ||
+            error.message.includes("exclusion")
+            ? "That time overlaps another appointment — nothing was moved."
+            : error.message,
+        );
+      load();
+    },
+    [load],
+  );
 
   const byDay = useMemo(() => {
     const m = new Map<string, Appt[]>();
@@ -230,7 +263,12 @@ export default function Calendar({
           <button
             onClick={() => {
               setSelected(null);
-              setNewAppt(true);
+              // Whichever day she's looking at comes along; she fills in the
+              // time. In month view that's the day she last selected.
+              setNewAppt({
+                date: view === "month" ? selectedDay : anchor,
+                time: "",
+              });
             }}
             className="ml-1 rounded-full bg-accent px-3 py-1 text-xs text-white transition hover:bg-accent-dark"
           >
@@ -279,6 +317,11 @@ export default function Calendar({
             todayKey={todayKey}
             byDay={byDay}
             onSelect={setSelected}
+            onNewAt={(date, time) => {
+              setSelected(null);
+              setNewAppt({ date, time });
+            }}
+            onMove={moveAppt}
           />
         )}
         {view === "day" && (
@@ -287,17 +330,24 @@ export default function Calendar({
             todayKey={todayKey}
             byDay={byDay}
             onSelect={setSelected}
+            onNewAt={(date, time) => {
+              setSelected(null);
+              setNewAppt({ date, time });
+            }}
+            onMove={moveAppt}
             wide
           />
         )}
       </div>
 
       {newAppt && (
-        <Modal onClose={() => setNewAppt(false)}>
+        <Modal onClose={() => setNewAppt(null)}>
           <NewAppointmentPanel
-            onClose={() => setNewAppt(false)}
+            date={newAppt.date}
+            time={newAppt.time}
+            onClose={() => setNewAppt(null)}
             onDone={() => {
-              setNewAppt(false);
+              setNewAppt(null);
               load();
             }}
           />
@@ -418,19 +468,70 @@ function MonthView({
   );
 }
 
+// Clicking empty space in the grid should book at that spot, so the y offset
+// has to become a wall-clock time. Snapped to the quarter hour — pixel-exact
+// would hand her 10:37.
+const SNAP_MIN = 15;
+function minutesFromClickY(clientY: number, top: number) {
+  const raw = GRID_TOP_MIN + ((clientY - top) / HOUR_PX) * 60;
+  const snapped = Math.round(raw / SNAP_MIN) * SNAP_MIN;
+  return Math.min(HOUR_END * 60 - SNAP_MIN, Math.max(GRID_TOP_MIN, snapped));
+}
+const hhmm = (min: number) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+// 12-hour label for the block she's dragging, matching the rest of the grid.
+const clockLabel = (min: number) => {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const suffix = h < 12 ? "AM" : "PM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m === 0 ? `${h12} ${suffix}` : `${h12}:${pad(m)} ${suffix}`;
+};
+
+// Press and hold, then slide, to move an appointment to another time the same
+// day. Long-press activation (rather than drag-on-touch) is what keeps a normal
+// tap working — she taps far more often than she drags.
+const LONG_PRESS_MS = 250;
+// If the finger travels this far before the timer fires, she meant to scroll.
+const DRAG_SLOP_PX = 8;
+
+type DragState = {
+  id: string;
+  day: string;
+  // Where in the block she grabbed it, so it doesn't jump under her finger.
+  grabOffsetMin: number;
+  durMin: number;
+  startMin: number;
+};
+
 function TimeGrid({
   days,
   todayKey,
   byDay,
   onSelect,
+  onNewAt,
+  onMove,
   wide,
 }: {
   days: string[];
   todayKey: string;
   byDay: Map<string, Appt[]>;
   onSelect: (a: Appt) => void;
+  onNewAt?: (date: string, time: string) => void;
+  onMove?: (a: Appt, day: string, startMin: number) => void;
   wide?: boolean;
 }) {
+  const [drag, setDrag] = useState<DragState | null>(null);
+  // Refs, not state: these are gesture bookkeeping and must not cause renders.
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressOrigin = useRef<{ x: number; y: number } | null>(null);
+  const dragged = useRef(false);
+
+  const clearPress = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    pressOrigin.current = null;
+  };
+
   return (
     <div className="overflow-x-auto">
       <div style={{ minWidth: wide ? undefined : days.length * 100 + 56 }}>
@@ -468,7 +569,14 @@ function TimeGrid({
           {days.map((k) => (
             <div
               key={k}
-              className="relative flex-1 border-l border-foreground/10"
+              onClick={(e) => {
+                if (!onNewAt) return;
+                const top = e.currentTarget.getBoundingClientRect().top;
+                onNewAt(k, hhmm(minutesFromClickY(e.clientY, top)));
+              }}
+              className={`relative flex-1 border-l border-foreground/10 ${
+                onNewAt ? "cursor-copy" : ""
+              }`}
               style={{ height: GRID_HEIGHT }}
             >
               {Array.from({ length: HOUR_END - HOUR_START }, (_, i) => (
@@ -481,9 +589,13 @@ function TimeGrid({
               {(() => {
                 const { placed, laneCount } = layoutLanes(byDay.get(k) ?? []);
                 return placed.map(({ item: a, startMin, endMin, lane }) => {
+                  // While she's dragging this one, draw it where her finger is
+                  // rather than where the database still thinks it lives.
+                  const isDragging = drag?.id === a.id;
+                  const shownStart = isDragging ? drag.startMin : startMin;
                   const top = Math.max(
                     0,
-                    ((startMin - GRID_TOP_MIN) / 60) * HOUR_PX,
+                    ((shownStart - GRID_TOP_MIN) / 60) * HOUR_PX,
                   );
                   const h = Math.max(22, ((endMin - startMin) / 60) * HOUR_PX);
                   // Checked-in/out + running-late get their own status color;
@@ -497,7 +609,83 @@ function TimeGrid({
                   return (
                     <button
                       key={a.id}
-                      onClick={() => onSelect(a)}
+                      onClick={(e) => {
+                        // Don't also fire the day column's book-at-this-time.
+                        e.stopPropagation();
+                        // A drag ends in a click too; that click isn't a tap.
+                        if (dragged.current) {
+                          dragged.current = false;
+                          return;
+                        }
+                        onSelect(a);
+                      }}
+                      onPointerDown={(e) => {
+                        if (!onMove) return;
+                        const colTop = (
+                          e.currentTarget.parentElement as HTMLElement
+                        ).getBoundingClientRect().top;
+                        const grabMin =
+                          minutesFromClickY(e.clientY, colTop) - startMin;
+                        pressOrigin.current = { x: e.clientX, y: e.clientY };
+                        dragged.current = false;
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        pressTimer.current = setTimeout(() => {
+                          setDrag({
+                            id: a.id,
+                            day: k,
+                            grabOffsetMin: grabMin,
+                            durMin: endMin - startMin,
+                            startMin,
+                          });
+                        }, LONG_PRESS_MS);
+                      }}
+                      onPointerMove={(e) => {
+                        if (!onMove) return;
+                        const o = pressOrigin.current;
+                        // Still waiting on the long press: a real move this
+                        // early means she's scrolling, so give up the gesture.
+                        if (!drag && o) {
+                          if (
+                            Math.abs(e.clientY - o.y) > DRAG_SLOP_PX ||
+                            Math.abs(e.clientX - o.x) > DRAG_SLOP_PX
+                          ) {
+                            clearPress();
+                          }
+                          return;
+                        }
+                        if (!drag || drag.id !== a.id) return;
+                        dragged.current = true;
+                        const colTop = (
+                          e.currentTarget.parentElement as HTMLElement
+                        ).getBoundingClientRect().top;
+                        const raw =
+                          minutesFromClickY(e.clientY, colTop) -
+                          drag.grabOffsetMin;
+                        const snapped =
+                          Math.round(raw / SNAP_MIN) * SNAP_MIN;
+                        // Keep the whole appointment inside the visible day.
+                        const next = Math.min(
+                          HOUR_END * 60 - drag.durMin,
+                          Math.max(GRID_TOP_MIN, snapped),
+                        );
+                        if (next !== drag.startMin)
+                          setDrag({ ...drag, startMin: next });
+                      }}
+                      onPointerUp={() => {
+                        clearPress();
+                        if (drag?.id === a.id) {
+                          const moved = drag.startMin !== startMin;
+                          const target = drag.startMin;
+                          setDrag(null);
+                          if (moved) onMove?.(a, k, target);
+                          else dragged.current = false;
+                        }
+                      }}
+                      onPointerCancel={() => {
+                        clearPress();
+                        if (drag?.id === a.id) setDrag(null);
+                        dragged.current = false;
+                      }}
                       style={{
                         position: "absolute",
                         top,
@@ -507,6 +695,16 @@ function TimeGrid({
                         background: c.bg,
                         color: c.fg,
                         opacity: dim ? 0.6 : 1,
+                        // The browser must not claim this gesture for scrolling,
+                        // or the drag never gets its pointermove events. Cost:
+                        // a swipe that starts on an appointment won't scroll —
+                        // she scrolls from empty grid or the time gutter.
+                        touchAction: onMove ? "none" : undefined,
+                        zIndex: isDragging ? 20 : undefined,
+                        boxShadow: isDragging
+                          ? "0 8px 20px rgba(0,0,0,0.28)"
+                          : undefined,
+                        cursor: onMove ? "grab" : undefined,
                       }}
                       className="overflow-hidden rounded-md px-1.5 py-1 text-left text-[11px] leading-tight"
                     >
@@ -528,7 +726,10 @@ function TimeGrid({
                         />
                       )}
                       <div className="relative font-medium">
-                        {timeLabel(a.starts_at)}{" "}
+                        {/* Mid-drag, show where she's about to drop it. */}
+                        {isDragging
+                          ? clockLabel(drag.startMin)
+                          : timeLabel(a.starts_at)}{" "}
                         {a.clients?.full_name?.split(" ")[0]}
                       </div>
                       {h > 34 && (
@@ -548,116 +749,27 @@ function TimeGrid({
   );
 }
 
-type SvcOpt = {
-  id: string;
-  name: string;
-  duration_minutes: number;
-  price_cents: number;
-};
-
-function RebookForm({
-  clientId,
-  onDone,
-  onCancel,
-}: {
-  clientId: string;
-  onDone: () => void;
-  onCancel: () => void;
-}) {
-  const [services, setServices] = useState<SvcOpt[]>([]);
-  const [serviceId, setServiceId] = useState("");
-  const [when, setWhen] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase
-      .from("services")
-      .select("id,name,duration_minutes,price_cents")
-      .eq("active", true)
-      .order("sort_order")
-      .then(({ data }) => setServices((data ?? []) as SvcOpt[]));
-  }, []);
-
-  async function submit() {
-    const svc = services.find((s) => s.id === serviceId);
-    if (!svc || !when) return;
-    setBusy(true);
-    setError(null);
-    const startsISO = salonWallToISO(when);
-    const endsISO = new Date(
-      new Date(startsISO).getTime() + svc.duration_minutes * 60000,
-    ).toISOString();
-    const { error } = await supabase.from("appointments").insert({
-      client_id: clientId,
-      service_id: svc.id,
-      starts_at: startsISO,
-      ends_at: endsISO,
-      price_cents: svc.price_cents,
-      status: "booked",
-    });
-    setBusy(false);
-    if (error)
-      setError(
-        error.message.includes("overlap") || error.message.includes("exclusion")
-          ? "That time overlaps another appointment."
-          : error.message,
-      );
-    else onDone();
-  }
-
-  return (
-    <div className="mt-4 grid gap-3">
-      <p className="text-sm text-muted">Book their next visit:</p>
-      <select
-        className="input"
-        value={serviceId}
-        onChange={(e) => setServiceId(e.target.value)}
-      >
-        <option value="">Choose a service…</option>
-        {services.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-          </option>
-        ))}
-      </select>
-      <input
-        type="datetime-local"
-        className="input w-auto"
-        value={when}
-        onChange={(e) => setWhen(e.target.value)}
-      />
-      {error && <p className="text-sm text-accent-dark">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          onClick={submit}
-          disabled={busy}
-          className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
-        >
-          {busy ? "Booking…" : "Book it"}
-        </button>
-        <button
-          onClick={onCancel}
-          className="text-sm text-muted hover:text-accent"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
 type ClientOpt = { id: string; full_name: string };
 
+// Walk-ins and phone bookings are often people who aren't in the book yet, so
+// this panel can either pick an existing client or create one on the spot —
+// previously it could only pick, which dead-ended her at the calendar.
 function NewAppointmentPanel({
+  date,
+  time,
   onClose,
   onDone,
 }: {
+  // Prefilled from wherever she started: a bare "+ New" knows only the day she
+  // was looking at, a click into the time grid knows the exact slot.
+  date: string;
+  time: string;
   onClose: () => void;
   onDone: () => void;
 }) {
   const [clients, setClients] = useState<ClientOpt[]>([]);
   const [clientId, setClientId] = useState("");
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     supabase
@@ -679,25 +791,162 @@ function NewAppointmentPanel({
           ✕
         </button>
       </div>
-      <label className="mt-3 block">
-        <span className="mb-1 block text-sm">Client</span>
-        <select
-          className="input"
-          value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
-        >
-          <option value="">Choose a client…</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.full_name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {clientId && (
-        <RebookForm clientId={clientId} onDone={onDone} onCancel={onClose} />
+
+      {adding ? (
+        <NewClientForm
+          onCancel={() => setAdding(false)}
+          onCreated={(c) => {
+            setClients((prev) =>
+              [...prev, c].sort((a, b) => a.full_name.localeCompare(b.full_name)),
+            );
+            setClientId(c.id);
+            setAdding(false);
+          }}
+        />
+      ) : (
+        <>
+          <label className="mt-3 block">
+            <span className="mb-1 block text-sm">Client</span>
+            <select
+              className="input"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+            >
+              <option value="">Choose a client…</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="mt-2 text-sm text-accent hover:text-accent-dark"
+          >
+            + Add a new client
+          </button>
+        </>
+      )}
+
+      {clientId && !adding && (
+        <RebookForm
+          clientId={clientId}
+          heading="When?"
+          defaultDate={date}
+          defaultTime={time}
+          onDone={onDone}
+          onCancel={onClose}
+        />
       )}
     </div>
+  );
+}
+
+// Deliberately shorter than the full client form in Clients.tsx — she's in the
+// middle of booking someone, so this asks only what a booking needs. The rest
+// of the file (formula, birthday, notes) can be filled in later from Clients.
+function NewClientForm({
+  onCreated,
+  onCancel,
+}: {
+  onCreated: (c: ClientOpt) => void;
+  onCancel: () => void;
+}) {
+  const [first, setFirst] = useState("");
+  const [last, setLast] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!first.trim() || !last.trim() || !phone.trim()) return;
+    setBusy(true);
+    setError(null);
+    const { data, error } = await saveClient("insert", {
+      full_name: `${first.trim()} ${last.trim()}`,
+      phone: phone.trim(),
+      email: email.trim() || null,
+    });
+    setBusy(false);
+    if (error || !data) {
+      setError(error?.message ?? "Couldn't add that client.");
+      return;
+    }
+    const row = data as { id: string; full_name: string };
+    onCreated({ id: row.id, full_name: row.full_name });
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-3 grid gap-3">
+      <div className="flex flex-wrap gap-3">
+        <label className="block flex-1">
+          <span className="mb-1 block text-sm">
+            First name <span className="text-accent">*</span>
+          </span>
+          <input
+            className="input"
+            value={first}
+            onChange={(e) => setFirst(e.target.value)}
+            required
+          />
+        </label>
+        <label className="block flex-1">
+          <span className="mb-1 block text-sm">
+            Last name <span className="text-accent">*</span>
+          </span>
+          <input
+            className="input"
+            value={last}
+            onChange={(e) => setLast(e.target.value)}
+            required
+          />
+        </label>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <label className="block flex-1">
+          <span className="mb-1 block text-sm">
+            Phone <span className="text-accent">*</span>
+          </span>
+          <input
+            className="input"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+          />
+        </label>
+        <label className="block flex-1">
+          <span className="mb-1 block text-sm">Email</span>
+          <input
+            className="input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </label>
+      </div>
+      {error && <p className="text-sm text-accent-dark">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+        >
+          {busy ? "Adding…" : "Add client"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-sm text-muted hover:text-accent"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 
