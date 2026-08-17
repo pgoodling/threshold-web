@@ -54,7 +54,9 @@ export async function POST(req: Request) {
   const { data: appt } = await admin
     .from("appointments")
     .select(
-      "id, starts_at, created_at, client_id, services(name), clients(full_name, phone, sms_opt_out, sms_consent_at)",
+      // `*` on the client so sms_consent_at is tolerated before migration 0013
+      // runs — naming it explicitly would make the whole select fail.
+      "id, starts_at, created_at, client_id, services(name), clients(*)",
     )
     .eq("id", appointmentId)
     .single();
@@ -77,7 +79,7 @@ export async function POST(req: Request) {
     full_name: string;
     phone: string | null;
     sms_opt_out: boolean;
-    sms_consent_at: string | null;
+    sms_consent_at?: string | null; // absent until migration 0013 runs
   };
   type ServiceRow = { name: string };
   const client = one(appt.clients as unknown as ClientRow | ClientRow[] | null);

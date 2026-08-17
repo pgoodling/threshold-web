@@ -243,7 +243,12 @@ export default function BookPage() {
   // linked) and upload any photos. Throws so the card form can surface errors.
   async function finishBooking() {
     if (!service || !slot) return;
-    const { data, error } = await supabase.rpc("create_booking", {
+    // Resilient write, same idea as saveClient in the studio: if migration 0013
+    // hasn't run yet, create_booking has no p_sms_consent parameter and the call
+    // fails outright. Retrying without it means a deploy can land before the
+    // migration without taking bookings down — the consent tick is simply not
+    // recorded until the migration is in.
+    const args = {
       p_service_id: service.id,
       p_starts_at: slot,
       p_full_name: fullName,
@@ -251,8 +256,14 @@ export default function BookPage() {
       p_phone: phone.trim(),
       p_notes: notes.trim(),
       p_stripe_customer_id: customerId,
+    };
+    let { data, error } = await supabase.rpc("create_booking", {
+      ...args,
       p_sms_consent: smsConsent,
     });
+    if (error && /p_sms_consent|could not find|function/i.test(error.message)) {
+      ({ data, error } = await supabase.rpc("create_booking", args));
+    }
     if (error) throw new Error(error.message);
     const appointmentId = (data as { appointment_id?: string } | null)
       ?.appointment_id;
