@@ -326,15 +326,22 @@ export default function BookPage() {
         }),
       ).catch(() => {});
     }
-    // Best-effort confirmation text — never blocks the booking. Sends only the
-    // appointment id; the route reads the name, number, service, and time from
-    // the database so nothing from the browser can shape the outgoing text.
+    // Best-effort confirmations — neither blocks the booking. Each sends only
+    // the appointment id; the routes read the name, number, service, and time
+    // from the database so nothing from the browser can shape what goes out.
+    //
+    // Text and email are independent: the text is gated on SMS consent and A2P
+    // registration, the email only on her having given one. Until texting
+    // clears vetting, the email is the confirmation clients actually receive.
     if (appointmentId) {
-      fetch("/api/sms/booking-confirm", {
+      const body = JSON.stringify({ appointmentId });
+      const opts = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ appointmentId }),
-      }).catch(() => {});
+        body,
+      };
+      fetch("/api/sms/booking-confirm", opts).catch(() => {});
+      fetch("/api/email/booking-confirm", opts).catch(() => {});
     }
     setStep(4);
   }
