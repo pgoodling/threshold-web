@@ -47,24 +47,68 @@ function gapOf(a: Appt): { from: number; to: number } | null {
 
 // Appointments can now legitimately overlap — that's the whole point of
 // processing time — so they need side-by-side lanes or the client filling a gap
-// renders hidden underneath the colour client. Greedy first-fit: one lane per
-// concurrent appointment, widened across the whole day for simplicity (she's
-// one stylist, so this is 1 or 2 in practice).
-function layoutLanes<T extends { starts_at: string; ends_at: string }>(items: T[]) {
-  const laneEnds: number[] = [];
-  const placed = items.map((a) => {
-    const s = salonMinutes(a.starts_at);
-    const e = salonMinutes(a.ends_at);
-    let lane = laneEnds.findIndex((end) => end <= s);
-    if (lane === -1) {
-      laneEnds.push(e);
-      lane = laneEnds.length - 1;
-    } else {
-      laneEnds[lane] = e;
+// renders hidden underneath the colour client. Greedy first-fit within each
+// CLUSTER of overlapping appointments.
+//
+// Lane width used to be one number for the whole day, which meant a single
+// overlap anywhere shrank every block that day to half width. Re-time one
+// appointment so it overlaps its neighbour and the entire day visibly reflows —
+// which reads exactly like "it changed all my other appointments". Clustering
+// keeps the narrowing local to the appointments actually sharing a window.
+type Placed<T> = {
+  item: T;
+  startMin: number;
+  endMin: number;
+  lane: number;
+  laneCount: number;
+};
+
+function layoutLanes<T extends { starts_at: string; ends_at: string }>(
+  items: T[],
+): Placed<T>[] {
+  const rows = items
+    .map((a) => ({
+      item: a,
+      startMin: salonMinutes(a.starts_at),
+      endMin: salonMinutes(a.ends_at),
+    }))
+    .sort((x, y) => x.startMin - y.startMin || x.endMin - y.endMin);
+
+  const out: Placed<T>[] = [];
+  let cluster: typeof rows = [];
+  let clusterEnd = -Infinity;
+
+  // Assign lanes inside one cluster, then stamp them all with that cluster's
+  // width so only these blocks get narrower.
+  const flush = () => {
+    if (!cluster.length) return;
+    const laneEnds: number[] = [];
+    const lanes = cluster.map((r) => {
+      let lane = laneEnds.findIndex((end) => end <= r.startMin);
+      if (lane === -1) {
+        laneEnds.push(r.endMin);
+        lane = laneEnds.length - 1;
+      } else {
+        laneEnds[lane] = r.endMin;
+      }
+      return lane;
+    });
+    const laneCount = Math.max(1, laneEnds.length);
+    cluster.forEach((r, i) => out.push({ ...r, lane: lanes[i], laneCount }));
+    cluster = [];
+  };
+
+  for (const r of rows) {
+    // A gap with nothing running through it ends the cluster.
+    if (cluster.length && r.startMin >= clusterEnd) {
+      flush();
+      clusterEnd = -Infinity;
     }
-    return { item: a, startMin: s, endMin: e, lane };
-  });
-  return { placed, laneCount: Math.max(1, laneEnds.length) };
+    cluster.push(r);
+    clusterEnd = Math.max(clusterEnd, r.endMin);
+  }
+  flush();
+  return out;
 }
 
 type View = "month" | "week" | "day";
@@ -587,8 +631,8 @@ function TimeGrid({
                 />
               ))}
               {(() => {
-                const { placed, laneCount } = layoutLanes(byDay.get(k) ?? []);
-                return placed.map(({ item: a, startMin, endMin, lane }) => {
+                const placed = layoutLanes(byDay.get(k) ?? []);
+                return placed.map(({ item: a, startMin, endMin, lane, laneCount }) => {
                   // While she's dragging this one, draw it where her finger is
                   // rather than where the database still thinks it lives.
                   const isDragging = drag?.id === a.id;
