@@ -142,7 +142,18 @@ export default function WalletCollect({
             },
           },
           paymentMethods: {
-            applePay: "auto",
+            // Apple Pay is OFF. It rendered fine but every confirmation came
+            // back declined ("try a different card"), through a verified
+            // domain, an enabled method, and with the deferred payment
+            // declared above. Storing a card for a later off-session fee is
+            // the awkward case for Apple, and leaving a button that always
+            // fails is worse than not offering it — a client who taps it and
+            // gets declined may not try the card form underneath at all.
+            //
+            // To re-enable: change this back to "auto". The deferred payment
+            // request above is kept deliberately, since it's required for this
+            // use case whenever Apple Pay comes back.
+            applePay: "never",
             googlePay: "auto",
             amazonPay: "never",
             paypal: "never",
