@@ -90,6 +90,13 @@ export default function WalletCollect({
     const { error: err, setupIntent } = await stripe.confirmSetup({
       elements,
       clientSecret,
+      // Required whenever Elements runs with automatic payment methods, which
+      // is what `mode: "setup"` without explicit paymentMethodTypes gives us —
+      // even though `redirect: "if_required"` means cards and wallets never
+      // actually use it. Omitting it made confirmSetup throw an
+      // IntegrationError before the card was ever looked at, which Apple's
+      // sheet then reported as "try a different card".
+      confirmParams: { return_url: `${window.location.origin}/book` },
       redirect: "if_required",
     });
 
@@ -142,18 +149,7 @@ export default function WalletCollect({
             },
           },
           paymentMethods: {
-            // Apple Pay is OFF. It rendered fine but every confirmation came
-            // back declined ("try a different card"), through a verified
-            // domain, an enabled method, and with the deferred payment
-            // declared above. Storing a card for a later off-session fee is
-            // the awkward case for Apple, and leaving a button that always
-            // fails is worse than not offering it — a client who taps it and
-            // gets declined may not try the card form underneath at all.
-            //
-            // To re-enable: change this back to "auto". The deferred payment
-            // request above is kept deliberately, since it's required for this
-            // use case whenever Apple Pay comes back.
-            applePay: "never",
+            applePay: "auto",
             googlePay: "auto",
             amazonPay: "never",
             paypal: "never",
