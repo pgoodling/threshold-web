@@ -16,9 +16,15 @@ import type { StripeExpressCheckoutElementConfirmEvent } from "@stripe/stripe-js
 export default function WalletCollect({
   clientSecret,
   onConfirmed,
+  feeCeilingCents,
+  appointmentISO,
 }: {
   clientSecret: string;
   onConfirmed: () => Promise<void>;
+  // What could later be charged, and when. Apple needs both declared up front —
+  // see deferredPaymentRequest below.
+  feeCeilingCents: number;
+  appointmentISO: string;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -117,6 +123,24 @@ export default function WalletCollect({
       <ExpressCheckoutElement
         options={{
           buttonType: { applePay: "book", googlePay: "book" },
+          // We're storing a card to charge a possible late-cancellation or
+          // no-show fee AFTER the appointment — a deferred payment in Apple's
+          // terms. Declaring it asks the issuer for a merchant token (MPAN)
+          // rather than a device token, which is what makes the saved card
+          // valid for that later off-session charge. Without this, issuers can
+          // decline the $0 setup outright — which surfaces to the client as
+          // "try a different card".
+          applePay: {
+            deferredPaymentRequest: {
+              paymentDescription: "Late cancellation or no-show fee",
+              managementURL: "https://threshold.salon/privacy",
+              deferredBilling: {
+                amount: feeCeilingCents,
+                label: "Late cancellation or no-show fee",
+                deferredPaymentDate: new Date(appointmentISO),
+              },
+            },
+          },
           paymentMethods: {
             applePay: "auto",
             googlePay: "auto",

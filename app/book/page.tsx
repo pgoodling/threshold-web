@@ -785,6 +785,11 @@ export default function BookPage() {
                       <WalletCollect
                         clientSecret={clientSecret}
                         onConfirmed={finishBooking}
+                        // The no-show fee is capped at the service price (see
+                        // /api/stripe/charge-no-show), and could only be
+                        // charged from the appointment onwards.
+                        feeCeilingCents={service.price_cents}
+                        appointmentISO={slot}
                       />
                     </Elements>
                     <Elements
