@@ -108,9 +108,11 @@ export default function Outreach() {
   return (
     <div>
       <p className="text-muted">
-        Tell your clients something, one at a time, from your own phone. Tap a
-        name and your Messages app opens with the text already written — you just
-        press send. Nothing is sent by the app.
+        Tell your clients something, one at a time, from your own phone. Tap{" "}
+        <span className="text-foreground">Text</span> and your Messages app opens
+        with the message already written — you just press send. They&rsquo;re
+        ticked off automatically, so work down the list and stop whenever you
+        like. Nothing is sent by the app.
       </p>
 
       {unavailable && (
@@ -210,6 +212,12 @@ export default function Outreach() {
               {!r.outreach_texted_at && (
                 <a
                   href={smsLink(r.phone!, message.replace("{first}", firstNameOf(r.full_name)))}
+                  // Marking as she taps, rather than making her come back and
+                  // confirm, is the difference between one tap per client and
+                  // two — over a whole book that's the difference between a
+                  // pleasant evening and a chore. "Undo" covers the case where
+                  // she changes her mind in Messages.
+                  onClick={() => mark(r, true)}
                   className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark"
                 >
                   Text
