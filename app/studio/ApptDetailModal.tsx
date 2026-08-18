@@ -514,7 +514,7 @@ export default function ApptDetailModal({
                 </label>
                 <button
                   onClick={reschedule}
-                  className="rounded-full bg-accent px-4 py-2 text-white hover:bg-accent-dark"
+                  className="rounded-md bg-accent px-4 py-2 text-white hover:bg-accent-dark"
                 >
                   Save
                 </button>
@@ -564,7 +564,7 @@ export default function ApptDetailModal({
                         key={m.value}
                         type="button"
                         onClick={() => setMethod(m.value)}
-                        className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                        className={`rounded-md border px-3 py-1.5 text-xs transition ${
                           method === m.value
                             ? "border-accent bg-accent text-white"
                             : "border-foreground/15 hover:border-accent"
@@ -579,7 +579,7 @@ export default function ApptDetailModal({
                   <button
                     onClick={checkOut}
                     disabled={busy || !method}
-                    className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
                     {busy ? "Saving…" : "Check out & mark paid"}
                   </button>
@@ -682,7 +682,7 @@ export default function ApptDetailModal({
                   <button
                     onClick={saveTiming}
                     disabled={busy}
-                    className="rounded-full bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    className="rounded-md bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
                     {busy ? "Saving…" : "Save timing"}
                   </button>
@@ -719,7 +719,7 @@ export default function ApptDetailModal({
                   <button
                     onClick={chargeNoShowFee}
                     disabled={busy}
-                    className="rounded-full bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    className="rounded-md bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
                     {busy ? "Charging…" : "Charge this card"}
                   </button>
@@ -738,7 +738,7 @@ export default function ApptDetailModal({
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
                 {appt.status === "no_show" &&
                   (appt.no_show_charged_at ? (
-                    <span className="rounded-full bg-foreground/5 px-3 py-1.5 text-muted">
+                    <span className="rounded-md bg-foreground/5 px-3 py-1.5 text-muted">
                       Fee charged
                       {appt.no_show_fee_cents
                         ? ` · ${money(appt.no_show_fee_cents)}`
@@ -968,7 +968,7 @@ export function RebookForm({
               key={wk}
               type="button"
               onClick={() => setWhen(plusWeeksLocal(baseISO, wk))}
-              className="rounded-full border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
+              className="rounded-md border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
             >
               +{wk} weeks
             </button>
@@ -1000,7 +1000,7 @@ export function RebookForm({
         <button
           onClick={submit}
           disabled={busy}
-          className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {busy ? "Booking…" : "Book it"}
         </button>
@@ -1029,7 +1029,7 @@ function ActionBtn({
   return (
     <button
       onClick={onClick}
-      className={`rounded-full border px-3 py-1 transition ${
+      className={`rounded-md border px-3 py-1 transition ${
         primary
           ? "border-accent bg-accent text-white hover:bg-accent-dark"
           : danger

@@ -150,7 +150,7 @@ function Login() {
           <button
             type="submit"
             disabled={busy}
-            className="rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark disabled:opacity-60"
+            className="rounded-md bg-accent px-8 py-3 text-white transition hover:bg-accent-dark disabled:opacity-60"
           >
             {busy ? "Signing in…" : "Sign in"}
           </button>
@@ -289,7 +289,7 @@ function Dashboard() {
               <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
               <span className="flex-1 text-left">{label}</span>
               {key === "messages" && unread > 0 && (
-                <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">
+                <span className="rounded-md bg-accent px-1.5 py-0.5 text-[10px] text-white">
                   {unread}
                 </span>
               )}
@@ -348,7 +348,7 @@ function Dashboard() {
                   <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
                   <span className="flex-1">{label}</span>
                   {key === "messages" && unread > 0 && (
-                    <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] text-white">
+                    <span className="rounded-md bg-accent px-1.5 py-0.5 text-[10px] text-white">
                       {unread}
                     </span>
                   )}
@@ -593,7 +593,7 @@ function Hours() {
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="rounded-md bg-accent px-8 py-3 text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save hours"}
         </button>
@@ -749,7 +749,7 @@ function TimeOff() {
         </label>
         <button
           type="submit"
-          className="rounded-full bg-accent px-6 py-3 text-white transition hover:bg-accent-dark"
+          className="rounded-md bg-accent px-6 py-3 text-white transition hover:bg-accent-dark"
         >
           Add
         </button>

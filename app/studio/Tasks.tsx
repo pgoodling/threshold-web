@@ -142,7 +142,7 @@ function Reminders({
                 <span className="text-sm text-muted">
                   last visit {r.weeks} wk{r.weeks === 1 ? "" : "s"} ago
                   {lapsed && (
-                    <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent-dark">
+                    <span className="ml-2 text-xs font-medium text-accent-dark">
                       lapsed
                     </span>
                   )}
@@ -378,7 +378,7 @@ function ToDos() {
             </label>
             <button
               type="submit"
-              className="rounded-full bg-accent px-6 py-3 text-white transition hover:bg-accent-dark"
+              className="rounded-md bg-accent px-6 py-3 text-white transition hover:bg-accent-dark"
             >
               Add
             </button>
@@ -399,20 +399,20 @@ function ToDos() {
                 <button
                   onClick={() => complete(t)}
                   aria-label="Mark done"
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-foreground/25 text-xs hover:border-accent hover:text-accent"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs hover:border-accent hover:text-accent"
                 >
                   ✓
                 </button>
                 <span className="flex-1">
                   {t.title}
                   {t.clients && (
-                    <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent-dark">
+                    <span className="ml-2 text-xs font-medium text-accent-dark">
                       {t.clients.full_name}
                     </span>
                   )}
                 </span>
                 {t.recurrence !== "none" && (
-                  <span className="rounded-full bg-foreground/5 px-2 py-0.5 text-xs text-muted">
+                  <span className="text-xs text-muted">
                     {RECURRENCE.find(([v]) => v === t.recurrence)?.[1]}
                   </span>
                 )}

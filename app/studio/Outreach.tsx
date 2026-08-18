@@ -167,10 +167,10 @@ export default function Outreach() {
             }}
           />
         </span>
-        <div className="flex rounded-full border border-foreground/15 p-0.5 text-sm">
+        <div className="flex rounded-md border border-foreground/15 p-0.5 text-sm">
           <button
             onClick={() => setShowDone(false)}
-            className={`rounded-full px-4 py-1 transition ${
+            className={`rounded px-4 py-1 transition ${
               !showDone ? "bg-accent text-white" : "text-muted hover:text-accent"
             }`}
           >
@@ -178,7 +178,7 @@ export default function Outreach() {
           </button>
           <button
             onClick={() => setShowDone(true)}
-            className={`rounded-full px-4 py-1 transition ${
+            className={`rounded px-4 py-1 transition ${
               showDone ? "bg-accent text-white" : "text-muted hover:text-accent"
             }`}
           >
@@ -218,14 +218,14 @@ export default function Outreach() {
                   // pleasant evening and a chore. "Undo" covers the case where
                   // she changes her mind in Messages.
                   onClick={() => mark(r, true)}
-                  className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark"
+                  className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark"
                 >
                   Text
                 </a>
               )}
               <button
                 onClick={() => mark(r, !r.outreach_texted_at)}
-                className="rounded-full border border-foreground/15 px-4 py-2 text-sm transition hover:border-accent hover:text-accent"
+                className="rounded-md border border-foreground/15 px-4 py-2 text-sm transition hover:border-accent hover:text-accent"
               >
                 {r.outreach_texted_at ? "Undo" : "Sent"}
               </button>

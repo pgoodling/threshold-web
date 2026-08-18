@@ -174,7 +174,7 @@ export default function Reports() {
             <button
               key={key}
               onClick={() => setRange(key)}
-              className={`rounded-full border px-3 py-1 transition ${
+              className={`rounded-md border px-3 py-1 transition ${
                 range === key
                   ? "border-accent bg-accent text-white"
                   : "border-foreground/15 hover:border-accent"

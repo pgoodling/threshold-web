@@ -201,7 +201,7 @@ export default function Messages() {
             <button
               onClick={send}
               disabled={sending || !reply.trim()}
-              className="rounded-full bg-accent px-5 py-2.5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+              className="rounded-md bg-accent px-5 py-2.5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
             >
               {sending ? "Sending…" : "Send"}
             </button>
@@ -223,7 +223,7 @@ export default function Messages() {
           Texts and voicemail from your Threshold number.
         </p>
         {totalUnread > 0 && (
-          <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs text-white">
+          <span className="text-xs font-medium text-accent-dark">
             {totalUnread} unread
           </span>
         )}

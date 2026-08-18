@@ -281,7 +281,7 @@ export default function Calendar({
           <button
             onClick={() => shift(-1)}
             aria-label="Previous"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-foreground/15 hover:border-accent"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-foreground/15 hover:border-accent"
           >
             ‹
           </button>
@@ -291,7 +291,7 @@ export default function Calendar({
           <button
             onClick={() => shift(1)}
             aria-label="Next"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-foreground/15 hover:border-accent"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-foreground/15 hover:border-accent"
           >
             ›
           </button>
@@ -300,7 +300,7 @@ export default function Calendar({
               setAnchor(todayKey);
               setSelectedDay(todayKey);
             }}
-            className="ml-1 rounded-full border border-foreground/15 px-3 py-1 text-xs hover:border-accent"
+            className="ml-1 rounded-md border border-foreground/15 px-3 py-1 text-xs hover:border-accent"
           >
             Today
           </button>
@@ -314,17 +314,17 @@ export default function Calendar({
                 time: "",
               });
             }}
-            className="ml-1 rounded-full bg-accent px-3 py-1 text-xs text-white transition hover:bg-accent-dark"
+            className="ml-1 rounded-md bg-accent px-3 py-1 text-xs text-white transition hover:bg-accent-dark"
           >
             + New
           </button>
         </div>
-        <div className="flex rounded-full border border-foreground/15 p-0.5 text-sm">
+        <div className="flex rounded-md border border-foreground/15 p-0.5 text-sm">
           {(["month", "week", "day"] as View[]).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`rounded-full px-4 py-1 capitalize transition ${
+              className={`rounded px-4 py-1 capitalize transition ${
                 view === v ? "bg-accent text-white" : "text-muted hover:text-accent"
               }`}
             >
@@ -978,7 +978,7 @@ function NewClientForm({
         <button
           type="submit"
           disabled={busy}
-          className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {busy ? "Adding…" : "Add client"}
         </button>

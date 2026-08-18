@@ -154,7 +154,7 @@ function MoveBtn({
       aria-label={label}
       onClick={onClick}
       disabled={!onClick || disabled}
-      className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-25"
+      className="flex h-9 w-9 items-center justify-center rounded-md text-muted transition hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-25"
     >
       {children}
     </button>
@@ -345,7 +345,7 @@ export default function Services() {
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="mt-6 rounded-full border border-foreground/15 px-6 py-3 text-sm transition hover:border-accent hover:text-accent"
+          className="mt-6 rounded-md border border-foreground/15 px-6 py-3 text-sm transition hover:border-accent hover:text-accent"
         >
           + Add service
         </button>
@@ -517,7 +517,7 @@ function CategoryManager({
                     type="button"
                     disabled={busy}
                     onClick={() => rename(c.id)}
-                    className="rounded-full bg-accent px-4 py-1.5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    className="rounded-md bg-accent px-4 py-1.5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
                     Save
                   </button>
@@ -617,7 +617,7 @@ function CategoryManager({
         <button
           type="submit"
           disabled={busy || !name.trim()}
-          className="rounded-full border border-foreground/15 px-5 py-2.5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
+          className="rounded-md border border-foreground/15 px-5 py-2.5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
         >
           + Add category
         </button>
@@ -737,7 +737,7 @@ function ServiceRow({
         <h3 className="mr-auto font-display text-lg">
           {service.name}
           {!service.active && (
-            <span className="ml-2 rounded-full bg-foreground/5 px-2 py-0.5 text-xs text-muted">
+            <span className="ml-2 text-xs text-muted">
               hidden
             </span>
           )}
@@ -785,13 +785,13 @@ function ServiceRow({
         <div className="flex gap-2 text-xs">
           <button
             onClick={() => setEditing(true)}
-            className="rounded-full border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
+            className="rounded-md border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
           >
             Edit
           </button>
           <button
             onClick={toggleActive}
-            className="rounded-full border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
+            className="rounded-md border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
           >
             {service.active ? "Hide" : "Show"}
           </button>
@@ -1013,7 +1013,7 @@ function ServiceForm({
         <button
           type="submit"
           disabled={busy}
-          className="rounded-full bg-accent px-6 py-2 text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="rounded-md bg-accent px-6 py-2 text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {busy ? "Saving…" : submitLabel}
         </button>
