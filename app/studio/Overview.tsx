@@ -95,7 +95,9 @@ export default function Overview({
     Promise.all([
       supabase
         .from("appointments")
-        .select("id,starts_at,status,paid_cents,clients(full_name),services(name)")
+        .select(
+          "id,starts_at,status,paid_cents,clients(full_name),services(name)",
+        )
         .gte("starts_at", dayStart)
         .lt("starts_at", dayEnd)
         .neq("status", "cancelled")
@@ -139,8 +141,7 @@ export default function Overview({
   // `unread` (from the tab badge) and `waiting` refresh on different clocks, so
   // trust either one to open the banner rather than letting a stale count hide
   // messages that are demonstrably there.
-  const hasAttention =
-    lateList.length > 0 || unread > 0 || waiting.length > 0;
+  const hasAttention = lateList.length > 0 || unread > 0 || waiting.length > 0;
 
   return (
     <div>
@@ -152,59 +153,61 @@ export default function Overview({
       </div>
 
       {hasAttention && (
-        <div className="mt-5 grid gap-2">
-          {lateList.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => setOpenId(a.id)}
-              style={{ borderLeftColor: "#a32d2d", borderLeftWidth: 4 }}
-              className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent-dark/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
-            >
-              <span className="font-medium">
-                {a.clients?.full_name ?? "A client"} is running late
-              </span>
-              <span className="ml-auto text-xs">
-                {timeLabel(a.starts_at)} · {a.services?.name}
-              </span>
-            </button>
-          ))}
-          {/* One row per unread message, not a count. A bare "3 unread" makes
+        <div className="mt-5">
+          <p className="mb-2 text-xs uppercase tracking-wide text-muted">
+            Needs attention
+          </p>
+          <div className="grid gap-2">
+            {lateList.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setOpenId(a.id)}
+                style={{ borderLeftColor: "#a32d2d", borderLeftWidth: 4 }}
+                className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent-dark/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
+              >
+                <span className="font-medium">
+                  {a.clients?.full_name ?? "A client"} is running late
+                </span>
+                <span className="ml-auto text-xs">
+                  {timeLabel(a.starts_at)} · {a.services?.name}
+                </span>
+              </button>
+            ))}
+            {/* One row per unread message, not a count. A bare "3 unread" makes
               her open the Messages tab to find out whether it's urgent; the
               name and the first words usually settle that from here. */}
-          {waiting.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => onGoto?.("messages")}
-              style={{ borderLeftColor: "#a32d2d", borderLeftWidth: 4 }}
-              className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
-            >
-              {m.kind === "voicemail" && <Mic className="h-4 w-4 shrink-0" />}
-              <span className="shrink-0 font-medium">
-                {m.clients?.full_name ?? m.from_number ?? "Unknown number"}
-              </span>
-              <span className="truncate text-xs opacity-80">{m.body}</span>
-              <span className="ml-auto shrink-0 text-xs">
-                {whenLabel(m.created_at)}
-              </span>
-            </button>
-          ))}
-          {unread > waiting.length && (
-            <button
-              onClick={() => onGoto?.("messages")}
-              className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-2 text-left text-xs text-accent-dark transition hover:bg-accent/10"
-            >
-              {unread - waiting.length} more unread → open messages
-            </button>
-          )}
+            {waiting.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => onGoto?.("messages")}
+                style={{ borderLeftColor: "#a32d2d", borderLeftWidth: 4 }}
+                className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
+              >
+                {m.kind === "voicemail" && <Mic className="h-4 w-4 shrink-0" />}
+                <span className="shrink-0 font-medium">
+                  {m.clients?.full_name ?? m.from_number ?? "Unknown number"}
+                </span>
+                <span className="truncate text-xs opacity-80">{m.body}</span>
+                <span className="ml-auto shrink-0 text-xs">
+                  {whenLabel(m.created_at)}
+                </span>
+              </button>
+            ))}
+            {unread > waiting.length && (
+              <button
+                onClick={() => onGoto?.("messages")}
+                className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-2 text-left text-xs text-accent-dark transition hover:bg-accent/10"
+              >
+                {unread - waiting.length} more unread → open messages
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       <div className="mt-6 grid grid-cols-3 gap-3">
         <Stat label="Today" value={loading ? "—" : String(today.length)} />
-        <Stat
-          label="Taken today"
-          value={loading ? "—" : money(takenToday)}
-        />
+        <Stat label="Taken today" value={loading ? "—" : money(takenToday)} />
         <Stat
           label="Next 7 days"
           value={upcomingCount === null ? "—" : String(upcomingCount)}
@@ -215,7 +218,9 @@ export default function Overview({
       {loading ? (
         <p className="mt-2 text-muted">Loading…</p>
       ) : today.length === 0 ? (
-        <p className="mt-2 text-muted">Nothing booked today. Enjoy the breather.</p>
+        <p className="mt-2 text-muted">
+          Nothing booked today. Enjoy the breather.
+        </p>
       ) : (
         <div className="mt-3 grid gap-2">
           {today.map((a) => {

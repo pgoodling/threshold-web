@@ -187,11 +187,50 @@ const TABS: [Tab, string, LucideIcon][] = [
   ["timeoff", "Time off", CalendarOff],
 ];
 
+// Which view she's on, read from and written to the URL fragment.
+//
+// The studio is one page with eleven views, and for a long time the current view
+// lived only in React state. Two things fell out of that: refreshing dumped her
+// back to Overview, and the browser's Back button left the studio altogether
+// instead of stepping back a view — which on an iPad, where Back is a swipe from
+// the edge, is easy to trigger by accident.
+//
+// A fragment (/studio#clients) rather than a query parameter, so nothing is sent
+// to the server and this statically prerendered page needs no Suspense boundary
+// around useSearchParams. Next supports driving history this way directly.
+//
+// A client id can ride along as #clients/<uuid>, so "View profile" survives a
+// refresh and Back steps out of the client card rather than out of the app.
+function readView(): { tab: Tab; clientId: string | null } {
+  const raw =
+    typeof window === "undefined" ? "" : window.location.hash.replace(/^#/, "");
+  const [name, id] = raw.split("/");
+  const known = TABS.some(([k]) => k === name);
+  return { tab: known ? (name as Tab) : "overview", clientId: id || null };
+}
+
 function Dashboard() {
-  const [tab, setTab] = useState<Tab>("overview");
+  // Lazy initialisers: Dashboard only ever mounts client-side, after the session
+  // check resolves, so reading location here can't desync from server HTML.
+  const [tab, setTab] = useState<Tab>(() => readView().tab);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [pendingClient, setPendingClient] = useState<string | null>(null);
+  const [pendingClient, setPendingClient] = useState<string | null>(
+    () => readView().clientId,
+  );
+
+  // Back/forward: the browser has already changed the URL by the time this
+  // fires, so the job is just to catch up with it.
+  useEffect(() => {
+    const onPop = () => {
+      const view = readView();
+      setTab(view.tab);
+      setPendingClient(view.clientId);
+      setMenuOpen(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   // Count of unread incoming texts, for the Messages tab badge. Refreshes on
   // tab change and every minute.
@@ -216,10 +255,13 @@ function Dashboard() {
   const goToClient = (id: string) => {
     setPendingClient(id);
     setTab("clients");
+    window.history.pushState(null, "", `#clients/${id}`);
   };
   const select = (key: Tab) => {
     setTab(key);
+    setPendingClient(null);
     setMenuOpen(false);
+    window.history.pushState(null, "", `#${key}`);
   };
   return (
     <div className="min-h-screen bg-background sm:flex">
@@ -237,7 +279,7 @@ function Dashboard() {
           {TABS.map(([key, label, Icon]) => (
             <button
               key={key}
-              onClick={() => setTab(key)}
+              onClick={() => select(key)}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
                 tab === key
                   ? "bg-accent/15 font-medium text-accent-dark"
@@ -333,7 +375,7 @@ function Dashboard() {
           {tab === "overview" && (
             <Overview
               onOpenClient={goToClient}
-              onGoto={(t) => setTab(t as Tab)}
+              onGoto={(t) => select(t as Tab)}
               unread={unread}
             />
           )}
