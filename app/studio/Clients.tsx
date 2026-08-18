@@ -1,6 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CalendarPlus,
+  Mail,
+  MessageSquare,
+  Pencil,
+  Phone,
+} from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
@@ -8,18 +15,20 @@ import {
   dateLabel,
   money,
   statusLabel,
-  statusPillClass,
-  clientStage,
-  stageDot,
-  type ClientStage,
+  statusBlockColor,
 } from "../../lib/format";
 import {
-  strandColors,
-  regrowthPct,
-  formulaName,
-  ROOT_HEX,
-} from "../../lib/hair";
+  clientState,
+  usualGapWeeks,
+  stateCaption,
+  STATE_COLOR,
+  STATE_LABEL,
+  type ClientState,
+} from "../../lib/clientState";
+import { formulaName } from "../../lib/hair";
 import ApptDetailModal from "./ApptDetailModal";
+import Rail from "./Rail";
+import ActionStrip, { type Action } from "./ActionStrip";
 
 type Client = {
   id: string;
@@ -40,6 +49,8 @@ type Agg = {
   pastCount: number;
   service: string | null; // most recent service, for the default color
   nextStart: number | null;
+  /** Every attended visit, for working out her own rhythm. */
+  visitTimes: number[];
 };
 
 const EMPTY_AGG: Agg = {
@@ -48,15 +59,15 @@ const EMPTY_AGG: Agg = {
   pastCount: 0,
   service: null,
   nextStart: null,
+  visitTimes: [],
 };
 
 type View = {
   c: Client;
   agg: Agg;
-  stage: ClientStage | null;
+  state: ClientState;
   weeks: number | null;
-  strand: { hair: string; root: string };
-  pct: number;
+  gap: number | null;
 };
 
 function initials(name: string): string {
@@ -64,50 +75,10 @@ function initials(name: string): string {
   return ((p[0]?.[0] ?? "") + (p[1]?.[0] ?? "")).toUpperCase() || "?";
 }
 
-// A lock of hair: dark regrowth on top (grows with time away), her color below.
-function Strand({
-  hair,
-  root,
-  pct,
-  h = 46,
-  w = 11,
-  dot = null,
-}: {
-  hair: string;
-  root: string;
-  pct: number;
-  h?: number;
-  w?: number;
-  dot?: string | null;
-}) {
-  return (
-    <span className="relative shrink-0" style={{ width: w, height: h }}>
-      <span className="flex h-full w-full flex-col overflow-hidden rounded-md">
-        <span style={{ height: `${Math.round(pct * 100)}%`, background: root }} />
-        <span style={{ flex: 1, background: hair }} />
-      </span>
-      {dot && (
-        <span
-          className="absolute -right-1 -top-1 rounded-full border-2 border-white"
-          style={{ width: 9, height: 9, background: dot }}
-        />
-      )}
-    </span>
-  );
-}
-
-function Avatar({
-  name,
-  dot,
-  size = 38,
-}: {
-  name: string;
-  dot?: string | null;
-  size?: number;
-}) {
+function Avatar({ name, size = 38 }: { name: string; size?: number }) {
   return (
     <span
-      className="relative flex shrink-0 items-center justify-center rounded-full font-medium"
+      className="flex shrink-0 items-center justify-center rounded-full font-medium"
       style={{
         width: size,
         height: size,
@@ -117,42 +88,19 @@ function Avatar({
       }}
     >
       {initials(name)}
-      {dot && (
-        <span
-          className="absolute -right-0.5 -top-0.5 rounded-full border-2 border-white"
-          style={{ width: 11, height: 11, background: dot }}
-        />
-      )}
     </span>
   );
 }
 
-// Short serif caption in colorist language, e.g. "gold blonde · roots at 6w".
-function stageText(
-  stage: ClientStage | null,
-  weeks: number | null,
-  descriptor: string | null,
-): string {
-  const wk = weeks != null ? Math.round(weeks) : null;
-  const d = descriptor;
-  if (!stage) return "no visits yet";
-  switch (stage) {
-    case "new":
-      return d ? `new · ${d}` : "new client";
-    case "won_back":
-      return d ? `${d} · freshly back` : "freshly back";
-    case "at_risk":
-      return `${d ?? "color"} · roots at ${wk}w`;
-    case "lapsed":
-      return `${d ?? "color"} · grown out, ${wk}w`;
-    default:
-      return d ? `${d} · fresh` : "fresh · a regular";
-  }
-}
-
-function descriptorFor(c: Client, agg: Agg): string | null {
-  return formulaName(c.hair_formula) ?? agg.service?.toLowerCase() ?? null;
-}
+// The summary strip above the list, doubling as the filter. Ordered by how much
+// it wants her attention, not alphabetically — overdue first.
+const BOOK_TILES: { key: string; label: string; state: ClientState | null }[] = [
+  { key: "all", label: "All", state: null },
+  { key: "overdue", label: "Overdue", state: "overdue" },
+  { key: "due", label: "Due", state: "due" },
+  { key: "fine", label: "Fine", state: "fine" },
+  { key: "new", label: "New", state: "new" },
+];
 
 function viewFor(c: Client, agg: Agg | undefined): View {
   const a = agg ?? EMPTY_AGG;
@@ -160,75 +108,19 @@ function viewFor(c: Client, agg: Agg | undefined): View {
     a.lastAttended != null
       ? (Date.now() - a.lastAttended) / (7 * 86400000)
       : null;
+  const gap = usualGapWeeks(a.visitTimes);
   return {
     c,
     agg: a,
     weeks,
-    stage: clientStage({
+    gap,
+    state: clientState({
       pastCount: a.pastCount,
       upcomingCount: a.upcomingCount,
       weeksSinceLast: weeks,
+      gapWeeks: gap,
     }),
-    strand: strandColors(c.hair_formula, a.service),
-    pct: regrowthPct(weeks),
   };
-}
-
-const KEY_STAGES: { key: string; label: string; pct: number; dot: string | null }[] = [
-  { key: "all", label: "All", pct: 0.2, dot: null },
-  { key: "new", label: "New", pct: 0.08, dot: "#c9a24b" },
-  { key: "regular", label: "Regular", pct: 0.12, dot: null },
-  { key: "at_risk", label: "Roots showing", pct: 0.42, dot: null },
-  { key: "lapsed", label: "Grown out", pct: 0.7, dot: null },
-  { key: "won_back", label: "Won back", pct: 0.1, dot: "#7f77dd" },
-];
-
-// The whole book fanned open like her color-swatch ring: pale/fresh on the
-// left, grown-out on the right.
-function ColorRing({ views }: { views: View[] }) {
-  const withVisits = views.filter((v) => v.stage);
-  if (withVisits.length < 3) return null;
-  const sorted = [...withVisits].sort((a, b) => a.pct - b.pct);
-  const N = Math.min(23, sorted.length);
-  const blades = Array.from({ length: N }, (_, i) => {
-    const v = sorted[Math.round((i * (sorted.length - 1)) / Math.max(1, N - 1))];
-    const ang = N === 1 ? 0 : -55 + (110 * i) / (N - 1);
-    const H = 118;
-    const rootH = Math.round(H * v.pct);
-    return { ang, H, rootH, hair: v.strand.hair, root: v.strand.root, i };
-  });
-  const has = (s: string) => views.filter((v) => v.stage === s).length;
-  const fresh = has("new") + has("regular") + has("won_back");
-
-  return (
-    <div className="flex w-full shrink-0 flex-col items-center sm:w-auto">
-      <svg
-        viewBox="0 0 320 146"
-        aria-hidden="true"
-        className="h-auto w-[280px] max-w-full"
-      >
-        <g transform="translate(160,136)">
-          {blades.map((b) => (
-            <g key={b.i} transform={`rotate(${b.ang})`}>
-              <rect
-                x="-4.5"
-                y={-b.H}
-                width="9"
-                height={b.H - b.rootH}
-                rx="4.5"
-                fill={b.hair}
-              />
-              <rect x="-4.5" y={-b.rootH} width="9" height={b.rootH} rx="2" fill={b.root} />
-            </g>
-          ))}
-          <circle cx="0" cy="0" r="9" fill="#7a4a34" />
-        </g>
-      </svg>
-      <p className="font-display text-sm italic text-muted">
-        {fresh} fresh · {has("at_risk")} due soon · {has("lapsed")} grown out
-      </p>
-    </div>
-  );
 }
 
 export default function Clients({
@@ -280,12 +172,15 @@ export default function Clients({
           services: { name: string } | null;
         }[]) {
           const t = new Date(r.starts_at).getTime();
-          const e = m.get(r.client_id) ?? { ...EMPTY_AGG };
+          // Fresh visitTimes array per client — spreading EMPTY_AGG would share
+          // one array between everyone.
+          const e = m.get(r.client_id) ?? { ...EMPTY_AGG, visitTimes: [] };
           if (t >= now) {
             e.upcomingCount += 1;
             if (e.nextStart === null || t < e.nextStart) e.nextStart = t;
           } else if (r.status !== "no_show") {
             e.pastCount += 1;
+            e.visitTimes.push(t);
             if (e.lastAttended === null || t > e.lastAttended) e.lastAttended = t;
           }
           if (t > (recent.get(r.client_id) ?? -1)) {
@@ -315,14 +210,14 @@ export default function Clients({
 
   const counts = useMemo(() => {
     const m: Record<string, number> = { all: views.length };
-    for (const v of views) if (v.stage) m[v.stage] = (m[v.stage] ?? 0) + 1;
+    for (const v of views) m[v.state] = (m[v.state] ?? 0) + 1;
     return m;
   }, [views]);
 
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     return views.filter((v) => {
-      if (stageFilter !== "all" && v.stage !== stageFilter) return false;
+      if (stageFilter !== "all" && v.state !== stageFilter) return false;
       if (!s) return true;
       return [v.c.full_name, v.c.email, v.c.phone]
         .filter(Boolean)
@@ -350,55 +245,41 @@ export default function Clients({
         </p>
         <button
           onClick={() => setAdding(true)}
-          className="rounded-full border border-foreground/15 px-5 py-2 text-sm transition hover:border-accent hover:text-accent"
+          className="text-sm font-medium text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
         >
           + Add client
         </button>
       </div>
 
+      {/* The book at a glance. Overdue leads, because that's the work — and
+          each tile is also the filter for that state. */}
       {!loading && views.length > 0 && (
-        <div className="mt-4 rounded-2xl border border-foreground/10 bg-white p-5">
-          <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-8">
-            <ColorRing views={views} />
-            <div className="w-full flex-1">
-              <p className="font-display text-lg">Your book</p>
-              <p className="font-display text-sm italic text-muted">
-                every client, by how grown-out they are — tap a stage to focus
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {KEY_STAGES.map((s) => (
-                  <button
-                    key={s.key}
-                    onClick={() => setStageFilter(s.key)}
-                    className={`flex items-stretch overflow-hidden rounded-xl border text-left transition ${
-                      stageFilter === s.key
-                        ? "border-accent bg-accent/5"
-                        : "border-foreground/10 hover:border-accent/40"
-                    }`}
-                  >
-                    <span className="flex items-center py-2.5 pl-2.5 pr-1">
-                      <Strand
-                        hair="#e4c98c"
-                        root={ROOT_HEX}
-                        pct={s.pct}
-                        w={7}
-                        h={38}
-                        dot={s.dot}
-                      />
-                    </span>
-                    <span className="min-w-0 py-2 pr-3">
-                      <span className="block text-xl font-medium leading-none">
-                        {counts[s.key] ?? 0}
-                      </span>
-                      <span className="mt-1 block text-[11px] uppercase tracking-wide text-muted">
-                        {s.label}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {BOOK_TILES.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setStageFilter(t.key)}
+              className={`flex items-stretch overflow-hidden rounded-xl border bg-white text-left transition ${
+                stageFilter === t.key
+                  ? "border-accent"
+                  : "border-foreground/10 hover:border-accent/40"
+              }`}
+            >
+              {t.state ? (
+                <Rail state={t.state} width={4} />
+              ) : (
+                <span className="w-1 shrink-0 self-stretch bg-foreground/10" />
+              )}
+              <span className="min-w-0 px-3 py-2">
+                <span className="block text-xl font-medium leading-none">
+                  {counts[t.key] ?? 0}
+                </span>
+                <span className="mt-1 block text-[11px] uppercase tracking-wide text-muted">
+                  {t.label}
+                </span>
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
@@ -459,21 +340,23 @@ export default function Clients({
               <button
                 key={v.c.id}
                 onClick={() => setSelected(v.c)}
-                className="flex items-center gap-3 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-left transition hover:border-accent"
+                className="flex items-stretch overflow-hidden rounded-xl border border-foreground/10 bg-white text-left transition hover:border-accent"
               >
-                <Strand hair={v.strand.hair} root={v.strand.root} pct={v.pct} />
-                <Avatar
-                  name={v.c.full_name}
-                  dot={v.stage ? stageDot(v.stage) : null}
-                />
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{v.c.full_name}</div>
-                  <div className="mt-0.5 truncate font-display text-sm italic text-muted">
-                    {stageText(v.stage, v.weeks, descriptorFor(v.c, v.agg))}
-                  </div>
-                </div>
-                <span className="ml-auto whitespace-nowrap pl-2 text-sm text-muted">
-                  {meta}
+                <Rail state={v.state} width={5} />
+                <span className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
+                  <Avatar name={v.c.full_name} />
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">
+                      {v.c.full_name}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs uppercase tracking-wider text-muted">
+                      {STATE_LABEL[v.state]}
+                      {v.weeks != null && ` · ${Math.round(v.weeks)}w`}
+                    </span>
+                  </span>
+                  <span className="ml-auto whitespace-nowrap pl-2 text-sm text-muted">
+                    {meta}
+                  </span>
                 </span>
               </button>
             );
@@ -583,24 +466,46 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
   const weeksSince = lastAttended
     ? (now - new Date(lastAttended).getTime()) / (7 * 86400000)
     : null;
-  const lapsed = upcoming.length === 0 && weeksSince !== null && weeksSince >= 8;
-
   const service =
     visits[0]?.services?.name ?? attendedPast[0]?.services?.name ?? null;
-  const stage = clientStage({
+  const gap = usualGapWeeks(attendedPast.map((v) => v.starts_at));
+  const state = clientState({
     pastCount: attendedPast.length,
     upcomingCount: upcoming.filter((v) => v.status !== "cancelled").length,
     weeksSinceLast: weeksSince,
+    gapWeeks: gap,
   });
-  const strand = strandColors(c.hair_formula, service);
   const descriptor =
     formulaName(c.hair_formula) ?? service?.toLowerCase() ?? null;
   const spent = attendedPast
     .filter((v) => v.status === "checked_out" || v.status === "completed")
     .reduce((s, v) => s + (v.paid_cents ?? v.price_cents ?? 0), 0);
 
-  const contactCls =
-    "inline-flex items-center gap-1.5 rounded-lg border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
+  const cardActions: Action[] = [];
+  cardActions.push({
+    label: booking ? "Close" : "Book",
+    icon: CalendarPlus,
+    onClick: () => setBooking((b) => !b),
+    primary: true,
+  });
+  if (c.phone) {
+    cardActions.push({ label: "Text", icon: MessageSquare, href: `sms:${c.phone}` });
+    cardActions.push({
+      label: "Call",
+      icon: Phone,
+      onClick: () => callClient(c.id),
+      busy: calling,
+      busyLabel: "Ringing…",
+    });
+  }
+  if (c.email) {
+    cardActions.push({ label: "Email", icon: Mail, href: `mailto:${c.email}` });
+  }
+  cardActions.push({
+    label: "Edit",
+    icon: Pencil,
+    onClick: () => setEditing(true),
+  });
 
   return (
     <div>
@@ -610,7 +515,10 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-foreground/10 bg-white">
+      <div className="mt-4 flex overflow-hidden rounded-2xl border border-foreground/10 bg-white">
+        {/* How she's doing, as the edge of her card. */}
+        {!editing && <Rail state={state} width={8} />}
+        <div className="min-w-0 flex-1">
         {editing ? (
           <div className="p-6">
             <ClientForm
@@ -643,65 +551,33 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
           </div>
         ) : (
           <>
-            <div className="flex items-stretch gap-3 bg-[#f7f0e8] p-4 sm:gap-4 sm:p-6">
-              <Strand
-                hair={strand.hair}
-                root={strand.root}
-                pct={regrowthPct(weeksSince)}
-                w={14}
-                h={64}
-              />
-              <Avatar
-                name={c.full_name}
-                dot={stage ? stageDot(stage) : null}
-                size={52}
-              />
+            <div className="flex items-stretch gap-3 p-4 sm:gap-4 sm:p-6">
+              <Avatar name={c.full_name} size={52} />
               <div className="min-w-0 flex-1">
-                <h2 className="truncate font-display text-2xl">{c.full_name}</h2>
-                <p className="font-display text-sm italic text-muted">
-                  {stageText(stage, weeksSince, descriptor)}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {c.phone && (
-                    <a href={`sms:${c.phone}`} className={`${contactCls} border-accent bg-accent text-white hover:text-white`}>
-                      Text
-                    </a>
-                  )}
-                  {c.phone && (
-                    <button
-                      onClick={() => callClient(c.id)}
-                      disabled={calling}
-                      className={contactCls}
-                    >
-                      {calling ? "Ringing you…" : "Call"}
-                    </button>
-                  )}
-                  {c.phone && (
-                    <a href={`tel:${c.phone}`} className={contactCls}>
-                      Call from my phone
-                    </a>
-                  )}
-                  {c.email && (
-                    <a href={`mailto:${c.email}`} className={contactCls}>
-                      Email
-                    </a>
-                  )}
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="truncate font-display text-2xl">
+                    {c.full_name}
+                  </h2>
+                  {/* The state in words beside the rail, so the card reads
+                      without depending on colour. */}
+                  <span
+                    className="shrink-0 text-xs font-medium uppercase tracking-wider"
+                    style={{ color: STATE_COLOR[state] ?? "#6f5c52" }}
+                  >
+                    {STATE_LABEL[state]}
+                  </span>
                 </div>
+                <p className="font-display text-sm italic text-muted">
+                  {stateCaption(state, weeksSince, gap)}
+                </p>
               </div>
-              <button
-                onClick={() => setEditing(true)}
-                className="self-start rounded-full border border-foreground/15 px-4 py-1.5 text-xs transition hover:border-accent hover:text-accent"
-              >
-                Edit
-              </button>
             </div>
 
-            {/* Her formula + swatch */}
+            {/* Her formula — the thing she actually mixes, as text. */}
             <div className="flex flex-wrap items-center gap-3 border-t border-foreground/10 px-4 py-4 sm:px-6">
               <p className="text-xs uppercase tracking-wide text-muted">
                 Her formula
               </p>
-              <Strand hair={strand.hair} root={strand.root} pct={0.14} w={22} h={30} />
               {c.hair_formula ? (
                 <>
                   <span className="font-mono text-sm">{c.hair_formula}</span>
@@ -713,7 +589,7 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
                 </>
               ) : (
                 <span className="font-display text-sm italic text-muted">
-                  none yet — using her {service ? service.toLowerCase() : "service"} color
+                  none recorded yet
                 </span>
               )}
             </div>
@@ -736,23 +612,27 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
                 {c.notes}
               </p>
             )}
+
+            <ActionStrip actions={cardActions} />
           </>
         )}
+        </div>
       </div>
 
-      {lapsed && c.phone && (
-        <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/5 p-4">
+      {state === "overdue" && c.phone && (
+        <div className="mt-4 rounded-xl border border-foreground/10 bg-white p-4">
           <p className="text-sm">
-            Hasn&apos;t been in for about {Math.round(weeksSince ?? 0)} weeks —
-            her roots are well grown out.
+            {weeksSince != null &&
+              `${Math.round(weeksSince)} weeks since her last visit`}
+            {gap && ` — she usually comes every ${Math.round(gap)}.`}
           </p>
           <a
             href={`sms:${c.phone}?&body=${encodeURIComponent(
               `Hi ${c.full_name.split(" ")[0]}, it's Evelyn at Threshold! It's been a while — I'd love to get you back in the chair. Want me to save you a spot?`,
             )}`}
-            className="mt-2 inline-block rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark"
+            className="mt-2 inline-flex text-sm font-medium text-accent-dark underline decoration-accent underline-offset-4 hover:decoration-accent-dark"
           >
-            Win back — send a text
+            Send her a win-back text
           </a>
         </div>
       )}
@@ -760,14 +640,8 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
       <ClientTasks clientId={client.id} />
 
       {/* Visit history */}
-      <div className="mt-6 flex items-center justify-between">
+      <div className="mt-6">
         <h3 className="font-display text-lg">Appointments</h3>
-        <button
-          onClick={() => setBooking((b) => !b)}
-          className="rounded-full border border-foreground/15 px-4 py-1.5 text-xs transition hover:border-accent hover:text-accent"
-        >
-          {booking ? "Close" : "+ New appointment"}
-        </button>
       </div>
 
       {booking && (
@@ -840,7 +714,8 @@ function VisitList({
             {whenLabel(v.starts_at)}
             {v.status !== "booked" && v.status !== "confirmed" && (
               <span
-                className={`ml-2 rounded-full px-2 py-0.5 text-xs ${statusPillClass(v.status)}`}
+                className="ml-2 text-[11px] uppercase tracking-wider"
+                style={{ color: statusBlockColor(v.status)?.bg ?? "#6f5c52" }}
               >
                 {statusLabel(v.status)}
               </span>
@@ -1090,7 +965,6 @@ function ClientForm({
   const set = (patch: Partial<FormVals>) =>
     setV((prev) => ({ ...prev, ...patch }));
 
-  const swatch = strandColors(v.hair_formula, serviceName);
   const shade = formulaName(v.hair_formula);
 
   async function submit(e: React.FormEvent) {
@@ -1142,11 +1016,10 @@ function ClientForm({
         </label>
       </div>
 
-      {/* Color / formula, with a live swatch preview */}
+      {/* Color / formula — what she mixes, named back to her as she types. */}
       <div className="rounded-xl border border-foreground/10 bg-background p-4">
         <span className="mb-2 block text-sm">Her color / formula</span>
         <div className="flex flex-wrap items-center gap-3">
-          <Strand hair={swatch.hair} root={swatch.root} pct={0.14} w={26} h={34} />
           <input
             className="input w-28 font-mono"
             placeholder="e.g. 9G"

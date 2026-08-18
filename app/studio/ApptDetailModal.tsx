@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Mail, MessageSquare, Phone, Smartphone, User } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
@@ -8,7 +9,8 @@ import {
   plusWeeksLocal,
   dayKey,
   statusLabel,
-  statusPillClass,
+  statusBlockColor,
+  serviceColors,
   liveStatus,
   paymentLabel,
   money,
@@ -16,6 +18,8 @@ import {
 } from "../../lib/format";
 import AppointmentPhotos from "./AppointmentPhotos";
 import ClientMessages from "./ClientMessages";
+import Rail from "./Rail";
+import ActionStrip, { type Action } from "./ActionStrip";
 
 // One appointment detail, shown as a centered modal, used everywhere an
 // appointment is clicked (calendar, list, overview, client history).
@@ -372,29 +376,80 @@ export default function ApptDetailModal({
     }
   }
 
-  const contactCls =
-    "rounded-full border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
+  const live = appt ? liveStatus(appt.status, appt.starts_at) : "";
+
+  // "Call" rings her phone and bridges her to the client from the salon number;
+  // "My phone" is the escape hatch that dials directly, showing her own number,
+  // for when she'd rather not wait to be rung back.
+  const contactActions: Action[] = [];
+  if (appt) {
+    const phone = appt.clients?.phone;
+    const email = appt.clients?.email;
+    if (phone) {
+      contactActions.push({
+        label: "Call",
+        icon: Phone,
+        onClick: () => callClient(appt.client_id),
+        busy: calling,
+        busyLabel: "Ringing…",
+        primary: true,
+      });
+      contactActions.push({
+        label: "Text",
+        icon: MessageSquare,
+        href: `sms:${phone}`,
+      });
+      contactActions.push({
+        label: "My phone",
+        icon: Smartphone,
+        href: `tel:${phone}`,
+      });
+    }
+    if (email) {
+      contactActions.push({ label: "Email", icon: Mail, href: `mailto:${email}` });
+    }
+    if (onOpenClient) {
+      contactActions.push({
+        label: "Profile",
+        icon: User,
+        onClick: () => onOpenClient(appt.client_id),
+      });
+    }
+  }
 
   return (
     <Modal onClose={onClose}>
-      <div className="rounded-2xl border border-accent/30 bg-white p-5 shadow-xl">
+      <div className="overflow-hidden rounded-2xl border border-foreground/10 bg-white shadow-xl">
         {!appt ? (
-          <p className="text-sm text-muted">{error ?? "Loading…"}</p>
+          <p className="p-5 text-sm text-muted">{error ?? "Loading…"}</p>
         ) : (
-          <>
+          <div className="flex">
+            {/* The status, as the edge of the card rather than a badge inside
+                it. Booked and confirmed have no status colour of their own, so
+                they fall back to the service colour — the same rule the
+                calendar and today's schedule already follow. */}
+            <Rail
+              color={
+                statusBlockColor(live)?.bg ?? serviceColors(appt.services?.name).bg
+              }
+              width={6}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="p-5">
             <div className="flex items-start justify-between">
               <div>
                 <p className="font-display text-xl">
                   {appt.clients?.full_name}
                 </p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm text-muted">
+                <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-muted">
                   <span>
                     {appt.services?.name} · {fullWhen(appt.starts_at)}
                   </span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${statusPillClass(liveStatus(appt.status, appt.starts_at))}`}
+                    className="text-[11px] uppercase tracking-wider"
+                    style={{ color: statusBlockColor(live)?.bg ?? "#6f5c52" }}
                   >
-                    {statusLabel(liveStatus(appt.status, appt.starts_at))}
+                    {statusLabel(live)}
                   </span>
                 </p>
                 {(appt.status === "checked_out" ||
@@ -417,43 +472,6 @@ export default function ApptDetailModal({
               >
                 ✕
               </button>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {appt.clients?.phone && (
-                <button
-                  onClick={() => callClient(appt.client_id)}
-                  disabled={calling}
-                  className={contactCls}
-                >
-                  {calling ? "Ringing you…" : "Call"}
-                </button>
-              )}
-              {appt.clients?.phone && (
-                // Escape hatch: dials straight from her phone, showing her own
-                // number. Kept for when she'd rather not wait to be rung back.
-                <a href={`tel:${appt.clients.phone}`} className={contactCls}>
-                  Call from my phone
-                </a>
-              )}
-              {appt.clients?.phone && (
-                <a href={`sms:${appt.clients.phone}`} className={contactCls}>
-                  Text
-                </a>
-              )}
-              {appt.clients?.email && (
-                <a href={`mailto:${appt.clients.email}`} className={contactCls}>
-                  Email
-                </a>
-              )}
-              {onOpenClient && (
-                <button
-                  onClick={() => onOpenClient(appt.client_id)}
-                  className={contactCls}
-                >
-                  View profile
-                </button>
-              )}
             </div>
 
             <ClientMessages clientId={appt.client_id} />
@@ -836,7 +854,13 @@ export default function ApptDetailModal({
                   ))}
               </div>
             )}
-          </>
+              </div>
+
+              {/* Reaching the client: one divided band flush to the card edge,
+                  rather than five outlined lozenges competing for attention. */}
+              <ActionStrip actions={contactActions} />
+            </div>
+          </div>
         )}
       </div>
     </Modal>
