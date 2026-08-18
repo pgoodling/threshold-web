@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Mic, Play } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { whenLabel } from "../../lib/format";
 
@@ -13,6 +14,9 @@ type Msg = {
   from_number: string | null;
   created_at: string;
   read_at: string | null;
+  kind: "sms" | "voicemail" | null;
+  recording_sid: string | null;
+  recording_seconds: number | null;
   clients: { full_name: string; phone: string | null } | null;
 };
 
@@ -128,8 +132,8 @@ export default function Messages() {
       <div>
         {error && <ErrorNote>{error}</ErrorNote>}
         <p className="text-muted">
-          No messages yet. When clients text your Threshold number, their texts
-          show up here — and you can reply right from this page.
+          No messages yet. When clients text your Threshold number — or leave a
+          voicemail — it shows up here, and you can reply right from this page.
         </p>
       </div>
     );
@@ -164,6 +168,9 @@ export default function Messages() {
                   : "self-end bg-accent text-white"
               }`}
             >
+              {m.kind === "voicemail" && m.recording_sid && (
+                <Voicemail sid={m.recording_sid} seconds={m.recording_seconds} />
+              )}
               <p>{m.body}</p>
               <p
                 className={`mt-1 text-[11px] ${
@@ -209,7 +216,7 @@ export default function Messages() {
     <div>
       <div className="flex items-center justify-between">
         <p className="text-muted">
-          Texts to and from your Threshold number.
+          Texts and voicemail from your Threshold number.
         </p>
         {totalUnread > 0 && (
           <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs text-white">
@@ -230,15 +237,74 @@ export default function Messages() {
               {c.unread > 0 && (
                 <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
               )}
-              <span className="ml-auto max-w-[45%] truncate text-sm text-muted">
-                {last.direction === "outbound" && "You: "}
-                {last.body}
+              <span className="ml-auto flex max-w-[45%] items-center gap-1.5 truncate text-sm text-muted">
+                {last.kind === "voicemail" && (
+                  <Mic className="h-3.5 w-3.5 shrink-0 text-accent" />
+                )}
+                <span className="truncate">
+                  {last.direction === "outbound" && "You: "}
+                  {last.body}
+                </span>
               </span>
             </button>
           );
         })}
       </div>
     </div>
+  );
+}
+
+// A voicemail in the thread. The transcript is the message body, so this is
+// only the audio — there for the half of voicemails where the transcription is
+// mangled, or where hearing that someone is upset matters more than the words.
+//
+// The audio is fetched rather than linked because the route needs her session
+// token in a header, which an <audio src> can't send. Nothing is downloaded
+// until she asks for it.
+function Voicemail({ sid, seconds }: { sid: string; seconds: number | null }) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // The blob stays alive for as long as the player is on screen.
+  useEffect(() => () => {
+    if (src) URL.revokeObjectURL(src);
+  }, [src]);
+
+  async function load() {
+    setLoading(true);
+    setFailed(false);
+    const { data: sess } = await supabase.auth.getSession();
+    const res = await fetch(`/api/voice/recording?sid=${sid}`, {
+      headers: { Authorization: `Bearer ${sess.session?.access_token ?? ""}` },
+    });
+    setLoading(false);
+    if (!res.ok) {
+      setFailed(true);
+      return;
+    }
+    setSrc(URL.createObjectURL(await res.blob()));
+  }
+
+  if (src) {
+    return <audio src={src} controls autoPlay className="mb-1 w-full max-w-xs" />;
+  }
+
+  return (
+    <button
+      onClick={load}
+      disabled={loading}
+      className="mb-1 flex items-center gap-2 text-accent-dark disabled:opacity-60"
+    >
+      <Play className="h-4 w-4" />
+      <span className="text-xs">
+        {failed
+          ? "Couldn't load the recording"
+          : loading
+            ? "Loading…"
+            : `Play${seconds ? ` · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : ""}`}
+      </span>
+    </button>
   );
 }
 

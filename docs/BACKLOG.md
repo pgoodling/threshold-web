@@ -73,16 +73,53 @@ Goal: on every page, she sees what she needs for *that* thing, and can act witho
 
 **Done and live:** studio calendar fixes (drag-to-move, click-to-book, reschedule, cancel confirm), service categories, real hours + phone on the site, `/privacy` + `/terms`, SMS consent capture (transactional + separate marketing opt-in), email confirmation/reminder plumbing (unconfigured — no Resend key, and Evelyn has no client emails), the Outreach sweep screen, 159 clients imported from her paper book, Stripe wallet fixes, and click-to-call.
 
-**Migrations run:** through `0019`. **Still to run:** `0020` (consent from the checkbox again), `0021` (outreach tracking).
+**Migrations run:** through `0019`. **Still to run:** `0020` (consent from the checkbox again), `0021` (outreach tracking), `0022` (voicemail in the message log).
 
 **Waiting on nobody:**
-- ▢ Set `SALON_OWNER_PHONE` (Evelyn's mobile) in Vercel — click-to-call 503s without it.
+- ✅ `SALON_OWNER_PHONE` (Evelyn's mobile) set in Vercel — click-to-call was 503ing without it.
 - ▢ Point the Messaging Service inbound webhook at `https://threshold.salon/api/sms/inbound`. Endpoint is live and verified; inbound texting is NOT A2P-gated so this works today.
-- ▢ Voice forwarding via TwiML Bin on the number (in progress at session end).
+- ▢ Point the number's **"A call comes in"** webhook at `https://threshold.salon/api/voice/incoming` (HTTP POST). This replaces the TwiML-Bin forwarding approach — see below.
+- ▢ Register **CNAM** on the salon number so clients see "Threshold Salon" rather than a bare number. Outbound calls currently show no name, which is a real answer-rate problem.
+- ▢ Confirm the Twilio account is off trial. On trial, every call gets a "you have a trial account" preamble and only verified numbers can be dialled.
 
 **Waiting on Twilio:** A2P campaign in vetting, submitted 2026-08-17, 10–15 days. Until it clears, no outbound texting of any kind. See the freeze note below.
 
-**Known gaps:** voicemail rolls to her personal cell greeting (could build `/api/voice/incoming` with a salon greeting + voicemail into Messages); nothing in `/studio` has been verified by anyone but Paul, since it's behind the sign-in.
+**Known gaps:** nothing in `/studio` has been verified by anyone but Paul, since it's behind the sign-in.
+
+## Incoming calls + voicemail — ✅ BUILT (needs migration `0022` + the Twilio webhook)
+
+Replaces carrier/TwiML-Bin forwarding, which got the unanswered case wrong: a
+forwarded call that Evelyn misses rolls to her **personal** cell greeting, so a
+client who just rang "Threshold Salon" hears her private voicemail.
+
+Flow: client rings the salon number → `/api/voice/incoming` rings Evelyn's mobile
+(caller hears real ringback via `answerOnBridge`, and her phone shows the
+client's number) → she hears a **whisper**: "Threshold call from Sarah Jenkins,
+press any key to take it" → keypress bridges the call. No keypress and the leg
+drops to `/api/voice/no-answer`, which plays the salon greeting and records a
+voicemail.
+
+The keypress is load-bearing, not a nicety: her carrier voicemail will "answer" a
+forwarded call and Twilio can't distinguish that from Evelyn answering. Voicemail
+can't press a key, so screening is what keeps the call from being swallowed.
+
+Voicemail lands in the **Messages tab** as a row in `messages` (`kind='voicemail'`)
+rather than a screen of its own — so it inherits the conversation grouping, the
+unread badge, and sits in the same thread as that client's texts. Twilio
+transcribes it (~1¢), and the transcript becomes the message body, so she can
+read it between clients instead of finding somewhere private to listen. Audio
+plays on demand via `/api/voice/recording`, which re-fetches from Twilio
+server-side under her session token — Twilio's own media URLs are unauthenticated,
+and a client's voicemail must not sit on a public URL.
+
+Routes: `incoming` → `screen` → `accept` → `no-answer` → `voicemail` →
+`transcription`, plus `recording` for playback.
+
+- ⚠️ **Untested against a live call.** The one behaviour to watch is the
+  declined-screening branch in `/api/voice/no-answer`: a rejected screening leg
+  still reports `DialCallStatus=completed`, so voicemail is triggered off
+  `DialCallDuration` being zero. If a declined call hangs up instead of recording,
+  that's the line to revisit.
 
 ## Two-way texting + SMS automation (planned — own feature, phased)
 Goal: automate as much client texting as possible around the appointment lifecycle, and put replies **in front of Evelyn even when she's busy with another client**. Everything here dovetails with the Design-C **"needs attention"** banner (that's where alerts/replies surface).
