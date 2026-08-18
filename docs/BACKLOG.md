@@ -77,10 +77,14 @@ Goal: on every page, she sees what she needs for *that* thing, and can act witho
 
 **Waiting on nobody:**
 - ✅ `SALON_OWNER_PHONE` (Evelyn's mobile) set in Vercel — click-to-call was 503ing without it.
-- ▢ Point the Messaging Service inbound webhook at `https://threshold.salon/api/sms/inbound`. Endpoint is live and verified; inbound texting is NOT A2P-gated so this works today.
-- ▢ Point the number's **"A call comes in"** webhook at `https://threshold.salon/api/voice/incoming` (HTTP POST). This replaces the TwiML-Bin forwarding approach — see below.
-- ▢ Register **CNAM** on the salon number so clients see "Threshold Salon" rather than a bare number. Outbound calls currently show no name, which is a real answer-rate problem.
-- ▢ Confirm the Twilio account is off trial. On trial, every call gets a "you have a trial account" preamble and only verified numbers can be dialled.
+- ✅ **Inbound texting is LIVE** (2026-08-18). Messaging Service inbound webhook → `https://threshold.salon/api/sms/inbound`, HTTP POST. Verified end to end: a real text reached the route and appeared in the studio Messages tab.
+- ✅ The number's **"A call comes in"** webhook → `https://threshold.salon/api/voice/incoming`, HTTP POST. Replaces the "Forward to Evelyn" TwiML Bin, which is now orphaned (kept, not deleted, as a fallback while the new flow is unproven).
+- ✅ Twilio account confirmed **upgraded**, not trial — no "you have a trial account" preamble, no verified-number restriction.
+- ▢ Register **CNAM** on the salon number so clients see "Threshold Salon" rather than a bare number. Outbound calls currently show no name, which is a real answer-rate problem. Lives under the number's **Voice Trust** tab.
+
+*Confirmed by observation, against earlier doubt:* **inbound SMS is not A2P-gated.** The messaging log shows inbound messages as `Received` while every outbound row is `Undelivered` — receiving works now, sending waits for the campaign. The number's "Messaging disabled — Complete A2P registration" badge refers to sending only, and is misleading if read as covering both.
+
+*Console trap, for next time:* the Messaging Service inbound webhook is **not** in the left sidebar's Settings (that's account-wide General Messaging Settings, and has no inbound routing on it). It's Messaging → Services → the service → the **SETTINGS tab in the horizontal row on that page** → Integration. Two different pages named Settings; only one has the field.
 
 **Waiting on Twilio:** A2P campaign in vetting, submitted 2026-08-17, 10–15 days. Until it clears, no outbound texting of any kind. See the freeze note below.
 
