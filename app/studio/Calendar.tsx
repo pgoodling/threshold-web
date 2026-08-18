@@ -541,7 +541,7 @@ function MonthView({
               style={
                 isSel ? { boxShadow: "inset 0 0 0 1px var(--accent)" } : undefined
               }
-              className={`flex min-h-[104px] flex-col gap-0.5 p-1.5 text-left transition ${
+              className={`flex min-h-[58px] flex-col gap-0.5 p-1 text-left transition sm:min-h-[104px] sm:p-1.5 ${
                 i % 7 !== 0 ? "border-l border-foreground/10" : ""
               } ${i >= 7 ? "border-t border-foreground/10" : ""} ${
                 isSel
@@ -562,14 +562,39 @@ function MonthView({
               >
                 {parseKey(k).d}
               </span>
-              {list.slice(0, 4).map((a) => (
-                <ApptLine key={a.id} a={a} />
-              ))}
-              {list.length > 4 && (
-                <span className="pl-1.5 text-[10px] text-muted">
-                  +{list.length - 4} more
-                </span>
-              )}
+              {/* On a phone a cell is about 45px wide, so names truncate to
+                  nothing useful. There, the month answers the two questions it
+                  can actually answer at that size — how full is this day, and is
+                  anything wrong with it — and she taps through to the day view
+                  to read it. */}
+              <span className="mt-0.5 flex flex-wrap gap-[2px] sm:hidden">
+                {list.slice(0, 6).map((a) => {
+                  const live = liveStatus(a.status, a.starts_at);
+                  return (
+                    <span
+                      key={a.id}
+                      className="h-2 w-[3px] rounded-sm"
+                      style={{ background: APPT_RAIL[live] ?? RAIL_IDLE }}
+                    />
+                  );
+                })}
+                {list.length > 6 && (
+                  <span className="text-[9px] leading-none text-muted">
+                    +{list.length - 6}
+                  </span>
+                )}
+              </span>
+
+              <span className="hidden flex-col gap-0.5 sm:flex">
+                {list.slice(0, 4).map((a) => (
+                  <ApptLine key={a.id} a={a} />
+                ))}
+                {list.length > 4 && (
+                  <span className="pl-1.5 text-[10px] text-muted">
+                    +{list.length - 4} more
+                  </span>
+                )}
+              </span>
             </button>
           );
         })}
