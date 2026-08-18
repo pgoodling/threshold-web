@@ -10,6 +10,7 @@ import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
 import Messages from "./Messages";
+import Outreach from "./Outreach";
 import ApptDetailModal from "./ApptDetailModal";
 import {
   LayoutDashboard,
@@ -21,6 +22,7 @@ import {
   Scissors,
   BarChart3,
   Clock,
+  Send,
   CalendarOff,
   Menu,
   X,
@@ -167,6 +169,7 @@ type Tab =
   | "clients"
   | "services"
   | "reports"
+  | "outreach"
   | "hours"
   | "timeoff";
 
@@ -179,6 +182,7 @@ const TABS: [Tab, string, LucideIcon][] = [
   ["clients", "Clients", Users],
   ["services", "Services", Scissors],
   ["reports", "Reports", BarChart3],
+  ["outreach", "Outreach", Send],
   ["hours", "Hours", Clock],
   ["timeoff", "Time off", CalendarOff],
 ];
@@ -345,6 +349,7 @@ function Dashboard() {
           )}
           {tab === "services" && <Services />}
           {tab === "reports" && <Reports />}
+          {tab === "outreach" && <Outreach />}
           {tab === "hours" && <Hours />}
           {tab === "timeoff" && <TimeOff />}
         </div>
