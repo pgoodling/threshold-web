@@ -24,6 +24,14 @@ export default function WalletCollect({
   const [available, setAvailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Stripe reports availability under different keys on the two events, and
+  // only ever tells us about wallets it found. Once something is available we
+  // keep the block shown — a later empty report shouldn't hide a working
+  // button out from under someone mid-tap.
+  function noteAvailable(methods?: { applePay?: boolean; googlePay?: boolean }) {
+    if (methods?.applePay || methods?.googlePay) setAvailable(true);
+  }
+
   async function handleConfirm() {
     if (!stripe || !elements) return;
     setError(null);
@@ -70,11 +78,21 @@ export default function WalletCollect({
             klarna: "never",
           },
         }}
-        onReady={({ availablePaymentMethods }) =>
-          setAvailable(
-            !!availablePaymentMethods &&
-              (availablePaymentMethods.applePay || availablePaymentMethods.googlePay),
-          )
+        // Wallet detection is ASYNCHRONOUS. `ready` fires once when the element
+        // mounts, and at that moment Apple Pay availability may not be resolved
+        // yet — so relying on `ready` alone left this permanently hidden even
+        // when Apple Pay was perfectly available a moment later. Stripe
+        // documents `availablepaymentmethodschange` for exactly this. Listen to
+        // both: whichever reports a wallet first wins, and we never flip back
+        // to hidden once something is available.
+        onReady={({ availablePaymentMethods }) => noteAvailable(availablePaymentMethods)}
+        // Note the shapes differ: `ready` gives plain booleans, this event gives
+        // { available: boolean } per wallet.
+        onAvailablePaymentMethodsChange={({ paymentMethods }) =>
+          noteAvailable({
+            applePay: paymentMethods?.applePay?.available,
+            googlePay: paymentMethods?.googlePay?.available,
+          })
         }
         onConfirm={handleConfirm}
       />
