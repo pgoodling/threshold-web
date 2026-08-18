@@ -21,7 +21,7 @@ import {
   clientState,
   usualGapWeeks,
   stateCaption,
-  STATE_COLOR,
+  railColor,
   STATE_LABEL,
   type ClientState,
 } from "../../lib/clientState";
@@ -342,7 +342,11 @@ export default function Clients({
                 onClick={() => setSelected(v.c)}
                 className="flex items-stretch overflow-hidden rounded-xl border border-foreground/10 bg-white text-left transition hover:border-accent"
               >
-                <Rail state={v.state} width={5} />
+                <Rail
+                  state={v.state}
+                  color={railColor(v.state, v.weeks, v.gap)}
+                  width={5}
+                />
                 <span className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
                   <Avatar name={v.c.full_name} />
                   <span className="min-w-0">
@@ -517,7 +521,13 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
 
       <div className="mt-4 flex overflow-hidden rounded-2xl border border-foreground/10 bg-white">
         {/* How she's doing, as the edge of her card. */}
-        {!editing && <Rail state={state} width={8} />}
+        {!editing && (
+          <Rail
+            state={state}
+            color={railColor(state, weeksSince, gap)}
+            width={8}
+          />
+        )}
         <div className="min-w-0 flex-1">
         {editing ? (
           <div className="p-6">
@@ -562,7 +572,9 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
                       without depending on colour. */}
                   <span
                     className="shrink-0 text-xs font-medium uppercase tracking-wider"
-                    style={{ color: STATE_COLOR[state] ?? "#6f5c52" }}
+                    style={{
+                      color: railColor(state, weeksSince, gap) ?? "#6f5c52",
+                    }}
                   >
                     {STATE_LABEL[state]}
                   </span>

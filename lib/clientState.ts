@@ -18,8 +18,32 @@ export type ClientState = "new" | "fine" | "due" | "overdue";
 // common colour cycle and matches what the old model assumed.
 const DEFAULT_GAP_WEEKS = 6;
 
-// However patient her cycle, someone unseen for a quarter is a worry.
-const OVERDUE_CEILING_WEEKS = 12;
+// --- The two numbers worth arguing about -----------------------------------
+//
+// Red means "you may have lost her", not "she's a bit late". Getting that wrong
+// in the tight direction is worse than in the loose one: a book that's mostly
+// red says nothing at all, and Evelyn stops looking at the colour.
+//
+// So overdue is THREE times her usual gap, capped at six months. A client who
+// comes every four weeks isn't lost at six — she's lost at twelve. One who comes
+// twice a year is never called lost before the cap.
+const OVERDUE_GAP_MULTIPLE = 3;
+const OVERDUE_CEILING_WEEKS = 26;
+
+// "Due" starts a little before her usual gap comes round, because that's when a
+// nudge still lands as thoughtful rather than desperate.
+const DUE_GAP_MULTIPLE = 1.25;
+
+// --- Palette ---------------------------------------------------------------
+//
+// Muted earth tones drawn to sit with the cream and terracotta rather than the
+// signal-green and signal-red of a dashboard. The overdue colour is deliberately
+// a wine rather than a true red: the brand accent (#bd6b4d) is already an
+// orange-red, and a red rail beside it read as brand furniture rather than a
+// warning.
+const FINE_HEX = "#647f5a"; // sage
+const DUE_HEX = "#bd8f45"; // honey
+const OVERDUE_HEX = "#8f3f4a"; // wine
 
 // Her usual gap between visits, in weeks — the median rather than the mean, so
 // one holiday or one illness doesn't drag the whole rhythm out.
@@ -68,22 +92,80 @@ export function clientState(opts: {
   // Already booked back in. Whatever the gap has been, it's handled.
   if (upcomingCount > 0) return "fine";
 
-  const gap = gapWeeks && gapWeeks > 0 ? gapWeeks : DEFAULT_GAP_WEEKS;
-  const overdueAt = Math.min(gap * 1.5, OVERDUE_CEILING_WEEKS);
+  const { dueAt, overdueAt } = thresholds(gapWeeks);
 
   if (weeksSinceLast >= overdueAt) return "overdue";
-  if (weeksSinceLast >= gap) return "due";
+  if (weeksSinceLast >= dueAt) return "due";
   return "fine";
+}
+
+// When she tips into each state, given her own rhythm.
+export function thresholds(gapWeeks?: number | null): {
+  dueAt: number;
+  overdueAt: number;
+} {
+  const gap = gapWeeks && gapWeeks > 0 ? gapWeeks : DEFAULT_GAP_WEEKS;
+
+  // The ceiling drags the red point down for short cadences, which is its job.
+  // But a client whose own rhythm is longer than the ceiling would then be
+  // called lost while she's exactly on schedule — someone who comes twice a
+  // year, marked overdue at six months. The floor keeps her rhythm winning.
+  const capped = Math.min(gap * OVERDUE_GAP_MULTIPLE, OVERDUE_CEILING_WEEKS);
+  const floor = gap * 1.5;
+
+  return {
+    dueAt: gap * DUE_GAP_MULTIPLE,
+    overdueAt: Math.max(capped, floor),
+  };
 }
 
 // The rail colour. `new` is null on purpose — it renders as a hatch, because
 // "no history yet" doesn't belong on a good-to-bad scale.
 export const STATE_COLOR: Record<ClientState, string | null> = {
-  fine: "#1e7a46",
-  due: "#b07d18",
-  overdue: "#a32d2d",
+  fine: FINE_HEX,
+  due: DUE_HEX,
+  overdue: OVERDUE_HEX,
   new: null,
 };
+
+function mix(from: string, to: string, t: number): string {
+  const p = Math.max(0, Math.min(1, t));
+  const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  const out = [0, 1, 2].map((i) =>
+    Math.round(ch(from, i) + (ch(to, i) - ch(from, i)) * p),
+  );
+  return `#${out.map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+}
+
+// The rail colour as a slide rather than three steps: sage while she's on
+// rhythm, warming through honey as her gap comes round, deepening to wine as
+// she drifts past it.
+//
+// The four states still exist — they carry the words and drive the filters —
+// but the colour moves continuously between them, so a client fourteen weeks
+// gone doesn't look identical to one who's been gone a year.
+export function railColor(
+  state: ClientState,
+  weeksSinceLast: number | null,
+  gapWeeks?: number | null,
+): string | null {
+  if (state === "new" || weeksSinceLast == null) return null;
+
+  const { dueAt, overdueAt } = thresholds(gapWeeks);
+
+  // Still on rhythm: hold at sage rather than creeping toward honey the moment
+  // she leaves the chair.
+  if (weeksSinceLast < dueAt) return FINE_HEX;
+
+  if (weeksSinceLast < overdueAt) {
+    return mix(FINE_HEX, DUE_HEX, (weeksSinceLast - dueAt) / (overdueAt - dueAt));
+  }
+
+  // Past the line, keep deepening for another full gap before bottoming out, so
+  // the truly long-lost still separate from the just-overdue.
+  const beyond = (weeksSinceLast - overdueAt) / Math.max(overdueAt, 1);
+  return mix(DUE_HEX, OVERDUE_HEX, 0.35 + beyond * 0.65);
+}
 
 export const STATE_LABEL: Record<ClientState, string> = {
   fine: "Fine",
