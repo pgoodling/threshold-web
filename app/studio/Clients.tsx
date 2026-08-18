@@ -532,6 +532,31 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
   const [c, setC] = useState<Client>(client);
   const [booking, setBooking] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [calling, setCalling] = useState(false);
+
+  // Twilio rings HER, then bridges to the client, so the client sees the salon
+  // number instead of her mobile. Same call as the appointment screen.
+  async function callClient(clientId: string) {
+    setCalling(true);
+    setError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch("/api/voice/click-to-call", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ clientId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Couldn't place the call.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't place the call.");
+    } finally {
+      setCalling(false);
+    }
+  }
 
   const loadVisits = useCallback(() => {
     supabase
@@ -643,8 +668,17 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
                     </a>
                   )}
                   {c.phone && (
+                    <button
+                      onClick={() => callClient(c.id)}
+                      disabled={calling}
+                      className={contactCls}
+                    >
+                      {calling ? "Ringing you…" : "Call"}
+                    </button>
+                  )}
+                  {c.phone && (
                     <a href={`tel:${c.phone}`} className={contactCls}>
-                      Call
+                      Call from my phone
                     </a>
                   )}
                   {c.email && (

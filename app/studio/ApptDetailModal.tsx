@@ -105,6 +105,7 @@ export default function ApptDetailModal({
   const [blockGap, setBlockGap] = useState(false);
   const [when, setWhen] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [calling, setCalling] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -345,6 +346,31 @@ export default function ApptDetailModal({
     load();
   }
 
+  // Twilio rings HER first, then dials the client and bridges the two, so the
+  // client sees the salon number rather than her mobile. From her side it's an
+  // ordinary incoming call — nothing to install, no microphone permission.
+  async function callClient(clientId: string) {
+    setCalling(true);
+    setError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch("/api/voice/click-to-call", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ clientId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Couldn't place the call.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't place the call.");
+    } finally {
+      setCalling(false);
+    }
+  }
+
   const contactCls =
     "rounded-full border border-foreground/15 px-4 py-1.5 text-sm transition hover:border-accent hover:text-accent";
 
@@ -394,8 +420,19 @@ export default function ApptDetailModal({
 
             <div className="mt-4 flex flex-wrap gap-2">
               {appt.clients?.phone && (
+                <button
+                  onClick={() => callClient(appt.client_id)}
+                  disabled={calling}
+                  className={contactCls}
+                >
+                  {calling ? "Ringing you…" : "Call"}
+                </button>
+              )}
+              {appt.clients?.phone && (
+                // Escape hatch: dials straight from her phone, showing her own
+                // number. Kept for when she'd rather not wait to be rung back.
                 <a href={`tel:${appt.clients.phone}`} className={contactCls}>
-                  Call
+                  Call from my phone
                 </a>
               )}
               {appt.clients?.phone && (
