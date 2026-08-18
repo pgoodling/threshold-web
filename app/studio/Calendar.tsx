@@ -10,6 +10,7 @@ import {
   statusBlockColor,
   liveStatus,
   serviceColors,
+  serviceEdge,
 } from "../../lib/format";
 import ApptDetailModal, { RebookForm } from "./ApptDetailModal";
 import { saveClient } from "./Clients";
@@ -276,34 +277,58 @@ export default function Calendar({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => shift(-1)}
-            aria-label="Previous"
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-foreground/15 hover:border-accent"
-          >
-            ‹
-          </button>
-          <span className="min-w-[9rem] text-center font-display text-lg">
+      {/* The month is the largest thing on screen, not a small label wedged
+          between two buttons. Arrows and Today drop to quiet text; "+ New" is
+          the only filled control, because it's the only one that creates
+          something. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl leading-none sm:text-3xl">
             {title}
-          </span>
-          <button
-            onClick={() => shift(1)}
-            aria-label="Next"
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-foreground/15 hover:border-accent"
-          >
-            ›
-          </button>
-          <button
-            onClick={() => {
-              setAnchor(todayKey);
-              setSelectedDay(todayKey);
-            }}
-            className="ml-1 rounded-md border border-foreground/15 px-3 py-1 text-xs hover:border-accent"
-          >
-            Today
-          </button>
+          </h2>
+          <div className="mt-2 flex items-center gap-1">
+            <button
+              onClick={() => shift(-1)}
+              aria-label="Previous"
+              className="rounded px-2 py-1 text-lg leading-none text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => shift(1)}
+              aria-label="Next"
+              className="rounded px-2 py-1 text-lg leading-none text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
+            >
+              ›
+            </button>
+            <button
+              onClick={() => {
+                setAnchor(todayKey);
+                setSelectedDay(todayKey);
+              }}
+              className="rounded px-2 py-1 text-xs text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
+            >
+              Today
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex overflow-hidden rounded-md border border-foreground/15 text-sm">
+            {(["month", "week", "day"] as View[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                aria-pressed={view === v}
+                className={`border-l border-foreground/15 px-4 py-1.5 text-xs capitalize transition first:border-l-0 ${
+                  view === v
+                    ? "bg-foreground text-background"
+                    : "text-muted hover:bg-foreground/5 hover:text-accent-dark"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => {
               setSelected(null);
@@ -314,23 +339,10 @@ export default function Calendar({
                 time: "",
               });
             }}
-            className="ml-1 rounded-md bg-accent px-3 py-1 text-xs text-white transition hover:bg-accent-dark"
+            className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-dark"
           >
             + New
           </button>
-        </div>
-        <div className="flex rounded-md border border-foreground/15 p-0.5 text-sm">
-          {(["month", "week", "day"] as View[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`rounded px-4 py-1 capitalize transition ${
-                view === v ? "bg-accent text-white" : "text-muted hover:text-accent"
-              }`}
-            >
-              {v}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -434,6 +446,58 @@ function Modal({
   );
 }
 
+// One appointment in a month cell: status on the left edge, service on the
+// right, and nothing filled in between.
+//
+// Most appointments are simply booked and want nothing from her, so those get a
+// quiet stone rail — a full day should look busy, not alarming. Colour is spent
+// only where there's something to do: sage in the chair, wine running late (the
+// one bolded name on the screen), ink for done and paid, with the text falling
+// back because it's history rather than work.
+const APPT_RAIL: Record<string, string> = {
+  checked_in: "#647f5a", // sage — she's here, it's fine
+  late: "#8f3f4a", // wine — needs her, same as an overdue client
+  checked_out: "#4a3f38", // ink — done
+  completed: "#4a3f38",
+};
+const RAIL_IDLE = "#cfc3b6"; // stone — booked, nothing to do yet
+
+function ApptLine({ a }: { a: Appt }) {
+  const live = liveStatus(a.status, a.starts_at);
+  const rail = APPT_RAIL[live] ?? RAIL_IDLE;
+  const done = live === "checked_out" || live === "completed";
+  const late = live === "late";
+
+  return (
+    <span
+      className="flex min-w-0 items-baseline gap-1 py-px pl-1.5 text-[11px] leading-tight"
+      style={{
+        borderLeft: `2.5px solid ${rail}`,
+        // Service on the right edge: what kind of day tomorrow is, without
+        // tinting the whole row.
+        boxShadow: `inset -2px 0 0 ${serviceEdge(a.services?.name)}`,
+      }}
+    >
+      <span
+        className={`shrink-0 tabular-nums ${done ? "text-foreground/40" : "text-muted"}`}
+      >
+        {timeLabel(a.starts_at).replace(":00", "")}
+      </span>
+      <span
+        className={`truncate ${
+          late
+            ? "font-semibold text-[#8f3f4a]"
+            : done
+              ? "text-foreground/45"
+              : "text-foreground"
+        }`}
+      >
+        {a.clients?.full_name?.split(" ")[0]}
+      </span>
+    </span>
+  );
+}
+
 function MonthView({
   anchor,
   todayKey,
@@ -452,15 +516,20 @@ function MonthView({
   const days = Array.from({ length: 42 }, (_, i) => addDays(start, i));
   return (
     <div>
-      <div className="grid grid-cols-7 gap-1.5 text-center text-xs text-muted">
+      <div className="grid grid-cols-7 border-b border-foreground/15">
         {WEEKDAYS.map((d) => (
-          <div key={d} className="py-1">
+          <div
+            key={d}
+            className="pb-2 pl-2 text-[10px] uppercase tracking-[0.15em] text-muted"
+          >
             {d}
           </div>
         ))}
       </div>
-      <div className="mt-1 grid grid-cols-7 gap-1.5">
-        {days.map((k) => {
+      {/* One surface with hairline rules rather than 42 bordered tiles with
+          gaps — gaps made it read as a grid of buttons, not a calendar. */}
+      <div className="grid grid-cols-7 border border-t-0 border-foreground/15 bg-white">
+        {days.map((k, i) => {
           const inMonth = parseKey(k).m === m;
           const list = byDay.get(k) ?? [];
           const isToday = k === todayKey;
@@ -469,40 +538,37 @@ function MonthView({
             <button
               key={k}
               onClick={() => onSelectDay(k)}
-              className={`min-h-[76px] rounded-lg border p-1.5 text-left transition ${
+              style={
+                isSel ? { boxShadow: "inset 0 0 0 1px var(--accent)" } : undefined
+              }
+              className={`flex min-h-[104px] flex-col gap-0.5 p-1.5 text-left transition ${
+                i % 7 !== 0 ? "border-l border-foreground/10" : ""
+              } ${i >= 7 ? "border-t border-foreground/10" : ""} ${
                 isSel
-                  ? "border-accent"
-                  : "border-foreground/10 hover:border-accent/50"
-              } ${inMonth ? "bg-white" : "bg-transparent"}`}
+                  ? "bg-accent/5"
+                  : inMonth
+                    ? "hover:bg-background/60"
+                    : "bg-background"
+              }`}
             >
-              <div
-                className={`mb-1 text-xs ${
+              <span
+                className={`self-start px-0.5 text-xs tabular-nums ${
                   isToday
-                    ? "font-medium text-accent"
+                    ? "border-b-2 border-accent font-bold text-accent-dark"
                     : inMonth
                       ? "text-foreground"
                       : "text-foreground/30"
                 }`}
               >
                 {parseKey(k).d}
-              </div>
-              {list.slice(0, 3).map((a) => {
-                const c =
-                  statusBlockColor(liveStatus(a.status, a.starts_at)) ??
-                  catColors(a.services?.name);
-                return (
-                  <div
-                    key={a.id}
-                    className="mb-0.5 truncate rounded px-1 py-0.5 text-[11px]"
-                    style={{ background: c.bg, color: c.fg }}
-                  >
-                    {timeLabel(a.starts_at).replace(":00", "")}{" "}
-                    {a.clients?.full_name?.split(" ")[0]}
-                  </div>
-                );
-              })}
-              {list.length > 3 && (
-                <div className="text-[11px] text-muted">+{list.length - 3} more</div>
+              </span>
+              {list.slice(0, 4).map((a) => (
+                <ApptLine key={a.id} a={a} />
+              ))}
+              {list.length > 4 && (
+                <span className="pl-1.5 text-[10px] text-muted">
+                  +{list.length - 4} more
+                </span>
               )}
             </button>
           );

@@ -146,6 +146,23 @@ export function serviceColors(name: string | undefined): {
   return { bg: "#faeeda", fg: "#633806" }; // clay (fallback)
 }
 
+// The same six service families at a weight that survives being 2px wide.
+//
+// serviceColors above are fills — pale by design, because text sits on them. As
+// a hairline on the edge of a calendar row those pastels vanish into the white,
+// so the month view uses these instead: the same hues, taken down to something
+// that still reads at the width of a rule.
+export function serviceEdge(name: string | undefined): string {
+  const n = (name ?? "").toLowerCase();
+  if (n.includes("highlight")) return "#d0a63a"; // gold
+  if (n.includes("men")) return "#4a7fae"; // blue
+  if (n.includes("color")) return "#c1703f"; // terracotta
+  if (n.includes("cut")) return "#b8628a"; // rose
+  if (n.includes("treatment")) return "#6f66b8"; // lavender
+  if (n.includes("blowout")) return "#a8823f"; // clay
+  return "#a8823f";
+}
+
 // Green = checked in (in the chair now), charcoal = checked out & paid,
 // red = running late (past start, not checked in).
 const STATUS_IN = { bg: "#1e7a46", fg: "#ffffff" };
