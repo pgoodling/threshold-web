@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mic } from "lucide-react";
+import { Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
   salonNow,
@@ -25,12 +25,13 @@ type TodayAppt = {
   services: { name: string } | null;
 };
 
-// An unread text or voicemail, shown by name and opening words on the banner.
+// Something a client sent that she hasn't seen: a text, a voicemail, or a call
+// that rang out. Shown by name and opening words on the banner.
 type Waiting = {
   id: string;
   body: string;
   created_at: string;
-  kind: "sms" | "voicemail" | null;
+  kind: "sms" | "voicemail" | "missed_call" | null;
   from_number: string | null;
   clients: { full_name: string } | null;
 };
@@ -184,6 +185,9 @@ export default function Overview({
                 className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
               >
                 {m.kind === "voicemail" && <Mic className="h-4 w-4 shrink-0" />}
+                {m.kind === "missed_call" && (
+                  <PhoneMissed className="h-4 w-4 shrink-0" />
+                )}
                 <span className="shrink-0 font-medium">
                   {m.clients?.full_name ?? m.from_number ?? "Unknown number"}
                 </span>

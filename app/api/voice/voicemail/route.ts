@@ -40,25 +40,43 @@ export async function POST(req: Request) {
   const from = url.searchParams.get("from") ?? "";
   const recordingSid = params.RecordingSid ?? null;
   const seconds = Number(params.RecordingDuration ?? "0");
+  const callSid = params.CallSid ?? null;
 
   // A "voicemail" of a second or two is someone ringing off after the beep, not
-  // a message. Logging those trains her to ignore the badge.
+  // a message. There's no need to log anything: /api/voice/no-answer already
+  // recorded the missed call, and leaving it as a missed call is the truth.
   if (seconds < 2) return xml();
 
-  const caller = await lookupCaller(admin, from);
+  const upgrade = {
+    kind: "voicemail",
+    body: `Voicemail — ${mmss(seconds)}`,
+    recording_sid: recordingSid,
+    recording_seconds: seconds,
+  };
 
+  // Normal path: turn the missed call this recording belongs to into a voicemail.
+  const { data: upgraded } = await admin
+    .from("messages")
+    .update(upgrade)
+    .eq("twilio_sid", callSid)
+    .eq("kind", "missed_call")
+    .select("id");
+
+  if (upgraded?.length) return xml();
+
+  // No row to upgrade — the missed-call insert failed, or this deployment
+  // predates it. Fall back to logging the voicemail on its own so a real
+  // message is never lost to a bookkeeping miss.
+  const caller = await lookupCaller(admin, from);
   await admin.from("messages").insert({
     client_id: caller.clientId,
     appointment_id: caller.appointmentId,
     direction: "inbound",
-    kind: "voicemail",
-    body: `Voicemail — ${mmss(seconds)}`,
     from_number: from,
     to_number: process.env.TWILIO_PHONE_NUMBER ?? null,
-    twilio_sid: params.CallSid ?? null,
-    recording_sid: recordingSid,
-    recording_seconds: seconds,
+    twilio_sid: callSid,
     status: "received",
+    ...upgrade,
   });
 
   return xml();

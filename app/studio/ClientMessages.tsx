@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mic } from "lucide-react";
+import { Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { whenLabel } from "../../lib/format";
 import VoicemailPlayer from "./VoicemailPlayer";
@@ -23,7 +23,7 @@ type Line = {
   body: string;
   created_at: string;
   read_at: string | null;
-  kind: "sms" | "voicemail" | null;
+  kind: "sms" | "voicemail" | "missed_call" | null;
   recording_sid: string | null;
   recording_seconds: number | null;
 };
@@ -95,6 +95,7 @@ export default function ClientMessages({ clientId }: { clientId: string }) {
               </p>
               <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
                 {m.kind === "voicemail" && <Mic className="h-3 w-3" />}
+                {m.kind === "missed_call" && <PhoneMissed className="h-3 w-3" />}
                 {whenLabel(m.created_at)}
                 {unread && <span className="text-accent-dark">· unread</span>}
               </p>

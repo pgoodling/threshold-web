@@ -1,3 +1,5 @@
+import { getAdminClient } from "../../../../lib/supabaseAdmin";
+import { lookupCaller } from "../../../../lib/callerLookup";
 import {
   isFromTwilio,
   readParams,
@@ -32,6 +34,27 @@ export async function POST(req: Request) {
   // is about the recording, and doesn't repeat who was on the phone.
   const from = params.From ?? "";
   const q = `?from=${encodeURIComponent(from)}`;
+
+  // Log the missed call NOW, before the greeting plays, because most callers
+  // hang up rather than leave a message and that's precisely the case that used
+  // to vanish. If they do leave one, /api/voice/voicemail upgrades this same row
+  // instead of adding a second — so one call is one line on her banner.
+  const admin = getAdminClient();
+  const callSid = params.CallSid ?? null;
+  if (admin && callSid) {
+    const caller = await lookupCaller(admin, from);
+    await admin.from("messages").insert({
+      client_id: caller.clientId,
+      appointment_id: caller.appointmentId,
+      direction: "inbound",
+      kind: "missed_call",
+      body: "Missed call",
+      from_number: from,
+      to_number: params.To ?? process.env.TWILIO_PHONE_NUMBER ?? null,
+      twilio_sid: callSid,
+      status: "received",
+    });
+  }
 
   return xml(
     `<Say voice="Polly.Joanna">Thanks for calling Threshold Salon. ` +

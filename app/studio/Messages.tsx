@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Mic } from "lucide-react";
+import { Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { whenLabel } from "../../lib/format";
 import VoicemailPlayer from "./VoicemailPlayer";
@@ -15,7 +15,7 @@ type Msg = {
   from_number: string | null;
   created_at: string;
   read_at: string | null;
-  kind: "sms" | "voicemail" | null;
+  kind: "sms" | "voicemail" | "missed_call" | null;
   recording_sid: string | null;
   recording_seconds: number | null;
   clients: { full_name: string; phone: string | null } | null;
@@ -244,6 +244,9 @@ export default function Messages() {
               <span className="ml-auto flex max-w-[45%] items-center gap-1.5 truncate text-sm text-muted">
                 {last.kind === "voicemail" && (
                   <Mic className="h-3.5 w-3.5 shrink-0 text-accent" />
+                )}
+                {last.kind === "missed_call" && (
+                  <PhoneMissed className="h-3.5 w-3.5 shrink-0 text-accent" />
                 )}
                 <span className="truncate">
                   {last.direction === "outbound" && "You: "}
