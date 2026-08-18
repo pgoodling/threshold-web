@@ -52,7 +52,9 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 
 ## Also shipped
 - **Check in / Check out** — appointment lifecycle is now Booked → Confirmed → **Checked in** (arrived) → **Checked out** (paid & done), replacing the single "Completed". Check-out records the **amount paid** (editable) + **payment method** (Card (Intuit) / Cash / Venmo / Zelle / Other). Reports counts checked-out visits as revenue and adds a **By payment method** breakdown so the **Card total reconciles against Intuit deposits**. Needs migration `0006_check_in_out.sql`.
-- **Card on file at booking** (Stripe SetupIntent, no charge) — clean **card-only** field, plus an **Apple Pay / Google Pay** button that appears only on wallet-capable devices. Needs the domain registered in Stripe → Payment method domains (per mode: test now, **live before launch**).
+- **Card on file at booking** (Stripe SetupIntent, no charge) — clean **card-only** field, plus an **Apple Pay / Google Pay** button that appears only on wallet-capable devices. ✅ **Live mode is done** (verified 2026-08-18: the deployed bundle serves a `pk_live_` key and the Apple Pay button renders, which it only does when the domain is registered in Payment method domains for the *current* mode). Nothing outstanding here for launch.
+  - ▢ Genuinely untested, because testing it moves real money: the **no-show / late-cancel charge** path (`/api/stripe/charge-no-show`) against a live saved card. Worth one small real charge to a card you own, then refund it in the Stripe dashboard.
+  - ▢ Evelyn hasn't set `deposit_cents` on any service yet, so no booking currently asks for a deposit. That's a decision for her, not a build.
 - **Calendar** in `/studio` — Month / Week / Day views, color-coded, click-to-manage; old list kept as "List" tab.
 - **PWA install** — web manifest + Apple touch icon + theme color; "Add to Home Screen" launches standalone on iPad/iPhone.
 - **Date-range time off** (block weeks/months in one entry, e.g. "closed until September") — the way to pause online booking until she's ready.
