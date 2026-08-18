@@ -73,7 +73,7 @@ Goal: on every page, she sees what she needs for *that* thing, and can act witho
 
 **Done and live:** studio calendar fixes (drag-to-move, click-to-book, reschedule, cancel confirm), service categories, real hours + phone on the site, `/privacy` + `/terms`, SMS consent capture (transactional + separate marketing opt-in), email confirmation/reminder plumbing (unconfigured — no Resend key, and Evelyn has no client emails), the Outreach sweep screen, 159 clients imported from her paper book, Stripe wallet fixes, and click-to-call.
 
-**Migrations run:** through `0019`. **Still to run:** `0020` (consent from the checkbox again), `0021` (outreach tracking), `0022` (voicemail in the message log).
+**Migrations run:** through `0022` (confirmed 2026-08-18). **Still to run:** `0023` (missed calls).
 
 **Waiting on nobody:**
 - ✅ `SALON_OWNER_PHONE` (Evelyn's mobile) set in Vercel — click-to-call was 503ing without it.
@@ -118,6 +118,19 @@ and a client's voicemail must not sit on a public URL.
 
 Routes: `incoming` → `screen` → `accept` → `no-answer` → `voicemail` →
 `transcription`, plus `recording` for playback.
+
+**Missed calls (migration `0023`).** A caller who leaves no message used to
+vanish entirely — and that's the common case. A `missed_call` row is now written
+the moment the dial fails, and *upgraded in place* to a voicemail if they leave
+one (matched on call SID), so one call is one line on the banner either way.
+Note this logs unknown numbers too, so persistent spam callers will show up; if
+that becomes noise, filter to known clients or add a dismiss action.
+
+**Needs-attention banner** now names what's waiting instead of counting it —
+each unread text, voicemail and missed call as its own row with sender, opening
+words and an icon, collapsing to a count past three. The appointment detail also
+shows that client's last three messages, and deliberately does **not** mark them
+read (she's glancing, not answering).
 
 - ⚠️ **Untested against a live call.** The one behaviour to watch is the
   declined-screening branch in `/api/voice/no-answer`: a rejected screening leg
