@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Mic } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
   salonNow,
   salonWallToISO,
   timeLabel,
+  whenLabel,
   statusLabel,
   liveStatus,
   statusBlockColor,
@@ -22,6 +24,21 @@ type TodayAppt = {
   clients: { full_name: string } | null;
   services: { name: string } | null;
 };
+
+// An unread text or voicemail, shown by name and opening words on the banner.
+type Waiting = {
+  id: string;
+  body: string;
+  created_at: string;
+  kind: "sms" | "voicemail" | null;
+  from_number: string | null;
+  clients: { full_name: string } | null;
+};
+
+// How many unread messages the banner names individually before collapsing the
+// rest into a count. Past a few, the detail stops helping and the banner starts
+// burying today's schedule.
+const NAMED_UNREAD = 3;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const TZ = "America/New_York";
@@ -49,6 +66,7 @@ export default function Overview({
   unread?: number;
 }) {
   const [today, setToday] = useState<TodayAppt[]>([]);
+  const [waiting, setWaiting] = useState<Waiting[]>([]);
   const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
   const [clientCount, setClientCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,11 +107,19 @@ export default function Overview({
         .lt("starts_at", weekEnd)
         .neq("status", "cancelled"),
       supabase.from("clients").select("id", { count: "exact", head: true }),
-    ]).then(([todayRes, upcomingRes, clientsRes]) => {
+      supabase
+        .from("messages")
+        .select("id,body,created_at,kind,from_number,clients(full_name)")
+        .eq("direction", "inbound")
+        .is("read_at", null)
+        .order("created_at", { ascending: false })
+        .limit(NAMED_UNREAD),
+    ]).then(([todayRes, upcomingRes, clientsRes, waitingRes]) => {
       setLoading(false);
       setToday((todayRes.data ?? []) as unknown as TodayAppt[]);
       setUpcomingCount(upcomingRes.count ?? 0);
       setClientCount(clientsRes.count ?? 0);
+      setWaiting((waitingRes.data ?? []) as unknown as Waiting[]);
     });
   }, [tick]);
 
@@ -110,7 +136,11 @@ export default function Overview({
     day: "numeric",
   }).format(new Date());
 
-  const hasAttention = lateList.length > 0 || unread > 0;
+  // `unread` (from the tab badge) and `waiting` refresh on different clocks, so
+  // trust either one to open the banner rather than letting a stale count hide
+  // messages that are demonstrably there.
+  const hasAttention =
+    lateList.length > 0 || unread > 0 || waiting.length > 0;
 
   return (
     <div>
@@ -127,7 +157,8 @@ export default function Overview({
             <button
               key={a.id}
               onClick={() => setOpenId(a.id)}
-              className="flex items-center gap-3 rounded-xl border border-accent-dark/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
+              style={{ borderLeftColor: "#a32d2d", borderLeftWidth: 4 }}
+              className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent-dark/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
             >
               <span className="font-medium">
                 {a.clients?.full_name ?? "A client"} is running late
@@ -137,15 +168,32 @@ export default function Overview({
               </span>
             </button>
           ))}
-          {unread > 0 && (
+          {/* One row per unread message, not a count. A bare "3 unread" makes
+              her open the Messages tab to find out whether it's urgent; the
+              name and the first words usually settle that from here. */}
+          {waiting.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => onGoto?.("messages")}
+              style={{ borderLeftColor: "#a32d2d", borderLeftWidth: 4 }}
+              className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
+            >
+              {m.kind === "voicemail" && <Mic className="h-4 w-4 shrink-0" />}
+              <span className="shrink-0 font-medium">
+                {m.clients?.full_name ?? m.from_number ?? "Unknown number"}
+              </span>
+              <span className="truncate text-xs opacity-80">{m.body}</span>
+              <span className="ml-auto shrink-0 text-xs">
+                {whenLabel(m.created_at)}
+              </span>
+            </button>
+          ))}
+          {unread > waiting.length && (
             <button
               onClick={() => onGoto?.("messages")}
-              className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
+              className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-2 text-left text-xs text-accent-dark transition hover:bg-accent/10"
             >
-              <span className="font-medium">
-                {unread} unread text{unread === 1 ? "" : "s"}
-              </span>
-              <span className="ml-auto text-xs">Open messages →</span>
+              {unread - waiting.length} more unread → open messages
             </button>
           )}
         </div>

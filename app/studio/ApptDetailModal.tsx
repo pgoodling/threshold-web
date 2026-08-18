@@ -15,6 +15,7 @@ import {
   PAYMENT_METHODS,
 } from "../../lib/format";
 import AppointmentPhotos from "./AppointmentPhotos";
+import ClientMessages from "./ClientMessages";
 
 // One appointment detail, shown as a centered modal, used everywhere an
 // appointment is clicked (calendar, list, overview, client history).
@@ -454,6 +455,8 @@ export default function ApptDetailModal({
                 </button>
               )}
             </div>
+
+            <ClientMessages clientId={appt.client_id} />
 
             <div className="mt-4">
               <p className="text-xs uppercase tracking-wide text-muted">
