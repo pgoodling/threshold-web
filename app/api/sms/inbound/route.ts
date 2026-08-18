@@ -1,5 +1,7 @@
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { lookupCaller } from "../../../../lib/callerLookup";
+import { sendClientSms } from "../../../../lib/sms";
+import { confirmedText, isConfirmation } from "../../../../lib/smsTemplates";
 import {
   isFromTwilio,
   readParams,
@@ -68,6 +70,42 @@ export async function POST(req: Request) {
     twilio_sid: sid,
     status: "received",
   });
+
+  // "C" back from the reminder confirms the appointment.
+  //
+  // Only when it's still awaiting confirmation: a stray "ok" months later
+  // mustn't reopen an appointment that's been checked out or cancelled. And
+  // only a bare confirmation word — "ok but can I move to 3?" is a conversation
+  // for Evelyn, not something to quietly mark confirmed.
+  if (caller.appointmentId && caller.clientId && isConfirmation(body)) {
+    const { data: appt } = await admin
+      .from("appointments")
+      .select("id, starts_at, status")
+      .eq("id", caller.appointmentId)
+      .in("status", ["booked"])
+      .maybeSingle();
+
+    if (appt) {
+      await admin
+        .from("appointments")
+        .update({
+          status: "confirmed",
+          confirmed_by_client_at: new Date().toISOString(),
+        })
+        .eq("id", appt.id);
+
+      // Acknowledge, so the reply doesn't vanish into silence. Best-effort:
+      // the confirmation is already recorded, and a failed courtesy text
+      // mustn't make Twilio retry the whole webhook.
+      await sendClientSms(admin, {
+        clientId: caller.clientId,
+        appointmentId: appt.id,
+        body: confirmedText({ startsAt: appt.starts_at as string }),
+        // They just texted us, so they're plainly awake.
+        ignoreQuietHours: true,
+      });
+    }
+  }
 
   return xml();
 }

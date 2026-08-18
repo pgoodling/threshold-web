@@ -168,7 +168,45 @@ Goal: automate as much client texting as possible around the appointment lifecyc
 - ⚠️ Clients who booked before `0013` have `sms_consent_at = null` and will get **no** automated texts until they tick the box on a future booking. If Evelyn has consent for regulars by another route, record it as `sms_consent_source = 'in_person'`.
 - ▢ TODO next: surface inbound on the appointment detail + Overview "needs attention".
 
-**Late-arrival flow (Phase 2):**
+## SMS automation — ✅ BUILT 2026-08-18, dormant until A2P (needs migration `0024`)
+
+Written ahead of approval on purpose: if it only started when the campaign
+cleared, approval day would begin a build instead of flipping a switch.
+
+**The switch is `SMS_AUTOMATION_ENABLED`** (must be the exact string `true`).
+Until it's set, every automated send is skipped with reason `automation_off`.
+Evelyn's own replies from the Messages tab are unaffected — those go through
+`/api/sms/send` and are her decision, not automation's.
+
+- **`lib/sms.ts`** — the one door every automated text goes through. Enforces
+  the rules a person would apply without thinking: no consent → no text (the 159
+  clients imported from her paper book have none until they tick the box on a
+  future booking), opted out → no text, outside **9am–8pm salon time** → no text.
+  Each refusal is a named reason, so a run reports `12 sent, 4 no_consent,
+  1 quiet_hours` and a working system is distinguishable from a broken one.
+- **`lib/smsTemplates.ts`** — the actual wording, in one file for the same reason
+  the consent text is: the campaign submission quotes sample messages, and
+  carriers compare what's sent against what was described.
+- **Reminder** — folded into the existing daily `/api/cron/reminders` rather than
+  a second job, because the question is identical and the free Vercel plan
+  allows one cron a day. Sends email and text independently; either can be
+  configured without the other.
+- **Reply `C` to confirm** — handled in `/api/sms/inbound`. Only promotes an
+  appointment that's still `booked`, and only on a bare confirmation word, so
+  "ok but can I move to 3?" stays a conversation for Evelyn. Acknowledges with a
+  short text so the reply doesn't vanish into silence.
+- **`/api/cron/late-arrivals`** — "still on your way?" after a **10-minute** grace
+  period, ignoring quiet hours (their appointment is happening now), and never
+  more than 90 minutes late. Safe to call as often as you like; does nothing when
+  nothing is due.
+
+⚠️ **Late-arrivals needs a scheduler that isn't Vercel's free cron**, which runs
+once a day — a text forty minutes after someone was due is useless. Options:
+Supabase **pg_cron** (free, already in the stack), an external pinger, or a paid
+Vercel plan. Deliberately not added to `vercel.json`, since a daily run would be
+worse than none: it'd fire once at a random time and look broken.
+
+**Late-arrival flow (Phase 2) — original notes:**
 - **Scheduler** (Supabase pg_cron or Vercel cron, every few min) finds booked/confirmed appts past start + not checked in + not already pinged → auto-text "still on your way?"; record it; flag the appt.
 - Client reply lands in front of Evelyn with **one-tap actions**: "can't make it" → mark no-show + send rebook link; "omw" → red flag can ease to amber.
 - Clients can also **text first** ("running late") → matched to their appt → needs-attention.
