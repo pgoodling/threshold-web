@@ -2,6 +2,7 @@ import twilio from "twilio";
 import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { toE164 } from "../../../../lib/phone";
+import { escapeXml } from "../../../../lib/twilioWebhook";
 
 // Call a client FROM the salon number, without Evelyn's mobile ever showing.
 //
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
       // Leg 2, once she answers: dial the client as the salon.
       twiml:
         `<Response><Say voice="alice">Connecting you to ` +
-        `${(client.full_name ?? "your client").split(" ")[0]}.</Say>` +
+        `${escapeXml((client.full_name ?? "your client").split(" ")[0])}.</Say>` +
         `<Dial callerId="${from}">${target}</Dial></Response>`,
     });
     return NextResponse.json({ sid: call.sid, status: call.status });
