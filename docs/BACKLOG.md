@@ -200,11 +200,19 @@ Evelyn's own replies from the Messages tab are unaffected — those go through
   more than 90 minutes late. Safe to call as often as you like; does nothing when
   nothing is due.
 
-⚠️ **Late-arrivals needs a scheduler that isn't Vercel's free cron**, which runs
-once a day — a text forty minutes after someone was due is useless. Options:
-Supabase **pg_cron** (free, already in the stack), an external pinger, or a paid
-Vercel plan. Deliberately not added to `vercel.json`, since a daily run would be
-worse than none: it'd fire once at a random time and look broken.
+**Late-arrivals is scheduled in Postgres**, not Vercel — migration `0025` sets up
+Supabase Cron (pg_cron + pg_net) to hit the endpoint every 5 minutes. Vercel's
+free cron runs once a day, which for this job is worse than not running: it'd
+fire at one arbitrary moment and look broken. Not in `vercel.json` for that
+reason.
+
+🔴 **`CRON_SECRET` was never set in Vercel** (found 2026-08-18). Both cron routes
+refuse to run without it, so the daily reminder job has been returning 401 to
+Vercel Cron on every run since it was built — it has never fired. Email was
+unconfigured too, so nothing was lost, but the job was dead independently of
+that. The same secret must be set in **two** places, with the same value:
+Vercel's env vars, and Supabase Vault under the name `cron_secret` (see the
+header of `0025`).
 
 **Late-arrival flow (Phase 2) — original notes:**
 - **Scheduler** (Supabase pg_cron or Vercel cron, every few min) finds booked/confirmed appts past start + not checked in + not already pinged → auto-text "still on your way?"; record it; flag the appt.
