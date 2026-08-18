@@ -80,7 +80,8 @@ Goal: on every page, she sees what she needs for *that* thing, and can act witho
 - ✅ **Inbound texting is LIVE** (2026-08-18). Messaging Service inbound webhook → `https://threshold.salon/api/sms/inbound`, HTTP POST. Verified end to end: a real text reached the route and appeared in the studio Messages tab.
 - ✅ The number's **"A call comes in"** webhook → `https://threshold.salon/api/voice/incoming`, HTTP POST. Replaces the "Forward to Evelyn" TwiML Bin, which is now orphaned (kept, not deleted, as a fallback while the new flow is unproven).
 - ✅ Twilio account confirmed **upgraded**, not trial — no "you have a trial account" preamble, no verified-number restriction.
-- ▢ Register **CNAM** on the salon number so clients see "Threshold Salon" rather than a bare number. Outbound calls currently show no name, which is a real answer-rate problem. Lives under the number's **Voice Trust** tab.
+- ✅ **CNAM submitted** 2026-08-18 (Trust Hub → Registrations → CNAM), display name `Threshold Salon` — exactly the 15-character maximum, which is why the LLC suffix is dropped. Free. Allow **48–72 hours** after approval to propagate to US carriers.
+  - ⚠️ Temper expectations: **mobile carriers often don't dip the CNAM database**, and her clients are nearly all on mobile. CNAM is reliable for landlines; the mobile equivalent is *branded calling* (direct carrier integrations), a separate product. Judge CNAM's value after it propagates before deciding whether to pursue that.
 
 *Confirmed by observation, against earlier doubt:* **inbound SMS is not A2P-gated.** The messaging log shows inbound messages as `Received` while every outbound row is `Undelivered` — receiving works now, sending waits for the campaign. The number's "Messaging disabled — Complete A2P registration" badge refers to sending only, and is misleading if read as covering both.
 
