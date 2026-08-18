@@ -34,22 +34,50 @@ export default function WalletCollect({
   }
 
   async function handleConfirm(event: StripeExpressCheckoutElementConfirmEvent) {
-    if (!stripe || !elements) return;
     setError(null);
 
-    // The wallet sheet is modal and stays open until we tell it otherwise. If
-    // confirmation fails and we never call paymentFailed(), Apple Pay just sits
-    // there spinning — the error we render underneath is invisible behind the
-    // sheet, so it reads as "it doesn't go through". Every failure path has to
-    // report back, and passing the message shows the real reason in the sheet.
-    const fail = (message: string) => {
-      setError(message);
-      event.paymentFailed({ reason: "fail", message });
-    };
+    // Every exit from here MUST either succeed or call fail(). Previously this
+    // returned silently when Stripe wasn't ready, and any thrown error (an
+    // IntegrationError from confirmSetup, say) escaped the error handling
+    // entirely — in both cases the sheet failed with Apple's generic text and
+    // the page showed nothing at all, which is exactly what we were seeing.
+    if (!stripe || !elements) {
+      fail(event, "Payments didn't finish loading. Please use the card form below.");
+      return;
+    }
 
+    try {
+      await runConfirm(event);
+    } catch (e) {
+      // Surface the real thing. Stripe errors carry code/type that say far more
+      // than the message alone, and without them we're guessing.
+      const err = e as { message?: string; code?: string; type?: string };
+      const detail = [err.code, err.type].filter(Boolean).join(" · ");
+      fail(
+        event,
+        `${err.message ?? "Something went wrong saving your card."}${detail ? ` [${detail}]` : ""}`,
+      );
+    }
+  }
+
+  function fail(event: StripeExpressCheckoutElementConfirmEvent, message: string) {
+    setError(message);
+    event.paymentFailed({ reason: "fail", message });
+  }
+
+  async function runConfirm(event: StripeExpressCheckoutElementConfirmEvent) {
+    if (!stripe || !elements) return;
+
+    // The wallet sheet is modal and stays open until we tell it otherwise, so
+    // every failure path has to call paymentFailed() or Apple Pay hangs.
     const { error: submitErr } = await elements.submit();
     if (submitErr) {
-      fail(submitErr.message ?? "Couldn't start the wallet. Use the card below.");
+      fail(
+        event,
+        `${submitErr.message ?? "Couldn't start the wallet."}${
+          submitErr.code ? ` [${submitErr.code}]` : ""
+        }`,
+      );
       return;
     }
 
@@ -60,11 +88,18 @@ export default function WalletCollect({
     });
 
     if (err) {
-      fail(err.message ?? "Your card couldn't be saved. Use the card below.");
+      const detail = [err.code, err.decline_code, err.type].filter(Boolean).join(" · ");
+      fail(
+        event,
+        `${err.message ?? "Your card couldn't be saved."}${detail ? ` [${detail}]` : ""}`,
+      );
       return;
     }
     if (setupIntent?.status !== "succeeded") {
-      fail(`Card setup didn't complete (${setupIntent?.status ?? "unknown"}). Please try again.`);
+      fail(
+        event,
+        `Card setup didn't complete (${setupIntent?.status ?? "no setup intent returned"}).`,
+      );
       return;
     }
 
@@ -73,7 +108,7 @@ export default function WalletCollect({
     try {
       await onConfirmed();
     } catch (e) {
-      fail(e instanceof Error ? e.message : "Couldn't complete the booking.");
+      fail(event, e instanceof Error ? e.message : "Couldn't complete the booking.");
     }
   }
 
