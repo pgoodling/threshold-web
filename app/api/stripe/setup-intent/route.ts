@@ -100,13 +100,28 @@ export async function POST(req: Request) {
       customerId = customer.id;
     }
 
-    // Card only (Apple Pay / Google Pay are card wallets and still appear).
+    // MUST be automatic_payment_methods, not payment_method_types.
+    //
+    // The booking page renders Elements in deferred mode (`mode: "setup"` with
+    // no explicit paymentMethodTypes), which means Stripe collects details
+    // using automatic payment methods. An intent pinned to payment_method_types
+    // can't confirm those details — Stripe rejects it outright with "Payment
+    // details were collected through Stripe Elements using automatic payment
+    // methods and cannot be confirmed through the API configured with
+    // payment_method_types". That's what broke Apple Pay, and it would equally
+    // have broken Google Pay.
+    //
+    // allow_redirects: "never" keeps this to methods that finish on the page —
+    // cards and wallets. A redirect would navigate away mid-booking and the
+    // appointment would never be created, since that happens after the card is
+    // saved.
+    //
     // usage: off_session is what makes the saved card chargeable later for a
     // no-show fee without the client present.
     const intent = await stripe.setupIntents.create({
       customer: customerId,
       usage: "off_session",
-      payment_method_types: ["card"],
+      automatic_payment_methods: { enabled: true, allow_redirects: "never" },
     });
 
     return NextResponse.json({
