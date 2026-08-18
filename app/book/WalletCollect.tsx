@@ -6,6 +6,7 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
+import type { StripeExpressCheckoutElementConfirmEvent } from "@stripe/stripe-js";
 
 // Apple Pay / Google Pay button for saving a card on file (SetupIntent, no
 // charge). It renders only when the buyer's device actually offers a wallet —
@@ -32,13 +33,23 @@ export default function WalletCollect({
     if (methods?.applePay || methods?.googlePay) setAvailable(true);
   }
 
-  async function handleConfirm() {
+  async function handleConfirm(event: StripeExpressCheckoutElementConfirmEvent) {
     if (!stripe || !elements) return;
     setError(null);
 
+    // The wallet sheet is modal and stays open until we tell it otherwise. If
+    // confirmation fails and we never call paymentFailed(), Apple Pay just sits
+    // there spinning — the error we render underneath is invisible behind the
+    // sheet, so it reads as "it doesn't go through". Every failure path has to
+    // report back, and passing the message shows the real reason in the sheet.
+    const fail = (message: string) => {
+      setError(message);
+      event.paymentFailed({ reason: "fail", message });
+    };
+
     const { error: submitErr } = await elements.submit();
     if (submitErr) {
-      setError(submitErr.message ?? "Couldn't start the wallet. Use the card below.");
+      fail(submitErr.message ?? "Couldn't start the wallet. Use the card below.");
       return;
     }
 
@@ -49,18 +60,20 @@ export default function WalletCollect({
     });
 
     if (err) {
-      setError(err.message ?? "Your card couldn't be saved. Use the card below.");
+      fail(err.message ?? "Your card couldn't be saved. Use the card below.");
       return;
     }
     if (setupIntent?.status !== "succeeded") {
-      setError("Card setup didn't complete. Please try again.");
+      fail(`Card setup didn't complete (${setupIntent?.status ?? "unknown"}). Please try again.`);
       return;
     }
 
+    // The card is saved by this point, so a failure here is the BOOKING
+    // failing, not the payment. Still has to close the sheet.
     try {
       await onConfirmed();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't complete the booking.");
+      fail(e instanceof Error ? e.message : "Couldn't complete the booking.");
     }
   }
 
