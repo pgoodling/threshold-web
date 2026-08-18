@@ -6,10 +6,8 @@ import {
   salonWallToISO,
   dayKey,
   timeLabel,
-  salonNow,
-  statusBlockColor,
+  salonNow,
   liveStatus,
-  serviceColors,
   serviceEdge,
 } from "../../lib/format";
 import ApptDetailModal, { RebookForm } from "./ApptDetailModal";
@@ -154,8 +152,6 @@ function salonMinutes(iso: string) {
   const m = Number(p.find((x) => x.type === "minute")!.value);
   return h * 60 + m;
 }
-
-const catColors = serviceColors;
 
 const hourLabel = (h: number) =>
   h === 12 ? "12 PM" : h < 12 ? `${h} AM` : `${h - 12} PM`;
@@ -733,11 +729,14 @@ function TimeGrid({
                     ((shownStart - GRID_TOP_MIN) / 60) * HOUR_PX,
                   );
                   const h = Math.max(22, ((endMin - startMin) / 60) * HOUR_PX);
-                  // Checked-in/out + running-late get their own status color;
-                  // everything else keeps the service color. No-shows stay dimmed.
-                  const c =
-                    statusBlockColor(liveStatus(a.status, a.starts_at)) ??
-                    catColors(a.services?.name);
+                  // Same two signals as the month view, on a block that has to
+                  // occupy its duration: status on the left edge, service on the
+                  // right, a white ground in between. A day of solid pastel
+                  // blocks was the loudest thing in the studio.
+                  const live = liveStatus(a.status, a.starts_at);
+                  const rail = APPT_RAIL[live] ?? RAIL_IDLE;
+                  const late = live === "late";
+                  const done = live === "checked_out" || live === "completed";
                   const dim = a.status === "no_show";
                   const gap = gapOf(a);
                   const lanePct = 100 / laneCount;
@@ -827,18 +826,25 @@ function TimeGrid({
                         left: `calc(${lane * lanePct}% + 3px)`,
                         width: `calc(${lanePct}% - 6px)`,
                         height: h,
-                        background: c.bg,
-                        color: c.fg,
-                        opacity: dim ? 0.6 : 1,
+                        background: "#fff",
+                        color: "#32251f",
+                        border: "1px solid rgba(50,37,31,.14)",
+                        borderLeft: `3px solid ${rail}`,
+                        // The service edge is an inset shadow, so the lift while
+                        // dragging has to ride along in the same property.
+                        boxShadow: [
+                          `inset -2px 0 0 ${serviceEdge(a.services?.name)}`,
+                          isDragging ? "0 8px 20px rgba(50,37,31,0.28)" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(", "),
+                        opacity: dim ? 0.55 : 1,
                         // The browser must not claim this gesture for scrolling,
                         // or the drag never gets its pointermove events. Cost:
                         // a swipe that starts on an appointment won't scroll —
                         // she scrolls from empty grid or the time gutter.
                         touchAction: onMove ? "none" : undefined,
                         zIndex: isDragging ? 20 : undefined,
-                        boxShadow: isDragging
-                          ? "0 8px 20px rgba(0,0,0,0.28)"
-                          : undefined,
                         cursor: onMove ? "grab" : undefined,
                       }}
                       className="overflow-hidden rounded-md px-1.5 py-1 text-left text-[11px] leading-tight"
@@ -855,12 +861,22 @@ function TimeGrid({
                             right: 0,
                             top: (gap.from / 60) * HOUR_PX,
                             height: ((gap.to - gap.from) / 60) * HOUR_PX,
+                            // Dark stripes now the block is white — the old
+                            // white-on-colour hatch would be invisible on it.
                             background:
-                              "repeating-linear-gradient(45deg, rgba(255,255,255,0.62) 0 5px, rgba(255,255,255,0.16) 5px 10px)",
+                              "repeating-linear-gradient(45deg, rgba(50,37,31,0.09) 0 5px, transparent 5px 10px)",
                           }}
                         />
                       )}
-                      <div className="relative font-medium">
+                      <div
+                        className={`relative font-medium ${
+                          late
+                            ? "text-[#8f3f4a]"
+                            : done
+                              ? "text-foreground/50"
+                              : ""
+                        }`}
+                      >
                         {/* Mid-drag, show where she's about to drop it. */}
                         {isDragging
                           ? clockLabel(drag.startMin)
@@ -868,7 +884,7 @@ function TimeGrid({
                         {a.clients?.full_name?.split(" ")[0]}
                       </div>
                       {h > 34 && (
-                        <div className="relative truncate">
+                        <div className="relative truncate text-muted">
                           {a.services?.name}
                         </div>
                       )}
