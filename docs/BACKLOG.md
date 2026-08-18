@@ -69,6 +69,21 @@ Goal: on every page, she sees what she needs for *that* thing, and can act witho
 - ▢ Client page: show past visits as click-into-detail + a link *from* an appointment *to* the client profile (part of "same detail everywhere").
 - ✅ **Command-center redesign (Design C)** — shipped [PR #25]. Left **sidebar** nav with icons (lucide-react) → mobile hamburger; **greeting**, **"needs attention"** banner (running-late clients + unread-texts link), and a **"taken today"** ($ from checkouts) stat; today's-schedule rows show **status as a left stripe** + **service type as a fixed-width solid color block flush right** (no pills). Status colors: green=checked in, charcoal=checked out, red=running late. Service colors (now in `lib/format` `serviceColors`, shared with Calendar): Highlights=soft yellow, Custom Color=peach, Cut and Style=rose, Treatments=lavender, Blowouts=clay, Men's=blue.
 
+## Where things stand (end of 2026-08-17 session)
+
+**Done and live:** studio calendar fixes (drag-to-move, click-to-book, reschedule, cancel confirm), service categories, real hours + phone on the site, `/privacy` + `/terms`, SMS consent capture (transactional + separate marketing opt-in), email confirmation/reminder plumbing (unconfigured — no Resend key, and Evelyn has no client emails), the Outreach sweep screen, 159 clients imported from her paper book, Stripe wallet fixes, and click-to-call.
+
+**Migrations run:** through `0019`. **Still to run:** `0020` (consent from the checkbox again), `0021` (outreach tracking).
+
+**Waiting on nobody:**
+- ▢ Set `SALON_OWNER_PHONE` (Evelyn's mobile) in Vercel — click-to-call 503s without it.
+- ▢ Point the Messaging Service inbound webhook at `https://threshold.salon/api/sms/inbound`. Endpoint is live and verified; inbound texting is NOT A2P-gated so this works today.
+- ▢ Voice forwarding via TwiML Bin on the number (in progress at session end).
+
+**Waiting on Twilio:** A2P campaign in vetting, submitted 2026-08-17, 10–15 days. Until it clears, no outbound texting of any kind. See the freeze note below.
+
+**Known gaps:** voicemail rolls to her personal cell greeting (could build `/api/voice/incoming` with a salon greeting + voicemail into Messages); nothing in `/studio` has been verified by anyone but Paul, since it's behind the sign-in.
+
 ## Two-way texting + SMS automation (planned — own feature, phased)
 Goal: automate as much client texting as possible around the appointment lifecycle, and put replies **in front of Evelyn even when she's busy with another client**. Everything here dovetails with the Design-C **"needs attention"** banner (that's where alerts/replies surface).
 
