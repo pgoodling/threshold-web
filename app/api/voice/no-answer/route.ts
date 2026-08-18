@@ -60,12 +60,10 @@ export async function POST(req: Request) {
     `<Say voice="Polly.Joanna">Thanks for calling Threshold Salon. ` +
       `We're with a client at the moment. Leave your name, your number, and ` +
       `what you'd like booked, and we'll call you straight back.</Say>` +
-      `<Record maxLength="120" timeout="4" playBeep="true" finishOnKey="#" ` +
+      `<Record maxLength="120" timeout="5" playBeep="true" finishOnKey="#" ` +
+      `action="/api/voice/voicemail-done" ` +
       `transcribe="true" transcribeCallback="/api/voice/transcription" ` +
       `recordingStatusCallback="/api/voice/voicemail${q}" ` +
-      `recordingStatusCallbackEvent="completed" />` +
-      // Only reached if they rang off without saying anything.
-      `<Say voice="Polly.Joanna">We didn't catch that. Please call again, or ` +
-      `book online at threshold dot salon.</Say>`,
+      `recordingStatusCallbackEvent="completed" />`,
   );
 }

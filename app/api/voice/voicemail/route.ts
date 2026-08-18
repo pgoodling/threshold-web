@@ -54,6 +54,20 @@ export async function POST(req: Request) {
     recording_seconds: seconds,
   };
 
+  // Twilio does not promise exactly-once webhook delivery, and in practice this
+  // callback arrives twice. Every path below has to be safe to run again, so
+  // start by asking whether this exact recording is already filed. Without this
+  // the second delivery finds nothing left to upgrade (the first already did it)
+  // and falls through to the insert, which is how one voicemail became two.
+  if (recordingSid) {
+    const { data: already } = await admin
+      .from("messages")
+      .select("id")
+      .eq("recording_sid", recordingSid)
+      .limit(1);
+    if (already?.length) return xml();
+  }
+
   // Normal path: turn the missed call this recording belongs to into a voicemail.
   const { data: upgraded } = await admin
     .from("messages")
