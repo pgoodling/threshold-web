@@ -28,6 +28,7 @@ import {
 import { formulaName } from "../../lib/hair";
 import ApptDetailModal from "./ApptDetailModal";
 import Rail from "./Rail";
+import Button from "./Button";
 import ActionStrip, { type Action } from "./ActionStrip";
 
 type Client = {
@@ -243,12 +244,9 @@ export default function Clients({
         <p className="text-muted">
           {clients.length} client{clients.length === 1 ? "" : "s"}
         </p>
-        <button
-          onClick={() => setAdding(true)}
-          className="text-sm font-medium text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
-        >
+        <Button variant="quiet" onClick={() => setAdding(true)}>
           + Add client
-        </button>
+        </Button>
       </div>
 
       {/* The book at a glance. Overdue leads, because that's the work — and
@@ -513,9 +511,9 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
 
   return (
     <div>
-      <button onClick={onBack} className="text-sm text-muted hover:text-accent">
+      <Button variant="ghost" onClick={onBack}>
         ← All clients
-      </button>
+      </Button>
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -811,12 +809,7 @@ function ClientTasks({ clientId }: { clientId: string }) {
           value={due}
           onChange={(e) => setDue(e.target.value)}
         />
-        <button
-          type="submit"
-          className="rounded-full bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark"
-        >
-          Add
-        </button>
+        <Button type="submit">Add</Button>
       </form>
 
       {tasks.length > 0 && (
@@ -829,7 +822,7 @@ function ClientTasks({ clientId }: { clientId: string }) {
               <button
                 onClick={() => complete(t.id)}
                 aria-label="Mark done"
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-foreground/25 text-xs hover:border-accent hover:text-accent"
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
               >
                 ✓
               </button>
@@ -931,13 +924,9 @@ function NewAppointment({
       </label>
       {error && <ErrorNote>{error}</ErrorNote>}
       <div>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-full bg-accent px-6 py-2 text-white transition hover:bg-accent-dark disabled:opacity-60"
-        >
+        <Button type="submit" disabled={busy}>
           {busy ? "Booking…" : "Book appointment"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -1071,20 +1060,12 @@ function ClientForm({
         />
       </label>
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-full bg-accent px-6 py-2 text-white transition hover:bg-accent-dark disabled:opacity-60"
-        >
+        <Button type="submit" disabled={busy}>
           {busy ? "Saving…" : submitLabel}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-sm text-muted hover:text-accent"
-        >
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );
