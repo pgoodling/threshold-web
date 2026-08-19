@@ -1,165 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { dateLabel } from "../../lib/format";
 
-export default function Tasks({
-  onOpenClient,
-}: {
-  onOpenClient?: (clientId: string) => void;
-}) {
-  return (
-    <div className="grid gap-10">
-      <Reminders onOpenClient={onOpenClient} />
-      <ToDos />
-    </div>
-  );
-}
-
-/* ---------- Auto reminders (computed, no storage) ---------- */
-
-type ApptRow = {
-  client_id: string;
-  starts_at: string;
-  status: string;
-  clients: { full_name: string; phone: string | null } | null;
-};
-
-type Reminder = {
-  clientId: string;
-  name: string;
-  phone: string | null;
-  lastVisit: string;
-  weeks: number;
-};
-
-function Reminders({
-  onOpenClient,
-}: {
-  onOpenClient?: (clientId: string) => void;
-}) {
-  const [rows, setRows] = useState<ApptRow[]>([]);
-  const [snoozed, setSnoozed] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase
-      .from("appointments")
-      .select("client_id,starts_at,status,clients(full_name,phone)")
-      .neq("status", "cancelled")
-      .then(({ data, error }) => {
-        setLoading(false);
-        if (error) setError(error.message);
-        else setRows((data ?? []) as unknown as ApptRow[]);
-      });
-    // Clients with an open follow-up task are "handled" — drop them off the
-    // list until that task is done (added on the client card). Silently ignored
-    // if tasks aren't migrated yet.
-    supabase
-      .from("tasks")
-      .select("client_id")
-      .eq("done", false)
-      .not("client_id", "is", null)
-      .then(({ data }) =>
-        setSnoozed(
-          new Set(
-            (data ?? []).map((r) => (r as { client_id: string }).client_id),
-          ),
-        ),
-      );
-  }, []);
-
-  const reminders = useMemo(() => {
-    const now = Date.now();
-    const byClient = new Map<
-      string,
-      { name: string; phone: string | null; lastVisit: number | null; hasUpcoming: boolean }
-    >();
-    for (const r of rows) {
-      const t = new Date(r.starts_at).getTime();
-      const e =
-        byClient.get(r.client_id) ??
-        {
-          name: r.clients?.full_name ?? "Unknown",
-          phone: r.clients?.phone ?? null,
-          lastVisit: null as number | null,
-          hasUpcoming: false,
-        };
-      if (t >= now) e.hasUpcoming = true;
-      else if (r.status !== "no_show" && (e.lastVisit === null || t > e.lastVisit))
-        e.lastVisit = t;
-      byClient.set(r.client_id, e);
-    }
-    const out: Reminder[] = [];
-    for (const [clientId, e] of byClient) {
-      if (e.hasUpcoming || e.lastVisit === null || snoozed.has(clientId)) continue;
-      out.push({
-        clientId,
-        name: e.name,
-        phone: e.phone,
-        lastVisit: new Date(e.lastVisit).toISOString(),
-        weeks: Math.round((now - e.lastVisit) / (7 * 86400000)),
-      });
-    }
-    return out.sort((a, b) => b.weeks - a.weeks);
-  }, [rows, snoozed]);
-
-  return (
-    <div>
-      <div className="flex items-baseline justify-between">
-        <h3 className="font-display text-lg">Reach out</h3>
-        {!loading && (
-          <span className="text-sm text-muted">{reminders.length} to follow up</span>
-        )}
-      </div>
-      <p className="mt-1 text-sm text-muted">
-        Clients with no next appointment booked. Tap one to open their card —
-        call, text, add a note, book, or set a follow-up from there.
-      </p>
-
-      {error && <ErrorNote>{error}</ErrorNote>}
-      {loading ? (
-        <p className="mt-4 text-muted">Loading…</p>
-      ) : reminders.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">
-          Everyone&apos;s got a next visit booked. Nice.
-        </p>
-      ) : (
-        <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
-          {reminders.map((r, i) => {
-            const lapsed = r.weeks >= 8;
-            return (
-              <button
-                key={r.clientId}
-                onClick={() => onOpenClient?.(r.clientId)}
-                style={{
-                  boxShadow: `inset 4px 0 0 ${lapsed ? "#8f3f4a" : "#cfc3b6"}`,
-                }}
-                className={`flex w-full flex-wrap items-center gap-3 py-3 pl-5 pr-4 text-left transition hover:bg-background/60 ${
-                  i > 0 ? "border-t border-foreground/10" : ""
-                }`}
-              >
-                <span className="font-medium">{r.name}</span>
-                <span className="text-sm text-muted">
-                  last visit {r.weeks} wk{r.weeks === 1 ? "" : "s"} ago
-                  {lapsed && (
-                    <span className="ml-2 text-xs font-medium text-accent-dark">
-                      lapsed
-                    </span>
-                  )}
-                </span>
-                <span className="ml-auto text-sm text-muted" aria-hidden="true">
-                  Open →
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+// Her to-do list, and only that.
+//
+// This tab used to lead with "Reach out" — a computed list of clients with no
+// next appointment booked. It was never a task list, which is why sitting above
+// "To-do" made no sense, and the Clients tab now answers the same question
+// better: Due and Overdue are judged against each client's own rhythm rather
+// than a flat week count, and the Overview banner surfaces the urgent ones
+// without her going looking at all.
+export default function Tasks() {
+  return <ToDos />;
 }
 
 /* ---------- Manual to-dos (tasks table) ---------- */

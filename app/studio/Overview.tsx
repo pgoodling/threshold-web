@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mic, PhoneMissed } from "lucide-react";
+import { ListChecks, Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
   salonNow,
@@ -33,6 +33,15 @@ type Waiting = {
   created_at: string;
   kind: "sms" | "voicemail" | "missed_call" | null;
   from_number: string | null;
+  clients: { full_name: string } | null;
+};
+
+// A to-do that has started or is due — today or earlier — and isn't ticked.
+type DueTask = {
+  id: string;
+  title: string;
+  start_date: string | null;
+  due_date: string | null;
   clients: { full_name: string } | null;
 };
 
@@ -68,6 +77,7 @@ export default function Overview({
 }) {
   const [today, setToday] = useState<TodayAppt[]>([]);
   const [waiting, setWaiting] = useState<Waiting[]>([]);
+  const [dueTasks, setDueTasks] = useState<DueTask[]>([]);
   const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
   const [clientCount, setClientCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +89,12 @@ export default function Overview({
     const t = setInterval(() => setMinute((m) => m + 1), 60000);
     return () => clearInterval(t);
   }, []);
+
+  // Today in the salon's own timezone, as YYYY-MM-DD — task dates are plain
+  // dates, so comparing them against a UTC clock would flip a day early or late
+  // depending on the hour.
+  const salonToday = salonNow();
+  const todayKey = `${salonToday.year}-${pad(salonToday.month + 1)}-${pad(salonToday.day)}`;
 
   useEffect(() => {
     const n = salonNow();
@@ -117,14 +133,28 @@ export default function Overview({
         .is("read_at", null)
         .order("created_at", { ascending: false })
         .limit(NAMED_UNREAD),
-    ]).then(([todayRes, upcomingRes, clientsRes, waitingRes]) => {
+      // Anything she meant to do by today and hasn't. A to-do that only exists
+      // on its own tab is a to-do she'll miss — it has to come to her.
+      supabase
+        .from("tasks")
+        .select("id,title,start_date,due_date,clients(full_name)")
+        .eq("done", false)
+        .or(
+          `start_date.lte.${todayKey},due_date.lte.${todayKey}`,
+        )
+        .order("due_date", { nullsFirst: false })
+        .limit(NAMED_UNREAD),
+    ]).then(([todayRes, upcomingRes, clientsRes, waitingRes, tasksRes]) => {
       setLoading(false);
       setToday((todayRes.data ?? []) as unknown as TodayAppt[]);
       setUpcomingCount(upcomingRes.count ?? 0);
       setClientCount(clientsRes.count ?? 0);
       setWaiting((waitingRes.data ?? []) as unknown as Waiting[]);
+      // Silently empty if migration 0005/0008 hasn't run — the banner simply
+      // shows no to-dos rather than an error she can't act on.
+      setDueTasks((tasksRes.data ?? []) as unknown as DueTask[]);
     });
-  }, [tick]);
+  }, [tick, todayKey]);
 
   const takenToday = today
     .filter((a) => a.status === "checked_out" || a.status === "completed")
@@ -142,7 +172,11 @@ export default function Overview({
   // `unread` (from the tab badge) and `waiting` refresh on different clocks, so
   // trust either one to open the banner rather than letting a stale count hide
   // messages that are demonstrably there.
-  const hasAttention = lateList.length > 0 || unread > 0 || waiting.length > 0;
+  const hasAttention =
+    lateList.length > 0 ||
+    unread > 0 ||
+    waiting.length > 0 ||
+    dueTasks.length > 0;
 
   return (
     <div>
@@ -212,6 +246,34 @@ export default function Overview({
                 </span>
               </button>
             ))}
+            {dueTasks.map((t) => {
+              const overdue = !!t.due_date && t.due_date < todayKey;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onGoto?.("tasks")}
+                  className="flex w-full items-stretch border-t border-accent/20 text-left text-sm text-accent-dark transition hover:bg-accent/10"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="w-1 shrink-0 self-stretch"
+                    style={{ background: overdue ? "#8f3f4a" : "#bd8f45" }}
+                  />
+                  <span className="flex min-w-0 flex-1 items-center gap-2 px-4 py-3">
+                    <ListChecks className="h-4 w-4 shrink-0" />
+                    <span className="truncate font-medium">{t.title}</span>
+                    {t.clients?.full_name && (
+                      <span className="shrink-0 truncate text-xs opacity-80">
+                        {t.clients.full_name}
+                      </span>
+                    )}
+                    <span className="ml-auto shrink-0 whitespace-nowrap text-xs">
+                      {overdue ? "overdue" : "today"}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
             {unread > waiting.length && (
               <button
                 onClick={() => onGoto?.("messages")}

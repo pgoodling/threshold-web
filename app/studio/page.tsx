@@ -181,7 +181,7 @@ type Tab =
 
 const TABS: [Tab, string, LucideIcon][] = [
   ["overview", "Overview", LayoutDashboard],
-  ["tasks", "Tasks", ListChecks],
+  ["tasks", "To-do", ListChecks],
   ["messages", "Messages", MessageSquare],
   ["calendar", "Calendar", CalendarIcon],
   ["appointments", "Appointments", ListIcon],
@@ -389,7 +389,7 @@ function Dashboard() {
               unread={unread}
             />
           )}
-          {tab === "tasks" && <Tasks onOpenClient={goToClient} />}
+          {tab === "tasks" && <Tasks />}
           {tab === "messages" && <Messages onOpenClient={goToClient} />}
           {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
           {tab === "appointments" && <Appointments onOpenClient={goToClient} />}
