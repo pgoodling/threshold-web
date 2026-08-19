@@ -475,6 +475,9 @@ function Appointments({
 
   return (
     <div>
+      <h2 className="mb-5 font-display text-2xl leading-none sm:text-3xl">
+        Appointments
+      </h2>
       {months.map((m) => (
         <section key={m.label} className="mt-6 first:mt-0">
           {/* Month left, count right, with the rule between them doing the

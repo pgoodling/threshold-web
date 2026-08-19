@@ -230,7 +230,11 @@ export default function Services() {
 
   return (
     <div>
-      <div className="flex gap-5 border-b border-foreground/15">
+      <h2 className="font-display text-2xl leading-none sm:text-3xl">
+        Services
+      </h2>
+
+      <div className="mt-4 flex gap-5 border-b border-foreground/15">
         {(
           [
             ["booking", "Booking"],
@@ -251,10 +255,12 @@ export default function Services() {
         ))}
       </div>
 
+      {/* One description, from the tab. There used to be two stacked paragraphs
+          of grey text here — this one and another inside the booking list. */}
       <p className="mt-3 text-sm text-muted">
         {area === "booking"
-          ? "What clients can book, with the timings and deposits your calendar runs on."
-          : "What the website says you do. Changing this doesn't touch bookings — it updates threshold.salon within a few minutes."}
+          ? "What clients can book, in the order they see it. Drag the handle to reorder, and edit prices, timings and descriptions any time."
+          : "What the website says you do. Changing this doesn't touch bookings — threshold.salon picks it up within a few minutes."}
       </p>
 
       {area === "booking" ? <BookingServices /> : <WebsiteServices />}
@@ -371,11 +377,6 @@ function BookingServices() {
 
   return (
     <div>
-      <p className="text-muted">
-        Your service menu, in the order clients see it on the booking page. Drag
-        a service by its handle to reorder — or use the arrows. Edit prices,
-        timings, and descriptions any time.
-      </p>
       {error && <ErrorNote>{error}</ErrorNote>}
 
       {hasCategories && (

@@ -107,7 +107,10 @@ export default function Outreach() {
 
   return (
     <div>
-      <p className="text-muted">
+      <h2 className="mb-3 font-display text-2xl leading-none sm:text-3xl">
+        Outreach
+      </h2>
+      <p className="text-sm text-muted">
         Tell your clients something, one at a time, from your own phone. Tap{" "}
         <span className="text-foreground">Text</span> and your Messages app opens
         with the message already written — you just press send. They&rsquo;re

@@ -167,8 +167,13 @@ export default function Reports() {
 
   return (
     <div>
+      <h2 className="mb-4 font-display text-2xl leading-none sm:text-3xl">
+        Reports
+      </h2>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted">Revenue counts checked-out (paid) visits.</p>
+        <p className="text-sm text-muted">
+          Revenue counts checked-out (paid) visits.
+        </p>
         <div className="flex gap-1 text-xs">
           {RANGES.map(([key, label]) => (
             <button

@@ -164,7 +164,7 @@ function ToDos() {
 
   return (
     <div>
-      <h3 className="font-display text-lg">To-do</h3>
+      <h2 className="font-display text-2xl leading-none sm:text-3xl">To-do</h2>
       {migrationMsg ? (
         <p className="mt-2 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm text-muted">
           {migrationMsg}
