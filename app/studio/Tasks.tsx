@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { dateLabel } from "../../lib/format";
+import { completeTask } from "../../lib/tasks";
 
 // Her to-do list, and only that.
 //
@@ -71,15 +72,6 @@ function taskDates(t: Task): string {
   if (t.due_date) return `due ${dayText(t.due_date)}`;
   if (t.start_date) return `from ${dayText(t.start_date)}`;
   return "";
-}
-
-function nextDue(from: string | null, recurrence: string): string | null {
-  const base = from ? new Date(`${from}T12:00:00`) : new Date();
-  if (recurrence === "weekly") base.setDate(base.getDate() + 7);
-  else if (recurrence === "biweekly") base.setDate(base.getDate() + 14);
-  else if (recurrence === "monthly") base.setMonth(base.getMonth() + 1);
-  else return null;
-  return base.toISOString().slice(0, 10);
 }
 
 function ToDos() {
@@ -159,22 +151,8 @@ function ToDos() {
   }
 
   async function complete(t: Task) {
-    // Recurring: spin up the next occurrence before marking this done, carrying
-    // the client link and shifting both start + due dates by the interval.
-    if (t.recurrence !== "none") {
-      await supabase.from("tasks").insert({
-        title: t.title,
-        start_date: nextDue(t.start_date, t.recurrence),
-        due_date: nextDue(t.due_date, t.recurrence),
-        recurrence: t.recurrence,
-        client_id: t.client_id,
-      });
-    }
-    const { error } = await supabase
-      .from("tasks")
-      .update({ done: true, done_at: new Date().toISOString() })
-      .eq("id", t.id);
-    if (error) setError(error.message);
+    const { error } = await completeTask(supabase, t);
+    if (error) setError(error);
     else load();
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ListChecks, Mic, PhoneMissed } from "lucide-react";
+import { Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
   salonNow,
@@ -16,6 +16,7 @@ import {
 } from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
 import OpeningCountdown from "../OpeningCountdown";
+import { completeTask } from "../../lib/tasks";
 
 type TodayAppt = {
   id: string;
@@ -38,11 +39,15 @@ type Waiting = {
 };
 
 // A to-do that has started or is due — today or earlier — and isn't ticked.
+// recurrence and client_id ride along so ticking it here can spin up the next
+// occurrence exactly as the To-do tab does.
 type DueTask = {
   id: string;
   title: string;
   start_date: string | null;
   due_date: string | null;
+  recurrence: string | null;
+  client_id: string | null;
   clients: { full_name: string } | null;
 };
 
@@ -138,7 +143,9 @@ export default function Overview({
       // on its own tab is a to-do she'll miss — it has to come to her.
       supabase
         .from("tasks")
-        .select("id,title,start_date,due_date,clients(full_name)")
+        .select(
+          "id,title,start_date,due_date,recurrence,client_id,clients(full_name)",
+        )
         .eq("done", false)
         .or(
           `start_date.lte.${todayKey},due_date.lte.${todayKey}`,
@@ -156,6 +163,14 @@ export default function Overview({
       setDueTasks((tasksRes.data ?? []) as unknown as DueTask[]);
     });
   }, [tick, todayKey]);
+
+  // Drop it from the list immediately, then reconcile — a tick that appears to
+  // do nothing for a second gets tapped twice.
+  async function markDone(t: DueTask) {
+    setDueTasks((list) => list.filter((x) => x.id !== t.id));
+    const { error } = await completeTask(supabase, t);
+    if (error) setTick((n) => n + 1);
+  }
 
   const takenToday = today
     .filter((a) => a.status === "checked_out" || a.status === "completed")
@@ -338,30 +353,42 @@ export default function Overview({
             {dueTasks.map((t, i) => {
               const overdue = !!t.due_date && t.due_date < todayKey;
               return (
-                <button
+                <div
                   key={t.id}
-                  onClick={() => onGoto?.("tasks")}
                   style={{
                     boxShadow: `inset 4px 0 0 ${overdue ? "#8f3f4a" : "#bd8f45"}`,
                   }}
-                  className={`flex w-full items-center gap-2 py-3 pl-5 pr-4 text-left text-sm transition hover:bg-background/60 ${
+                  className={`flex w-full items-center gap-3 py-3 pl-5 pr-4 text-sm transition hover:bg-background/60 ${
                     i > 0 ? "border-t border-foreground/10" : ""
                   }`}
                 >
-                  <ListChecks className="h-4 w-4 shrink-0 text-muted" />
-                  <span className="truncate font-medium">{t.title}</span>
-                  {t.clients?.full_name && (
-                    <span className="shrink-0 truncate text-xs text-accent-dark">
-                      {t.clients.full_name}
-                    </span>
-                  )}
-                  <span
-                    className="ml-auto shrink-0 whitespace-nowrap text-[11px] uppercase tracking-wider"
-                    style={{ color: overdue ? "#8f3f4a" : "#bd8f45" }}
+                  {/* Tick it here rather than making her go to the To-do tab to
+                      do the one thing she came here knowing she'd done. */}
+                  <button
+                    onClick={() => markDone(t)}
+                    aria-label={`Mark "${t.title}" done`}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
                   >
-                    {overdue ? "overdue" : "today"}
-                  </span>
-                </button>
+                    ✓
+                  </button>
+                  <button
+                    onClick={() => onGoto?.("tasks")}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    <span className="truncate font-medium">{t.title}</span>
+                    {t.clients?.full_name && (
+                      <span className="shrink-0 truncate text-xs text-accent-dark">
+                        {t.clients.full_name}
+                      </span>
+                    )}
+                    <span
+                      className="ml-auto shrink-0 whitespace-nowrap text-[11px] uppercase tracking-wider"
+                      style={{ color: overdue ? "#8f3f4a" : "#bd8f45" }}
+                    >
+                      {overdue ? "overdue" : "today"}
+                    </span>
+                  </button>
+                </div>
               );
             })}
           </div>
