@@ -1,4 +1,7 @@
 import { TZ } from "./format";
+// One link per appointment: it carries the hair-notes form, the details and
+// cancellation, so a text needs only one URL rather than several.
+import { appointmentUrl } from "./policy";
 
 // What the automated texts actually say.
 //
@@ -15,20 +18,6 @@ import { TZ } from "./format";
 const firstName = (full: string | null | undefined) =>
   (full ?? "").trim().split(" ")[0] || "there";
 
-// Absolute, because a text has no origin to resolve a relative link against.
-const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://threshold.salon"
-).replace(/\/$/, "");
-
-// The hair-notes form for one appointment.
-//
-// It's a long URL — the appointment id is a 36-character UUID, which pushes a
-// message past the 160-character segment boundary on its own. That's a second
-// segment, about a cent, per booking: worth it for a form that saves ten
-// minutes of questions in the chair, and not worth a URL shortener and the
-// guessable short codes that come with one.
-export const hairNotesUrl = (appointmentId: string) =>
-  `${SITE_URL}/hair-notes/${appointmentId}`;
 
 const when = (iso: string) =>
   new Intl.DateTimeFormat("en-US", {
@@ -52,19 +41,25 @@ export function reminderText(opts: {
   clientName: string | null;
   service: string;
   startsAt: string;
-  /** Omitted when they've already filled the form in — no point nagging. */
   appointmentId?: string | null;
+  /** Changes the wording, not whether the link goes out. */
+  hasNotes?: boolean;
 }): string {
   const base =
     `Hi ${firstName(opts.clientName)}, it's Threshold Salon — ` +
     `you're booked for ${opts.service} ${when(opts.startsAt)}. ` +
-    `Reply C to confirm, or call us if you need to change it.`;
+    `Reply C to confirm.`;
 
-  // The day before is when someone actually thinks to photograph their roots,
-  // so the reminder is the better of the two places this link lives.
-  return opts.appointmentId
-    ? `${base} Not told me about your hair yet? ${hairNotesUrl(opts.appointmentId)}`
-    : base;
+  if (!opts.appointmentId) return base;
+
+  // The link always goes out, because it's also how they cancel. Only the
+  // reason to tap it changes: the day before is when someone actually thinks to
+  // photograph their roots, but there's no sense nagging about a form they've
+  // already filled in.
+  const why = opts.hasNotes
+    ? "Change or cancel:"
+    : "Tell me about your hair, or change it:";
+  return `${base} ${why} ${appointmentUrl(opts.appointmentId)}`;
 }
 
 // Sent when she's past her start time and hasn't arrived. Deliberately not

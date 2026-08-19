@@ -786,7 +786,7 @@ export default function BookPage() {
                   your confirmation if you&apos;d rather do it later.
                 </p>
                 <a
-                  href={`/hair-notes/${bookedId}`}
+                  href={`/appointment/${bookedId}`}
                   className="mt-4 inline-block rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark"
                 >
                   Tell her about my hair

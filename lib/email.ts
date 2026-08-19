@@ -141,7 +141,7 @@ export function appointmentEmail({
   // reminder is arguably the better of the two: the day before is when someone
   // actually thinks to photograph their roots.
   const notesUrl = appointmentId
-    ? `${SITE_URL}/hair-notes/${appointmentId}`
+    ? `${SITE_URL}/appointment/${appointmentId}`
     : null;
   const notesLead =
     kind === "confirmation"

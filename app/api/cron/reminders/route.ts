@@ -91,10 +91,8 @@ async function run() {
           clientName: client?.full_name ?? null,
           service: serviceName,
           startsAt: appt.starts_at as string,
-          // Only nag about the form if they haven't already filled it in.
-          appointmentId: filledIn.has(appt.id as string)
-            ? null
-            : (appt.id as string),
+          appointmentId: appt.id as string,
+          hasNotes: filledIn.has(appt.id as string),
         }),
       });
       if (res.ok) {
