@@ -113,6 +113,7 @@ const todayKey = () => {
 
 export default function BookPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [bookedId, setBookedId] = useState<string | null>(null);
 
   const [services, setServices] = useState<Service[]>([]);
   const [servicesError, setServicesError] = useState<string | null>(null);
@@ -153,27 +154,12 @@ export default function BookPage() {
   // bar and neither box implies the other.
   const [smsConsent, setSmsConsent] = useState(false);
   const [smsMarketing, setSmsMarketing] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [cardStage, setCardStage] = useState<"details" | "card">("details");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [hasCardOnFile, setHasCardOnFile] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
-
-  const photoPreviews = useMemo(
-    () => photos.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })),
-    [photos],
-  );
-  useEffect(() => {
-    return () => photoPreviews.forEach((p) => URL.revokeObjectURL(p.url));
-  }, [photoPreviews]);
-
-  function addPhotos(list: FileList | null) {
-    if (!list) return;
-    const picked = Array.from(list).filter((f) => f.type.startsWith("image/"));
-    setPhotos((prev) => [...prev, ...picked].slice(0, 3));
-  }
 
   // Load services once. `*` rather than a column list so category_id is picked
   // up once migration 0016 runs and its absence before then isn't fatal.
@@ -297,7 +283,7 @@ export default function BookPage() {
   }
 
   // Step 3b: after the card is saved, create the booking (with the customer
-  // linked) and upload any photos. Throws so the card form can surface errors.
+  // linked). Throws so the card form can surface errors.
   async function finishBooking() {
     if (!service || !slot) return;
     // Resilient write, same idea as saveClient in the studio: if migration 0013
@@ -333,19 +319,8 @@ export default function BookPage() {
     if (error) throw new Error(error.message);
     const appointmentId = (data as { appointment_id?: string } | null)
       ?.appointment_id;
-    if (appointmentId && photos.length) {
-      await Promise.all(
-        photos.map((file, i) => {
-          const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-          return supabase.storage
-            .from("booking-photos")
-            .upload(`${appointmentId}/${i + 1}.${ext}`, file, {
-              contentType: file.type,
-              upsert: true,
-            });
-        }),
-      ).catch(() => {});
-    }
+    // Carried to step 4 so the hair-notes link knows which appointment it's for.
+    setBookedId(appointmentId ?? null);
     // Best-effort confirmations — neither blocks the booking. Each sends only
     // the appointment id; the routes read the name, number, service, and time
     // from the database so nothing from the browser can shape what goes out.
@@ -663,51 +638,6 @@ export default function BookPage() {
                 />
               </Field>
 
-              <div>
-                <span className="mb-1 block text-sm">
-                  Photos (optional)
-                </span>
-                <p className="mb-2 text-xs text-muted">
-                  Add a photo of your hair now or any inspiration — up to 3.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {photoPreviews.map((p, i) => (
-                    <div key={p.url} className="relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={p.url}
-                        alt={`Upload ${i + 1}`}
-                        className="h-20 w-20 rounded-xl object-cover"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPhotos((prev) => prev.filter((_, j) => j !== i))
-                        }
-                        aria-label="Remove photo"
-                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-xs text-background"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                  {photos.length < 3 && (
-                    <label className="flex h-20 w-20 cursor-pointer items-center justify-center rounded-xl border border-dashed border-foreground/25 text-2xl text-muted transition hover:border-accent hover:text-accent">
-                      +
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          addPhotos(e.target.files);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-                  )}
-                </div>
-              </div>
 
               <p className="text-xs text-muted">Email is optional.</p>
 
@@ -842,9 +772,31 @@ export default function BookPage() {
               We&apos;ve saved your appointment. Evelyn will see you then — a
               confirmation is on the way.
             </p>
+
+            {/* Offered only now the booking is safely done. Nothing optional
+                belongs between someone and a confirmed appointment. */}
+            {bookedId && (
+              <div className="mx-auto mt-8 max-w-md rounded-xl border border-foreground/15 bg-white p-5 text-left">
+                <p className="font-display text-lg">
+                  Want to tell Evelyn about your hair?
+                </p>
+                <p className="mt-1 text-sm text-muted">
+                  A minute of questions and a photo or two, so she can prep
+                  before you arrive. Entirely optional — there&apos;s a link in
+                  your confirmation if you&apos;d rather do it later.
+                </p>
+                <a
+                  href={`/hair-notes/${bookedId}`}
+                  className="mt-4 inline-block rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark"
+                >
+                  Tell her about my hair
+                </a>
+              </div>
+            )}
+
             <a
               href="/"
-              className="mt-8 inline-block rounded-full bg-accent px-8 py-3 text-white transition hover:bg-accent-dark"
+              className="mt-8 inline-block text-sm text-muted hover:text-accent-dark"
             >
               Back to site
             </a>

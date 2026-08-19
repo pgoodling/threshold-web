@@ -30,6 +30,7 @@ import {
 import { formulaName } from "../../lib/hair";
 import ApptDetailModal from "./ApptDetailModal";
 import ClientMessages from "./ClientMessages";
+import HairNotes from "./HairNotes";
 import Rail from "./Rail";
 import Button from "./Button";
 import ActionStrip, { type Action } from "./ActionStrip";
@@ -478,9 +479,9 @@ function ClientDetail({
   const [booking, setBooking] = useState(false);
   // Conversation leads: when she opens a client it's usually because someone
   // said something.
-  const [pane, setPane] = useState<"conversation" | "appointments" | "tasks">(
-    "conversation",
-  );
+  const [pane, setPane] = useState<
+    "appointments" | "hair" | "conversation" | "tasks"
+  >("appointments");
   const [openId, setOpenId] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
 
@@ -773,8 +774,9 @@ function ClientDetail({
       <div className="mt-6 flex gap-5 border-b border-foreground/15">
         {(
           [
-            ["conversation", "Conversation"],
             ["appointments", "Appointments"],
+            ["hair", "Hair notes"],
+            ["conversation", "Conversation"],
             ["tasks", "Tasks"],
           ] as const
         ).map(([k, label]) => (
@@ -791,6 +793,14 @@ function ClientDetail({
           </button>
         ))}
       </div>
+
+      {pane === "hair" && (
+        <HairNotes
+          clientId={client.id}
+          currentFormula={c.hair_formula}
+          onFormulaSaved={(f) => setC({ ...c, hair_formula: f })}
+        />
+      )}
 
       {pane === "conversation" && (
         <ClientMessages clientId={client.id} phone={c.phone} />
