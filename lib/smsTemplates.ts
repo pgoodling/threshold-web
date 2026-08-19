@@ -15,6 +15,21 @@ import { TZ } from "./format";
 const firstName = (full: string | null | undefined) =>
   (full ?? "").trim().split(" ")[0] || "there";
 
+// Absolute, because a text has no origin to resolve a relative link against.
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://threshold.salon"
+).replace(/\/$/, "");
+
+// The hair-notes form for one appointment.
+//
+// It's a long URL — the appointment id is a 36-character UUID, which pushes a
+// message past the 160-character segment boundary on its own. That's a second
+// segment, about a cent, per booking: worth it for a form that saves ten
+// minutes of questions in the chair, and not worth a URL shortener and the
+// guessable short codes that come with one.
+export const hairNotesUrl = (appointmentId: string) =>
+  `${SITE_URL}/hair-notes/${appointmentId}`;
+
 const when = (iso: string) =>
   new Intl.DateTimeFormat("en-US", {
     timeZone: TZ,
@@ -37,12 +52,19 @@ export function reminderText(opts: {
   clientName: string | null;
   service: string;
   startsAt: string;
+  /** Omitted when they've already filled the form in — no point nagging. */
+  appointmentId?: string | null;
 }): string {
-  return (
+  const base =
     `Hi ${firstName(opts.clientName)}, it's Threshold Salon — ` +
     `you're booked for ${opts.service} ${when(opts.startsAt)}. ` +
-    `Reply C to confirm, or call us if you need to change it.`
-  );
+    `Reply C to confirm, or call us if you need to change it.`;
+
+  // The day before is when someone actually thinks to photograph their roots,
+  // so the reminder is the better of the two places this link lives.
+  return opts.appointmentId
+    ? `${base} Not told me about your hair yet? ${hairNotesUrl(opts.appointmentId)}`
+    : base;
 }
 
 // Sent when she's past her start time and hasn't arrived. Deliberately not

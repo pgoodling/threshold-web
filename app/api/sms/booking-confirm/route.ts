@@ -2,6 +2,7 @@ import twilio from "twilio";
 import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { toE164 } from "../../../../lib/phone";
+import { hairNotesUrl } from "../../../../lib/smsTemplates";
 
 // Sends a booking-confirmation text. Called by the public booking page right
 // after a booking succeeds, so it CANNOT require a login — which is exactly why
@@ -113,9 +114,13 @@ export async function POST(req: Request) {
   const what = service?.name ?? "your appointment";
   // A2P 10DLC expects opt-out language in the message; the inbound webhook
   // already honours STOP.
+  // The hair-notes link rides on the confirmation because that's the moment
+  // they're most engaged — they just chose to come in. It goes on the reminder
+  // too, for anyone who meant to and didn't.
   const body =
     `Hi ${first}! You're booked at Threshold for ${what} on ${when}. ` +
-    `Reply here if you need anything. — Evelyn (Reply STOP to opt out.)`;
+    `Tell me about your hair so I can prep: ${hairNotesUrl(appt.id as string)} ` +
+    `— Evelyn (Reply STOP to opt out.)`;
 
   const to = toE164(client.phone);
 
