@@ -264,51 +264,47 @@ export default function Clients({
         </Button>
       </div>
 
-      {/* One object, not four floating ones: the counts, the search and the
-          book itself share a single border, divided by hairlines. A stack of
-          separately-bordered boxes with gaps between them reads as a pile of
-          lozenges however the corners are rounded — the same mistake the month
-          grid was making. */}
-      <div className="mt-5 overflow-hidden rounded-xl border border-foreground/15 bg-white">
-        {!loading && views.length > 0 && (
-          <div className="grid grid-cols-5">
-            {BOOK_TILES.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setStageFilter(t.key)}
-                className={`flex items-stretch border-l border-foreground/10 text-left transition first:border-l-0 ${
-                  stageFilter === t.key
-                    ? "bg-accent/5"
-                    : "hover:bg-background/60"
-                }`}
-              >
-                {t.state ? (
-                  <Rail state={t.state} width={3} />
-                ) : (
-                  <span className="w-[3px] shrink-0 self-stretch bg-foreground/15" />
-                )}
-                <span className="min-w-0 px-2 py-2.5 sm:px-3">
-                  <span className="block text-lg font-medium leading-none tabular-nums sm:text-xl">
-                    {counts[t.key] ?? 0}
-                  </span>
-                  <span className="mt-1 block truncate text-[10px] uppercase tracking-wider text-muted">
-                    {t.label}
-                  </span>
+      {/* Three jobs, three groups, with air between them: narrow the book,
+          find one person, read the book. Rows within each group share a surface
+          — it's identical rows as separate cards that read as a pile of
+          lozenges, not distinct sections separated by whitespace. */}
+      {!loading && views.length > 0 && (
+        <div className="mt-5 grid grid-cols-5 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+          {BOOK_TILES.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setStageFilter(t.key)}
+              className={`flex items-stretch border-l border-foreground/10 text-left transition first:border-l-0 ${
+                stageFilter === t.key ? "bg-accent/5" : "hover:bg-background/60"
+              }`}
+            >
+              {t.state ? (
+                <Rail state={t.state} width={3} />
+              ) : (
+                <span className="w-[3px] shrink-0 self-stretch bg-foreground/15" />
+              )}
+              <span className="min-w-0 px-2 py-2.5 sm:px-3">
+                <span className="block text-lg font-medium leading-none tabular-nums sm:text-xl">
+                  {counts[t.key] ?? 0}
                 </span>
-              </button>
-            ))}
-          </div>
-        )}
+                <span className="mt-1 block truncate text-[10px] uppercase tracking-wider text-muted">
+                  {t.label}
+                </span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
-        <input
-          className="w-full border-t border-foreground/10 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted focus:bg-background/50"
-          placeholder="Search by name, email, or phone…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+      <input
+        className="input mt-4"
+        placeholder="Search by name, email, or phone…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
 
-        {adding && (
-          <div className="border-t border-foreground/10 bg-background/50 p-5">
+      {adding && (
+          <div className="mt-4 rounded-xl border border-foreground/15 bg-white p-5">
             <p className="mb-4 font-medium">New client</p>
             <ClientForm
               initial={{
@@ -336,18 +332,15 @@ export default function Clients({
           </div>
         )}
 
-        {error && (
-          <p className="border-t border-foreground/10 px-4 py-3 text-sm text-accent-dark">
-            {error}
-          </p>
-        )}
+      {error && (
+        <p className="mt-4 text-sm text-accent-dark">{error}</p>
+      )}
 
+      <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
         {loading ? (
-          <p className="border-t border-foreground/10 px-4 py-6 text-muted">
-            Loading clients…
-          </p>
+          <p className="px-4 py-6 text-muted">Loading clients…</p>
         ) : shown.length === 0 ? (
-          <p className="border-t border-foreground/10 px-4 py-6 text-muted">
+          <p className="px-4 py-6 text-muted">
             {clients.length === 0 ? "No clients yet." : "No matches."}
           </p>
         ) : (
@@ -363,7 +356,7 @@ export default function Clients({
               <button
                 key={v.c.id}
                 onClick={() => setSelected(v.c)}
-                className="flex w-full items-stretch border-t border-foreground/10 text-left transition hover:bg-background/60"
+                className="flex w-full items-stretch border-t border-foreground/10 text-left transition first:border-t-0 hover:bg-background/60"
               >
                 <Rail
                   state={v.state}
