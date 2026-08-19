@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { whenLabel } from "../../lib/format";
+import { whenLabel, shortWhen } from "../../lib/format";
 import VoicemailPlayer from "./VoicemailPlayer";
 
 type Msg = {
@@ -282,8 +282,17 @@ export default function Messages({
                     </span>
                   </span>
                 </span>
-                <span className="ml-auto shrink-0 whitespace-nowrap text-xs text-muted">
-                  {c.unread > 0 ? `${c.unread} new` : whenLabel(c.lastAt)}
+                {/* When it landed, always — an unread count instead of a time
+                    left her unable to tell an hour ago from last month. */}
+                <span className="ml-auto shrink-0 whitespace-nowrap text-right">
+                  <span className="block text-xs text-muted">
+                    {shortWhen(c.lastAt)}
+                  </span>
+                  {c.unread > 0 && (
+                    <span className="mt-0.5 block text-[11px] font-medium text-accent-dark">
+                      {c.unread} new
+                    </span>
+                  )}
                 </span>
               </span>
             </button>

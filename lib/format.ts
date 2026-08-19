@@ -28,6 +28,43 @@ export const whenLabel = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
+// A timestamp for a list row, where "Tue, Aug 18 at 9:23 AM" is far too long to
+// sit beside a name. Reads the way a phone's message list does: the time if it
+// landed today, the weekday within the last week, the date beyond that.
+export function shortWhen(iso: string): string {
+  const then = new Date(iso);
+  const now = new Date();
+  const day = (d: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: TZ,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+
+  if (day(then) === day(now)) {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: TZ,
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(then);
+  }
+
+  const days = (now.getTime() - then.getTime()) / 86400000;
+  if (days < 7 && days >= 0) {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: TZ,
+      weekday: "short",
+    }).format(then);
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    month: "short",
+    day: "numeric",
+  }).format(then);
+}
+
 export const longWhen = (iso: string) =>
   fmt({
     weekday: "long",
