@@ -11,6 +11,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
+  salonNow,
   whenLabel,
   dateLabel,
   money,
@@ -40,9 +41,21 @@ type Client = {
   phone: string | null;
   notes: string | null;
   birthday: string | null; // YYYY-MM-DD
-  hair_formula: string | null; // e.g. "9G" — drives her strand color
+  hair_formula: string | null; // e.g. "9G" — what she mixes
+  /** Suppresses Due/Overdue nagging until this date passes. */
+  snoozed_until: string | null;
   created_at: string;
 };
+
+// "Not yet" without pretending the client isn't overdue.
+//
+// The old reach-out list hid anyone with an open task, which was a side effect
+// rather than a decision — she couldn't say "leave her alone until March"
+// without inventing a task. This is explicit and dated, and her underlying
+// state is untouched: the snooze hides the nag, not the truth.
+function isSnoozed(c: { snoozed_until?: string | null }, todayKey: string) {
+  return !!c.snoozed_until && c.snoozed_until > todayKey;
+}
 
 // Per-client rollup from her appointment history, used to place her on the
 // lifecycle and pick her regrowth + strand color.
@@ -146,6 +159,12 @@ export default function Clients({
   const [stageFilter, setStageFilter] = useState("all");
   const [selected, setSelected] = useState<Client | null>(null);
   const [adding, setAdding] = useState(false);
+  // Today in the salon's timezone, for comparing against plain snooze dates.
+  const [todayKey] = useState(() => {
+    const n = salonNow();
+    const p = (x: number) => String(x).padStart(2, "0");
+    return `${n.year}-${p(n.month + 1)}-${p(n.day)}`;
+  });
 
   const load = useCallback(() => {
     setLoading(true);
@@ -216,22 +235,36 @@ export default function Clients({
     [clients, aggs],
   );
 
+  // A snoozed client counts as handled for Due and Overdue — that's what the
+  // snooze is for — but still counts in All, because she hasn't gone anywhere.
   const counts = useMemo(() => {
     const m: Record<string, number> = { all: views.length };
-    for (const v of views) m[v.state] = (m[v.state] ?? 0) + 1;
+    for (const v of views) {
+      if (
+        isSnoozed(v.c, todayKey) &&
+        (v.state === "due" || v.state === "overdue")
+      )
+        continue;
+      m[v.state] = (m[v.state] ?? 0) + 1;
+    }
     return m;
-  }, [views]);
+  }, [views, todayKey]);
 
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     return views.filter((v) => {
+      if (
+        (stageFilter === "due" || stageFilter === "overdue") &&
+        isSnoozed(v.c, todayKey)
+      )
+        return false;
       if (stageFilter !== "all" && v.state !== stageFilter) return false;
       if (!s) return true;
       return [v.c.full_name, v.c.email, v.c.phone]
         .filter(Boolean)
         .some((x) => x!.toLowerCase().includes(s));
     });
-  }, [views, q, stageFilter]);
+  }, [views, q, stageFilter, todayKey]);
 
   if (selected) {
     return (
@@ -453,6 +486,24 @@ function ClientDetail({
 
   // Twilio rings HER, then bridges to the client, so the client sees the salon
   // number instead of her mobile. Same call as the appointment screen.
+  // months = 0 wakes her up again.
+  async function snooze(months: number) {
+    let until: string | null = null;
+    if (months > 0) {
+      const d = new Date();
+      d.setMonth(d.getMonth() + months);
+      until = d.toISOString().slice(0, 10);
+    }
+    const { data, error } = await supabase
+      .from("clients")
+      .update({ snoozed_until: until })
+      .eq("id", c.id)
+      .select()
+      .single();
+    if (error) setError(error.message);
+    else setC(data as Client);
+  }
+
   async function callClient(clientId: string) {
     setCalling(true);
     setError(null);
@@ -679,6 +730,39 @@ function ClientDetail({
           >
             Send her a win-back text
           </a>
+          {/* "Not yet" needs somewhere to go, or the only way to stop the
+              nagging is to book her or ignore it forever. */}
+          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-foreground/10 pt-3 text-sm">
+            <span className="text-muted">Not right now?</span>
+            {[
+              ["a month", 1],
+              ["3 months", 3],
+              ["6 months", 6],
+            ].map(([label, months]) => (
+              <button
+                key={label as string}
+                onClick={() => snooze(months as number)}
+                className="text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
+              >
+                Snooze {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {c.snoozed_until && (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-foreground/10 bg-background/60 px-4 py-3 text-sm">
+          <span className="text-muted">
+            Snoozed until {dateLabel(`${c.snoozed_until}T12:00:00`)} — she stays
+            out of Due and Overdue until then.
+          </span>
+          <button
+            onClick={() => snooze(0)}
+            className="text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
+          >
+            Wake her up
+          </button>
         </div>
       )}
 
@@ -871,6 +955,7 @@ function ClientTasks({ clientId }: { clientId: string }) {
       .eq("id", id);
     load();
   }
+
 
   if (unavailable || tasks === null) return null;
 

@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Mic, PhoneMissed } from "lucide-react";
+import { Archive, ArchiveRestore, Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { whenLabel, shortWhen } from "../../lib/format";
 import VoicemailPlayer from "./VoicemailPlayer";
+import Button from "./Button";
 
 type Msg = {
   id: string;
@@ -18,6 +19,7 @@ type Msg = {
   kind: "sms" | "voicemail" | "missed_call" | null;
   recording_sid: string | null;
   recording_seconds: number | null;
+  archived_at: string | null;
   clients: { full_name: string; phone: string | null } | null;
 };
 
@@ -30,6 +32,8 @@ type Convo = {
   list: Msg[];
   unread: number;
   lastAt: string;
+  /** Archived only when nothing in it is still live. */
+  archived: boolean;
 };
 
 // The inbox, not the archive.
@@ -50,6 +54,7 @@ export default function Messages({
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const load = useCallback(() => {
     supabase
@@ -63,6 +68,21 @@ export default function Messages({
         else setMsgs((data ?? []) as unknown as Msg[]);
       });
   }, []);
+
+  // Archive stamps every message in the conversation. A conversation isn't a
+  // row anywhere — it's messages grouped by client — so this is what "the
+  // conversation" means. A new message arrives unarchived, which is why the
+  // thread comes back on its own when they next get in touch.
+  async function setArchived(c: Convo, archived: boolean) {
+    const ids = c.list.map((m) => m.id);
+    if (!ids.length) return;
+    const { error } = await supabase
+      .from("messages")
+      .update({ archived_at: archived ? new Date().toISOString() : null })
+      .in("id", ids);
+    if (error) setError(error.message);
+    else load();
+  }
   useEffect(load, [load]);
 
   const convos = useMemo(() => {
@@ -80,15 +100,20 @@ export default function Messages({
           list: [],
           unread: 0,
           lastAt: m.created_at,
+          archived: true,
         } as Convo);
       e.list.push(m);
       e.lastAt = m.created_at;
       if (m.appointment_id) e.appointmentId = m.appointment_id;
       if (m.direction === "inbound" && !m.read_at) e.unread += 1;
+      // One live message is enough to bring the whole conversation back.
+      if (!m.archived_at) e.archived = false;
       map.set(key, e);
     }
     return [...map.values()].sort((a, b) => b.lastAt.localeCompare(a.lastAt));
   }, [msgs]);
+
+  const visible = convos.filter((c) => c.archived === showArchived);
 
   const totalUnread = convos.reduce((s, c) => s + c.unread, 0);
   const open = convos.find((c) => c.key === openKey) ?? null;
@@ -232,32 +257,52 @@ export default function Messages({
   // Conversation list
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <p className="text-muted">
-          Texts and voicemail from your Threshold number.
-        </p>
-        {totalUnread > 0 && (
-          <span className="text-xs font-medium text-accent-dark">
-            {totalUnread} unread
-          </span>
-        )}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl leading-none sm:text-3xl">
+            {showArchived ? "Archived" : "Inbox"}
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            {showArchived
+              ? "Conversations she's finished with. A new message brings one back on its own."
+              : "Texts, voicemail and missed calls from your Threshold number."}
+            {totalUnread > 0 && !showArchived && (
+              <span className="ml-2 font-medium text-accent-dark">
+                {totalUnread} unread
+              </span>
+            )}
+          </p>
+        </div>
+        <Button variant="quiet" onClick={() => setShowArchived((v) => !v)}>
+          {showArchived ? "Back to inbox" : "Archived"}
+        </Button>
       </div>
       {/* One surface with hairline dividers, and an accent rail on anything
           unread — the same shape as the client list. */}
       <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
-        {convos.map((c, i) => {
+        {visible.length === 0 && (
+          <p className="px-4 py-6 text-sm text-muted">
+            {showArchived
+              ? "Nothing archived."
+              : "Nothing waiting. Everything's been dealt with."}
+          </p>
+        )}
+        {visible.map((c, i) => {
           const last = c.list[c.list.length - 1];
           return (
-            <button
+            <div
               key={c.key}
+              className={`flex w-full items-stretch transition hover:bg-background/60 ${
+                i > 0 ? "border-t border-foreground/10" : ""
+              }`}
+            >
+            <button
               onClick={() =>
                 c.clientId && onOpenClient
                   ? onOpenClient(c.clientId)
                   : openConvo(c)
               }
-              className={`flex w-full items-stretch text-left transition hover:bg-background/60 ${
-                i > 0 ? "border-t border-foreground/10" : ""
-              }`}
+              className="flex min-w-0 flex-1 items-stretch text-left"
             >
               <span
                 aria-hidden="true"
@@ -296,6 +341,19 @@ export default function Messages({
                 </span>
               </span>
             </button>
+            <button
+              onClick={() => setArchived(c, !c.archived)}
+              aria-label={c.archived ? "Move back to inbox" : "Archive"}
+              title={c.archived ? "Move back to inbox" : "Archive"}
+              className="shrink-0 px-4 text-muted transition hover:text-accent-dark"
+            >
+              {c.archived ? (
+                <ArchiveRestore className="h-4 w-4" />
+              ) : (
+                <Archive className="h-4 w-4" />
+              )}
+            </button>
+            </div>
           );
         })}
       </div>
