@@ -13,6 +13,7 @@ import {
 } from "../../lib/format";
 import ApptDetailModal, { RebookForm } from "./ApptDetailModal";
 import { saveClient } from "./Clients";
+import ClientPicker from "./ClientPicker";
 
 type Appt = {
   id: string;
@@ -910,7 +911,7 @@ function TimeGrid({
   );
 }
 
-type ClientOpt = { id: string; full_name: string };
+type ClientOpt = { id: string; full_name: string; phone?: string | null };
 
 // Walk-ins and phone bookings are often people who aren't in the book yet, so
 // this panel can either pick an existing client or create one on the spot —
@@ -935,7 +936,7 @@ function NewAppointmentPanel({
   useEffect(() => {
     supabase
       .from("clients")
-      .select("id,full_name")
+      .select("id,full_name,phone")
       .order("full_name")
       .then(({ data }) => setClients((data ?? []) as ClientOpt[]));
   }, []);
@@ -966,21 +967,14 @@ function NewAppointmentPanel({
         />
       ) : (
         <>
-          <label className="mt-3 block">
-            <span className="mb-1 block text-sm">Client</span>
-            <select
-              className="input"
+          <div className="mt-3">
+            <ClientPicker
+              clients={clients}
               value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-            >
-              <option value="">Choose a client…</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.full_name}
-                </option>
-              ))}
-            </select>
-          </label>
+              onChange={setClientId}
+              autoFocus
+            />
+          </div>
           <button
             type="button"
             onClick={() => setAdding(true)}

@@ -286,7 +286,7 @@ export default function Clients({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl leading-none sm:text-3xl">
-            Her book
+            The book
           </h2>
           <p className="mt-2 text-sm text-muted">
             {clients.length} client{clients.length === 1 ? "" : "s"}

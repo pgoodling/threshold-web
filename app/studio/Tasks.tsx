@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { dateLabel } from "../../lib/format";
 import { completeTask } from "../../lib/tasks";
+import ClientPicker from "./ClientPicker";
 
 // Her to-do list, and only that.
 //
@@ -30,7 +31,7 @@ type Task = {
   clients: { full_name: string } | null;
 };
 
-type ClientOpt = { id: string; full_name: string };
+type ClientOpt = { id: string; full_name: string; phone?: string | null };
 
 const RECURRENCE: [string, string][] = [
   ["none", "One-off"],
@@ -124,7 +125,7 @@ function ToDos() {
   useEffect(() => {
     supabase
       .from("clients")
-      .select("id,full_name")
+      .select("id,full_name,phone")
       .order("full_name")
       .then(({ data }) => setClients((data ?? []) as ClientOpt[]));
   }, []);
@@ -204,21 +205,15 @@ function ToDos() {
                 onChange={(e) => setDue(e.target.value)}
               />
             </label>
-            <label className="block">
-              <span className="mb-1 block text-sm">Client (optional)</span>
-              <select
-                className="input w-auto"
+            <div className="w-56">
+              <ClientPicker
+                clients={clients}
                 value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-              >
-                <option value="">— none —</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.full_name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={setClientId}
+                label="Client (optional)"
+                placeholder="Leave blank, or start typing…"
+              />
+            </div>
             <label className="block">
               <span className="mb-1 block text-sm">Repeat</span>
               <select
