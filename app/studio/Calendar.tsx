@@ -6,9 +6,10 @@ import {
   salonWallToISO,
   dayKey,
   timeLabel,
-  salonNow,
+  salonNow,
   liveStatus,
   serviceEdge,
+  serviceColors,
 } from "../../lib/format";
 import ApptDetailModal, { RebookForm } from "./ApptDetailModal";
 import { saveClient } from "./Clients";
@@ -537,7 +538,7 @@ function MonthView({
               style={
                 isSel ? { boxShadow: "inset 0 0 0 1px var(--accent)" } : undefined
               }
-              className={`flex min-h-[58px] flex-col gap-0.5 p-1 text-left transition sm:min-h-[104px] sm:p-1.5 ${
+              className={`flex min-h-[74px] min-w-0 flex-col gap-0.5 overflow-hidden p-1 text-left transition sm:min-h-[104px] sm:p-1.5 ${
                 i % 7 !== 0 ? "border-l border-foreground/10" : ""
               } ${i >= 7 ? "border-t border-foreground/10" : ""} ${
                 isSel
@@ -558,30 +559,38 @@ function MonthView({
               >
                 {parseKey(k).d}
               </span>
-              {/* On a phone a cell is about 45px wide, so names truncate to
-                  nothing useful. There, the month answers the two questions it
-                  can actually answer at that size — how full is this day, and is
-                  anything wrong with it — and she taps through to the day view
-                  to read it. */}
-              <span className="mt-0.5 flex flex-wrap gap-[2px] sm:hidden">
-                {list.slice(0, 6).map((a) => {
+              {/* A phone cell is about 45px wide, so this shows the time and as
+                  much of the first name as fits, clipped at the cell edge. Every
+                  row is `truncate` inside a `min-w-0` cell, which is what keeps
+                  a long name from pushing the column wide and bleeding into the
+                  next day. */}
+              <span className="flex min-w-0 flex-col gap-0.5 sm:hidden">
+                {list.slice(0, 3).map((a) => {
                   const live = liveStatus(a.status, a.starts_at);
                   return (
                     <span
                       key={a.id}
-                      className="h-2 w-[3px] rounded-sm"
-                      style={{ background: APPT_RAIL[live] ?? RAIL_IDLE }}
-                    />
+                      className="min-w-0 truncate pl-1 text-[9px] leading-tight"
+                      style={{
+                        borderLeft: `2px solid ${APPT_RAIL[live] ?? RAIL_IDLE}`,
+                      }}
+                    >
+                      {timeLabel(a.starts_at)
+                        .replace(":00", "")
+                        .replace(" ", "")
+                        .toLowerCase()}{" "}
+                      {a.clients?.full_name?.split(" ")[0]}
+                    </span>
                   );
                 })}
-                {list.length > 6 && (
-                  <span className="text-[9px] leading-none text-muted">
-                    +{list.length - 6}
+                {list.length > 3 && (
+                  <span className="pl-1 text-[9px] leading-tight text-muted">
+                    +{list.length - 3}
                   </span>
                 )}
               </span>
 
-              <span className="hidden flex-col gap-0.5 sm:flex">
+              <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
                 {list.slice(0, 4).map((a) => (
                   <ApptLine key={a.id} a={a} />
                 ))}
@@ -735,6 +744,7 @@ function TimeGrid({
                   // blocks was the loudest thing in the studio.
                   const live = liveStatus(a.status, a.starts_at);
                   const rail = APPT_RAIL[live] ?? RAIL_IDLE;
+                  const svc = serviceColors(a.services?.name);
                   const late = live === "late";
                   const done = live === "checked_out" || live === "completed";
                   const dim = a.status === "no_show";
@@ -826,18 +836,18 @@ function TimeGrid({
                         left: `calc(${lane * lanePct}% + 3px)`,
                         width: `calc(${lanePct}% - 6px)`,
                         height: h,
-                        background: "#fff",
-                        color: "#32251f",
-                        border: "1px solid rgba(50,37,31,.14)",
-                        borderLeft: `3px solid ${rail}`,
-                        // The service edge is an inset shadow, so the lift while
-                        // dragging has to ride along in the same property.
-                        boxShadow: [
-                          `inset -2px 0 0 ${serviceEdge(a.services?.name)}`,
-                          isDragging ? "0 8px 20px rgba(50,37,31,0.28)" : "",
-                        ]
-                          .filter(Boolean)
-                          .join(", "),
+                        // Filled with the service colour, so a day reads at a
+                        // glance as what kind of day it is — four different
+                        // pastels means four different setups. Status keeps the
+                        // left edge rather than taking over the fill, so
+                        // "checked in" no longer hides which service it was.
+                        background: svc.bg,
+                        color: svc.fg,
+                        border: "1px solid rgba(50,37,31,.10)",
+                        borderLeft: `4px solid ${rail}`,
+                        boxShadow: isDragging
+                          ? "0 8px 20px rgba(50,37,31,0.28)"
+                          : undefined,
                         opacity: dim ? 0.55 : 1,
                         // The browser must not claim this gesture for scrolling,
                         // or the drag never gets its pointermove events. Cost:
