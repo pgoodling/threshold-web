@@ -211,11 +211,11 @@ export default function Reports() {
         </p>
       ) : (
         <>
-          <div className="mt-3 grid gap-2">
+          <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white">
             {byMethod.map((m) => (
               <div
                 key={m.value}
-                className="flex items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm"
+                className="flex items-center justify-between border-t border-foreground/10 px-4 py-3 text-sm first:border-t-0"
               >
                 <span>
                   {m.label}

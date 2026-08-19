@@ -440,12 +440,12 @@ function Appointments({
     return <p className="text-muted">No upcoming appointments.</p>;
 
   return (
-    <div className="grid gap-2">
-      {appts.map((a) => (
+    <div className="overflow-hidden rounded-xl border border-foreground/15 bg-white">
+      {appts.map((a, i) => (
         <button
           key={a.id}
           onClick={() => setOpenId(a.id)}
-          className="flex w-full flex-wrap items-baseline justify-between gap-2 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-left transition hover:border-accent"
+          className={`flex w-full flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-left transition hover:bg-background/60 ${i > 0 ? "border-t border-foreground/10" : ""}`}
         >
           <span className="font-medium">
             {a.clients?.full_name ?? "Unknown"}
@@ -552,11 +552,13 @@ function Hours() {
       <p className="text-muted">
         Set your weekly working hours. Clients can only book inside these times.
       </p>
-      <div className="mt-6 grid gap-2">
+      <div className="mt-6 overflow-hidden rounded-xl border border-foreground/15 bg-white">
         {rows.map((r, i) => (
           <div
             key={WEEKDAYS[i]}
-            className="flex flex-wrap items-center gap-3 rounded-xl border border-foreground/10 bg-white px-4 py-3"
+            className={`flex flex-wrap items-center gap-3 px-4 py-3 ${
+              i > 0 ? "border-t border-foreground/10" : ""
+            }`}
           >
             <label className="flex w-32 items-center gap-2">
               <input
@@ -757,15 +759,17 @@ function TimeOff() {
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      <div className="mt-6 grid gap-2">
-        {loading && <p className="text-muted">Loading…</p>}
+      <div className="mt-6 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+        {loading && <p className="px-4 py-3 text-muted">Loading…</p>}
         {!loading && blocks.length === 0 && (
-          <p className="text-muted">No time off scheduled.</p>
+          <p className="px-4 py-3 text-muted">No time off scheduled.</p>
         )}
-        {blocks.map((b) => (
+        {blocks.map((b, i) => (
           <div
             key={b.id}
-            className="flex items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3"
+            className={`flex items-center justify-between px-4 py-3 ${
+              i > 0 ? "border-t border-foreground/10" : ""
+            }`}
           >
             <span className="text-sm">
               {formatBlock(b)}

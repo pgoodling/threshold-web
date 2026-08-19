@@ -499,11 +499,11 @@ function CategoryManager({
       </p>
 
       {categories.length > 0 && (
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
           {categories.map((c, i) => (
             <div
               key={c.id}
-              className="flex items-center gap-2 rounded-xl border border-foreground/10 bg-white px-3 py-2"
+              className="flex items-center gap-2 border-t border-foreground/10 px-3 py-2 first:border-t-0"
             >
               {editingId === c.id ? (
                 <>

@@ -127,15 +127,18 @@ function Reminders({
           Everyone&apos;s got a next visit booked. Nice.
         </p>
       ) : (
-        <div className="mt-4 grid gap-2">
-          {reminders.map((r) => {
+        <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+          {reminders.map((r, i) => {
             const lapsed = r.weeks >= 8;
             return (
               <button
                 key={r.clientId}
                 onClick={() => onOpenClient?.(r.clientId)}
-                className={`flex w-full flex-wrap items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left transition hover:border-accent ${
-                  lapsed ? "border-accent/40" : "border-foreground/10"
+                style={{
+                  boxShadow: `inset 4px 0 0 ${lapsed ? "#8f3f4a" : "#cfc3b6"}`,
+                }}
+                className={`flex w-full flex-wrap items-center gap-3 py-3 pl-5 pr-4 text-left transition hover:bg-background/60 ${
+                  i > 0 ? "border-t border-foreground/10" : ""
                 }`}
               >
                 <span className="font-medium">{r.name}</span>
@@ -386,15 +389,17 @@ function ToDos() {
 
           {error && <ErrorNote>{error}</ErrorNote>}
 
-          <div className="mt-4 grid gap-2">
-            {loading && <p className="text-muted">Loading…</p>}
+          <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+            {loading && <p className="px-4 py-3 text-muted">Loading…</p>}
             {!loading && tasks.length === 0 && (
-              <p className="text-sm text-muted">Nothing on the list.</p>
+              <p className="px-4 py-3 text-sm text-muted">Nothing on the list.</p>
             )}
-            {tasks.map((t) => (
+            {tasks.map((t, i) => (
               <div
                 key={t.id}
-                className="flex items-center gap-3 rounded-xl border border-foreground/10 bg-white px-4 py-3"
+                className={`flex items-center gap-3 px-4 py-3 ${
+                  i > 0 ? "border-t border-foreground/10" : ""
+                }`}
               >
                 <button
                   onClick={() => complete(t)}

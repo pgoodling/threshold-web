@@ -194,11 +194,11 @@ export default function Outreach() {
             : "That's everyone. Nicely done."}
         </p>
       ) : (
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
           {shown.map((r) => (
             <div
               key={r.id}
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-foreground/10 bg-white px-4 py-3"
+              className="flex flex-wrap items-center gap-3 border-t border-foreground/10 px-4 py-3 first:border-t-0"
             >
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{r.full_name}</div>

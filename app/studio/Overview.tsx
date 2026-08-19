@@ -7,11 +7,11 @@ import {
   salonNow,
   salonWallToISO,
   timeLabel,
-  whenLabel,
+  shortWhen,
   statusLabel,
   liveStatus,
   statusBlockColor,
-  serviceColors,
+  serviceEdge,
   money,
 } from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
@@ -158,49 +158,64 @@ export default function Overview({
           <p className="mb-2 text-xs uppercase tracking-wide text-muted">
             Needs attention
           </p>
-          <div className="grid gap-2">
-            {lateList.map((a) => (
+          <div className="overflow-hidden rounded-xl border border-accent/30 bg-accent/5">
+            {lateList.map((a, i) => (
               <button
                 key={a.id}
                 onClick={() => setOpenId(a.id)}
-                style={{ borderLeftColor: "#a32d2d", borderLeftWidth: 4 }}
-                className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent-dark/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
+                className={`flex w-full items-stretch text-left text-sm text-accent-dark transition hover:bg-accent/10 ${
+                  i > 0 ? "border-t border-accent/20" : ""
+                }`}
               >
-                <span className="font-medium">
-                  {a.clients?.full_name ?? "A client"} is running late
-                </span>
-                <span className="ml-auto text-xs">
-                  {timeLabel(a.starts_at)} · {a.services?.name}
+                <span
+                  aria-hidden="true"
+                  className="w-1 shrink-0 self-stretch"
+                  style={{ background: "#8f3f4a" }}
+                />
+                <span className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
+                  <span className="truncate font-medium">
+                    {a.clients?.full_name ?? "A client"} is running late
+                  </span>
+                  <span className="ml-auto shrink-0 whitespace-nowrap text-xs">
+                    {timeLabel(a.starts_at)} · {a.services?.name}
+                  </span>
                 </span>
               </button>
             ))}
             {/* One row per unread message, not a count. A bare "3 unread" makes
               her open the Messages tab to find out whether it's urgent; the
               name and the first words usually settle that from here. */}
-            {waiting.map((m) => (
+            {waiting.map((m, i) => (
               <button
                 key={m.id}
                 onClick={() => onGoto?.("messages")}
-                style={{ borderLeftColor: "#a32d2d", borderLeftWidth: 4 }}
-                className="flex items-center gap-3 overflow-hidden rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-left text-sm text-accent-dark transition hover:bg-accent/10"
+                className={`flex w-full items-stretch text-left text-sm text-accent-dark transition hover:bg-accent/10 ${
+                  i > 0 || lateList.length > 0 ? "border-t border-accent/20" : ""
+                }`}
               >
-                {m.kind === "voicemail" && <Mic className="h-4 w-4 shrink-0" />}
-                {m.kind === "missed_call" && (
-                  <PhoneMissed className="h-4 w-4 shrink-0" />
-                )}
-                <span className="shrink-0 font-medium">
-                  {m.clients?.full_name ?? m.from_number ?? "Unknown number"}
-                </span>
-                <span className="truncate text-xs opacity-80">{m.body}</span>
-                <span className="ml-auto shrink-0 text-xs">
-                  {whenLabel(m.created_at)}
+                <span
+                  aria-hidden="true"
+                  className="w-1 shrink-0 self-stretch bg-accent"
+                />
+                <span className="flex min-w-0 flex-1 items-center gap-2 px-4 py-3">
+                  {m.kind === "voicemail" && <Mic className="h-4 w-4 shrink-0" />}
+                  {m.kind === "missed_call" && (
+                    <PhoneMissed className="h-4 w-4 shrink-0" />
+                  )}
+                  <span className="shrink-0 font-medium">
+                    {m.clients?.full_name ?? m.from_number ?? "Unknown number"}
+                  </span>
+                  <span className="truncate text-xs opacity-80">{m.body}</span>
+                  <span className="ml-auto shrink-0 whitespace-nowrap text-xs">
+                    {shortWhen(m.created_at)}
+                  </span>
                 </span>
               </button>
             ))}
             {unread > waiting.length && (
               <button
                 onClick={() => onGoto?.("messages")}
-                className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-2 text-left text-xs text-accent-dark transition hover:bg-accent/10"
+                className="w-full border-t border-accent/20 px-5 py-2.5 text-left text-xs text-accent-dark transition hover:bg-accent/10"
               >
                 {unread - waiting.length} more unread → open messages
               </button>
@@ -226,12 +241,11 @@ export default function Overview({
           Nothing booked today. Enjoy the breather.
         </p>
       ) : (
-        <div className="mt-3 grid gap-2">
-          {today.map((a) => {
+        <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+          {today.map((a, i) => {
             const eff = liveStatus(a.status, a.starts_at);
             const sc = statusBlockColor(eff);
-            const svc = serviceColors(a.services?.name);
-            const stripe = sc ? sc.bg : "#e8e0d6";
+            const stripe = sc ? sc.bg : "#cfc3b6";
             const showStatus = eff !== "booked" && eff !== "confirmed";
             const labelColor = sc
               ? sc.bg
@@ -242,11 +256,18 @@ export default function Overview({
               <button
                 key={a.id}
                 onClick={() => setOpenId(a.id)}
-                style={{ borderLeftColor: stripe, borderLeftWidth: 4 }}
-                className="flex items-stretch overflow-hidden rounded-xl border border-foreground/10 bg-white text-left transition hover:border-accent"
+                className={`flex w-full items-stretch text-left transition hover:bg-background/60 ${
+                  i > 0 ? "border-t border-foreground/10" : ""
+                }`}
+                style={{
+                  // Status on the left edge, service on the right — the same
+                  // two signals the calendar carries, so a day reads the same
+                  // whichever screen she's on.
+                  boxShadow: `inset 4px 0 0 ${stripe}, inset -3px 0 0 ${serviceEdge(a.services?.name)}`,
+                }}
               >
-                <span className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
-                  <span className="w-16 shrink-0 text-sm text-accent">
+                <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-5 pr-4">
+                  <span className="w-16 shrink-0 text-sm tabular-nums text-accent">
                     {timeLabel(a.starts_at)}
                   </span>
                   <span className="truncate font-medium">
@@ -254,18 +275,15 @@ export default function Overview({
                   </span>
                   {showStatus && (
                     <span
-                      className="shrink-0 text-xs"
+                      className="shrink-0 text-[11px] uppercase tracking-wider"
                       style={{ color: labelColor }}
                     >
                       {statusLabel(eff)}
                     </span>
                   )}
-                </span>
-                <span
-                  className="flex w-28 shrink-0 items-center truncate px-3 text-xs sm:w-40"
-                  style={{ background: svc.bg, color: svc.fg }}
-                >
-                  {a.services?.name}
+                  <span className="ml-auto shrink-0 truncate pl-2 text-xs text-muted">
+                    {a.services?.name}
+                  </span>
                 </span>
               </button>
             );
