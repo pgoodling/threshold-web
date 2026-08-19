@@ -173,11 +173,10 @@ export default function Overview({
   // `unread` (from the tab badge) and `waiting` refresh on different clocks, so
   // trust either one to open the banner rather than letting a stale count hide
   // messages that are demonstrably there.
+  // To-dos deliberately don't open the banner any more — they have their own
+  // section below the schedule. This is for people waiting on her.
   const hasAttention =
-    lateList.length > 0 ||
-    unread > 0 ||
-    waiting.length > 0 ||
-    dueTasks.length > 0;
+    lateList.length > 0 || unread > 0 || waiting.length > 0;
 
   return (
     <div>
@@ -249,34 +248,6 @@ export default function Overview({
                 </span>
               </button>
             ))}
-            {dueTasks.map((t) => {
-              const overdue = !!t.due_date && t.due_date < todayKey;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => onGoto?.("tasks")}
-                  className="flex w-full items-stretch border-t border-accent/20 text-left text-sm text-accent-dark transition hover:bg-accent/10"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="w-1 shrink-0 self-stretch"
-                    style={{ background: overdue ? "#8f3f4a" : "#bd8f45" }}
-                  />
-                  <span className="flex min-w-0 flex-1 items-center gap-2 px-4 py-3">
-                    <ListChecks className="h-4 w-4 shrink-0" />
-                    <span className="truncate font-medium">{t.title}</span>
-                    {t.clients?.full_name && (
-                      <span className="shrink-0 truncate text-xs opacity-80">
-                        {t.clients.full_name}
-                      </span>
-                    )}
-                    <span className="ml-auto shrink-0 whitespace-nowrap text-xs">
-                      {overdue ? "overdue" : "today"}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
             {unread > waiting.length && (
               <button
                 onClick={() => onGoto?.("messages")}
@@ -354,6 +325,47 @@ export default function Overview({
             );
           })}
         </div>
+      )}
+
+      {/* Below the schedule, not in the banner above it. Two different kinds of
+          thing were sharing one box: someone waiting on her right now, and work
+          she planned for herself. The first interrupts the day; the second fits
+          around it, so it belongs after she's seen the day. */}
+      {dueTasks.length > 0 && (
+        <>
+          <h2 className="mt-8 font-display text-lg">To-do today</h2>
+          <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+            {dueTasks.map((t, i) => {
+              const overdue = !!t.due_date && t.due_date < todayKey;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onGoto?.("tasks")}
+                  style={{
+                    boxShadow: `inset 4px 0 0 ${overdue ? "#8f3f4a" : "#bd8f45"}`,
+                  }}
+                  className={`flex w-full items-center gap-2 py-3 pl-5 pr-4 text-left text-sm transition hover:bg-background/60 ${
+                    i > 0 ? "border-t border-foreground/10" : ""
+                  }`}
+                >
+                  <ListChecks className="h-4 w-4 shrink-0 text-muted" />
+                  <span className="truncate font-medium">{t.title}</span>
+                  {t.clients?.full_name && (
+                    <span className="shrink-0 truncate text-xs text-accent-dark">
+                      {t.clients.full_name}
+                    </span>
+                  )}
+                  <span
+                    className="ml-auto shrink-0 whitespace-nowrap text-[11px] uppercase tracking-wider"
+                    style={{ color: overdue ? "#8f3f4a" : "#bd8f45" }}
+                  >
+                    {overdue ? "overdue" : "today"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {openId && (
