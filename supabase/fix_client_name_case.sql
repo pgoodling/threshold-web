@@ -37,6 +37,18 @@ as $$
         select
           ord,
           case
+            -- Initials used as a first name: JJ, TJ, AJ. Only in first
+            -- position, because that's where initials go and it keeps this
+            -- clear of "Jr" at the end.
+            --
+            -- An explicit list rather than a clever rule, because every clever
+            -- rule breaks a real name: "two letters, no vowel" turns Ty into
+            -- TY, and "contains a J" turns Jo into JO. Add to the list if one
+            -- turns up in the preview.
+            when ord = 1 and lower(w) = any (array[
+              'aj','bj','cj','dj','ej','jj','kj','lj','mj','pj','rj','tj','vj',
+              'jb','jc','jd','jk','jl','jm','jp','jt','jw','kc','cc','tc','bb'
+            ]) then upper(w)
             -- McDonald, but not a surname that is simply "Mac" or "Mc".
             when w ~* '^mc.'            then 'Mc'  || upper(substr(w, 3, 1)) || substr(w, 4)
             when w ~* '^mac..'          then 'Mac' || upper(substr(w, 4, 1)) || substr(w, 5)
