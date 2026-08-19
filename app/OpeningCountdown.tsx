@@ -77,8 +77,7 @@ export default function OpeningCountdown({
   // jobs: the number, and a line meant for her. Seconds are left off — she
   // doesn't need a clock ticking at her while she works.
   if (compact) {
-    const [d, h] = parts;
-    const days = now === null ? null : openedAlready ? -1 : d.value;
+    const days = now === null ? null : openedAlready ? -1 : parts[0].value;
     // Same key all day, so the line doesn't change while she's looking at it.
     const dayKey = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/New_York",
@@ -99,10 +98,7 @@ export default function OpeningCountdown({
             <span className="block text-sm font-medium text-accent-dark">
               {days === 1 ? "day" : "days"} until you open
             </span>
-            <span className="block text-xs text-muted">
-              Monday 7 September
-              {days !== null && days > 0 && ` · ${h.value}h left today`}
-            </span>
+            <span className="block text-xs text-muted">Monday 7 September</span>
           </span>
         </div>
 
