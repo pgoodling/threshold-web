@@ -828,6 +828,7 @@ function ClientTasks({ clientId }: { clientId: string }) {
   const [tasks, setTasks] = useState<ClientTask[] | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [title, setTitle] = useState("");
+  const [start, setStart] = useState("");
   const [due, setDue] = useState("");
 
   const load = useCallback(() => {
@@ -850,12 +851,14 @@ function ClientTasks({ clientId }: { clientId: string }) {
     if (!title.trim()) return;
     const { error } = await supabase.from("tasks").insert({
       title: title.trim(),
+      start_date: start || null,
       due_date: due || null,
       client_id: clientId,
       recurrence: "none",
     });
     if (!error) {
       setTitle("");
+      setStart("");
       setDue("");
       load();
     }
@@ -881,12 +884,33 @@ function ClientTasks({ clientId }: { clientId: string }) {
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Follow up, patch test, order color…"
         />
-        <input
-          type="date"
-          className="input w-auto"
-          value={due}
-          onChange={(e) => setDue(e.target.value)}
-        />
+        {/* Start as well as due, so a task added here can surface on the
+            Overview the day it becomes her problem rather than only when it's
+            already late. */}
+        <label className="block">
+          <span className="mb-1 block text-[11px] uppercase tracking-wider text-muted">
+            Start
+          </span>
+          <input
+            type="date"
+            className="input w-auto"
+            value={start}
+            max={due || undefined}
+            onChange={(e) => setStart(e.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[11px] uppercase tracking-wider text-muted">
+            Due
+          </span>
+          <input
+            type="date"
+            className="input w-auto"
+            value={due}
+            min={start || undefined}
+            onChange={(e) => setDue(e.target.value)}
+          />
+        </label>
         <Button type="submit">Add</Button>
       </form>
 
