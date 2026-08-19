@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Children, useCallback, useEffect, useState } from "react";
 import { Mail, MessageSquare, Phone, Smartphone, User } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
@@ -378,6 +378,12 @@ export default function ApptDetailModal({
 
   const live = appt ? liveStatus(appt.status, appt.starts_at) : "";
 
+  // Settled appointments can't be undone this way — money has changed hands.
+  const settled =
+    appt?.status === "checked_out" || appt?.status === "completed";
+  const canNoShow = !!appt && !settled && appt.status !== "no_show";
+  const canCancel = !!appt && !settled && appt.status !== "cancelled";
+
   // "Call" rings her phone and bridges her to the client from the salon number;
   // "My phone" is the escape hatch that dials directly, showing her own number,
   // for when she'd rather not wait to be rung back.
@@ -735,79 +741,87 @@ export default function ApptDetailModal({
                 </div>
               </div>
             ) : (
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <>
+              {/* Fifteen small outlined buttons in one wrapped pile gave equal
+                  weight to "Check out" and "Free up processing", so she had to
+                  read all of them every time. Three tiers now: the one obvious
+                  next step, the things she sometimes does, and the two she
+                  rarely means to.
+
+                  The lifecycle step gets the full width — at any moment there's
+                  exactly one, and it's what she reached for the modal to do. */}
+              <div className="mt-4">
                 {appt.status === "no_show" &&
                   (appt.no_show_charged_at ? (
-                    <span className="rounded-md bg-foreground/5 px-3 py-1.5 text-muted">
+                    <p className="text-sm text-muted">
                       Fee charged
                       {appt.no_show_fee_cents
                         ? ` · ${money(appt.no_show_fee_cents)}`
                         : ""}
-                    </span>
+                    </p>
                   ) : (
                     appt.clients?.stripe_customer_id && (
-                      <ActionBtn primary onClick={openNoShowFee}>
+                      <NextStep onClick={openNoShowFee}>
                         Charge no-show fee
-                      </ActionBtn>
+                      </NextStep>
                     )
                   ))}
-                {appt.status === "booked" && (
-                  <ActionBtn onClick={() => setStatus("confirmed")}>
-                    Confirm
-                  </ActionBtn>
-                )}
                 {(appt.status === "booked" ||
                   appt.status === "confirmed" ||
                   appt.status === "no_show") && (
-                  <ActionBtn primary onClick={() => setStatus("checked_in")}>
+                  <NextStep onClick={() => setStatus("checked_in")}>
                     Check in
-                  </ActionBtn>
+                  </NextStep>
                 )}
                 {appt.status === "checked_in" && (
-                  <>
-                    <ActionBtn primary onClick={openCheckout}>
-                      Check out
+                  <NextStep onClick={openCheckout}>Check out</NextStep>
+                )}
+              </div>
+
+              {/* Grouped and ordered by what she's actually doing: correcting
+                  the record, changing when it happens, or setting up the next
+                  one. A flat row made her read all eight to find the one. */}
+              <div className="mt-3 divide-y divide-foreground/10 border-y border-foreground/10">
+                <ActionGroup label="Status" show>
+                  {appt.status === "booked" && (
+                    <ActionBtn onClick={() => setStatus("confirmed")}>
+                      Confirm
                     </ActionBtn>
+                  )}
+                  {appt.status === "checked_in" && (
                     <ActionBtn onClick={() => setStatus("confirmed")}>
                       Undo check-in
                     </ActionBtn>
-                  </>
-                )}
-                {(appt.status === "checked_out" ||
-                  appt.status === "completed") && (
-                  <>
-                    <ActionBtn onClick={openCheckout}>Edit payment</ActionBtn>
-                    <ActionBtn onClick={() => setStatus("checked_in")}>
-                      Undo check-out
-                    </ActionBtn>
-                  </>
-                )}
-                {appt.status !== "checked_out" &&
-                  appt.status !== "completed" && (
-                    <ActionBtn
-                      onClick={() => {
-                        // Start from the current appointment time. This used to
-                        // clear the field: desktop renders an empty
-                        // datetime-local as typable mm/dd/yyyy slots, but iOS
-                        // renders it as effectively nothing, so Reschedule
-                        // looked broken on her phone.
-                        setWhen(salonDateTimeLocal(appt.starts_at));
-                        setMode("reschedule");
-                      }}
-                    >
-                      Reschedule
-                    </ActionBtn>
                   )}
-                <ActionBtn onClick={() => setMode("rebook")}>Rebook</ActionBtn>
-                {appt.status !== "checked_out" &&
-                  appt.status !== "completed" &&
-                  appt.status !== "cancelled" && (
-                    <ActionBtn onClick={openTiming}>Timing</ActionBtn>
+                  {settled && (
+                    <>
+                      <ActionBtn onClick={openCheckout}>Edit payment</ActionBtn>
+                      <ActionBtn onClick={() => setStatus("checked_in")}>
+                        Undo check-out
+                      </ActionBtn>
+                    </>
                   )}
-                {/* One-tap guard for the common case: she wants this gap back. */}
-                {effectiveSegments(appt).process > 0 &&
-                  appt.status !== "checked_out" &&
-                  appt.status !== "completed" && (
+                </ActionGroup>
+
+                <ActionGroup label="When" show={!settled}>
+                  <ActionBtn
+                    onClick={() => {
+                      // Start from the current appointment time. This used to
+                      // clear the field: desktop renders an empty
+                      // datetime-local as typable mm/dd/yyyy slots, but iOS
+                      // renders it as effectively nothing, so Reschedule looked
+                      // broken on her phone.
+                      setWhen(salonDateTimeLocal(appt.starts_at));
+                      setMode("reschedule");
+                    }}
+                  >
+                    Reschedule
+                  </ActionBtn>
+                  {appt.status !== "cancelled" && (
+                    <ActionBtn onClick={openTiming}>Adjust timing</ActionBtn>
+                  )}
+                  {/* One-tap guard for the common case: she wants this gap back. */}
+                  {effectiveSegments(appt).process > 0 && (
                     <ActionBtn
                       onClick={() => toggleBlockGap(!appt.block_processing)}
                     >
@@ -816,43 +830,63 @@ export default function ApptDetailModal({
                         : "Block processing"}
                     </ActionBtn>
                   )}
-                {appt.status !== "no_show" &&
-                  appt.status !== "checked_out" &&
-                  appt.status !== "completed" && (
-                    <ActionBtn onClick={() => setStatus("no_show")}>
-                      No-show
-                    </ActionBtn>
-                  )}
-                {appt.status !== "cancelled" &&
-                  appt.status !== "checked_out" &&
-                  appt.status !== "completed" &&
-                  (confirmCancel ? (
-                    // Cancelling frees the slot and drops the client off the
-                    // day — too destructive for a single mistaken tap on a
-                    // phone, where these buttons sit close together.
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted">
-                        Cancel this appointment?
-                      </span>
-                      <ActionBtn
-                        danger
-                        onClick={() => {
-                          setConfirmCancel(false);
-                          setStatus("cancelled");
-                        }}
-                      >
-                        Yes, cancel it
-                      </ActionBtn>
-                      <ActionBtn onClick={() => setConfirmCancel(false)}>
-                        Keep it
-                      </ActionBtn>
-                    </span>
-                  ) : (
-                    <ActionBtn danger onClick={() => setConfirmCancel(true)}>
-                      Cancel
-                    </ActionBtn>
-                  ))}
+                </ActionGroup>
+
+                <ActionGroup label="Next" show>
+                  <ActionBtn onClick={() => setMode("rebook")}>
+                    Book her again
+                  </ActionBtn>
+                </ActionGroup>
               </div>
+
+              {/* The two she rarely means to press, kept apart from the rest
+                  and quiet — on a phone these used to sit a thumb's width from
+                  "Check in". */}
+              {(canNoShow || canCancel) && (
+                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-foreground/10 pt-3 text-xs">
+                  {canNoShow && (
+                    <button
+                      onClick={() => setStatus("no_show")}
+                      className="text-muted transition hover:text-accent-dark"
+                    >
+                      Mark no-show
+                    </button>
+                  )}
+                  {canCancel &&
+                    (confirmCancel ? (
+                      // Cancelling frees the slot and drops the client off the
+                      // day — too destructive for a single mistaken tap.
+                      <span className="flex flex-wrap items-center gap-3">
+                        <span className="text-muted">
+                          Cancel this appointment?
+                        </span>
+                        <button
+                          onClick={() => {
+                            setConfirmCancel(false);
+                            setStatus("cancelled");
+                          }}
+                          className="font-medium text-[#8f3f4a] underline decoration-[#8f3f4a]/40 underline-offset-4"
+                        >
+                          Yes, cancel it
+                        </button>
+                        <button
+                          onClick={() => setConfirmCancel(false)}
+                          className="text-muted transition hover:text-foreground"
+                        >
+                          Keep it
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmCancel(true)}
+                        className="text-muted transition hover:text-[#8f3f4a]"
+                      >
+                        Cancel appointment
+                      </button>
+                    ))}
+                </div>
+              )}
+            </>
             )}
               </div>
 
@@ -1015,6 +1049,52 @@ export function RebookForm({
   );
 }
 
+// A labelled row of related actions. The label sits in a fixed column so the
+// actions line up down the left across every group, and a group with nothing to
+// show doesn't leave an empty heading behind.
+function ActionGroup({
+  label,
+  show,
+  children,
+}: {
+  label: string;
+  show?: boolean;
+  children: React.ReactNode;
+}) {
+  const items = Children.toArray(children).filter(Boolean);
+  if (!show || items.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 py-2.5 text-xs">
+      <span className="w-14 shrink-0 uppercase tracking-wider text-muted">
+        {label}
+      </span>
+      {items}
+    </div>
+  );
+}
+
+// The one thing she opened this appointment to do. Full width, because at any
+// point in the lifecycle there is exactly one of these and it shouldn't have to
+// be found among the others.
+function NextStep({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark"
+    >
+      {children}
+    </button>
+  );
+}
+
+// Everything she sometimes does: underlined text rather than an outlined box,
+// so a row of them reads as a list of options instead of a wall of buttons.
 function ActionBtn({
   children,
   onClick,
@@ -1029,12 +1109,10 @@ function ActionBtn({
   return (
     <button
       onClick={onClick}
-      className={`rounded-md border px-3 py-1 transition ${
-        primary
-          ? "border-accent bg-accent text-white hover:bg-accent-dark"
-          : danger
-            ? "border-accent-dark/30 text-accent-dark hover:bg-accent/5"
-            : "border-foreground/15 hover:border-accent hover:text-accent"
+      className={`underline decoration-accent/50 underline-offset-4 transition hover:decoration-accent ${
+        primary || danger
+          ? "font-medium text-accent-dark"
+          : "text-foreground hover:text-accent-dark"
       }`}
     >
       {children}
