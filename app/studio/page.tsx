@@ -477,12 +477,17 @@ function Appointments({
     <div>
       {months.map((m) => (
         <section key={m.label} className="mt-6 first:mt-0">
-          <h3 className="mb-2 text-xs uppercase tracking-[0.15em] text-muted">
-            {m.label}
-            <span className="ml-2 normal-case tracking-normal">
-              {m.items.length}
+          {/* Month left, count right, with the rule between them doing the
+              separating — a number butted against the year read as part of it. */}
+          <div className="mb-2 flex items-baseline gap-3">
+            <h3 className="text-xs uppercase tracking-[0.15em] text-muted">
+              {m.label}
+            </h3>
+            <span className="h-px flex-1 bg-foreground/10" />
+            <span className="text-xs tabular-nums text-muted">
+              {m.items.length} appointment{m.items.length === 1 ? "" : "s"}
             </span>
-          </h3>
+          </div>
           <div className="overflow-hidden rounded-xl border border-foreground/15 bg-white">
             {m.items.map((a, i) => (
               <button
@@ -600,26 +605,42 @@ function Hours() {
 
   if (loading) return <p className="text-muted">Loading hours…</p>;
 
+  const openDays = rows.filter((r) => r.open).length;
+
   return (
     <div>
-      <p className="text-muted">
-        Set your weekly working hours. Clients can only book inside these times.
+      <h2 className="font-display text-2xl leading-none sm:text-3xl">
+        Your week
+      </h2>
+      <p className="mt-2 text-sm text-muted">
+        Clients can only book inside these times.{" "}
+        <span className="tabular-nums">{openDays}</span> day
+        {openDays === 1 ? "" : "s"} open.
       </p>
-      <div className="mt-6 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+
+      <div className="mt-5 overflow-hidden rounded-xl border border-foreground/15 bg-white">
         {rows.map((r, i) => (
           <div
             key={WEEKDAYS[i]}
-            className={`flex flex-wrap items-center gap-3 px-4 py-3 ${
+            style={{
+              // Open days carry a sage edge, closed ones stay bare — the week's
+              // shape reads down the left before any of the text does.
+              boxShadow: r.open ? "inset 4px 0 0 #647f5a" : undefined,
+            }}
+            className={`flex flex-wrap items-center gap-3 py-3 pl-5 pr-4 transition ${
               i > 0 ? "border-t border-foreground/10" : ""
-            }`}
+            } ${r.open ? "" : "bg-background/40"}`}
           >
-            <label className="flex w-32 items-center gap-2">
+            <label className="flex w-36 shrink-0 items-center gap-2.5">
               <input
                 type="checkbox"
                 checked={r.open}
                 onChange={(e) => update(i, { open: e.target.checked })}
+                className="h-4 w-4 accent-[#647f5a]"
               />
-              <span>{WEEKDAYS[i]}</span>
+              <span className={r.open ? "font-medium" : "text-muted"}>
+                {WEEKDAYS[i]}
+              </span>
             </label>
             {r.open ? (
               <div className="flex items-center gap-2 text-sm">
@@ -627,28 +648,34 @@ function Hours() {
                   type="time"
                   value={r.start}
                   onChange={(e) => update(i, { start: e.target.value })}
-                  className="input w-auto"
+                  className="input w-auto tabular-nums"
                 />
                 <span className="text-muted">to</span>
                 <input
                   type="time"
                   value={r.end}
                   onChange={(e) => update(i, { end: e.target.value })}
-                  className="input w-auto"
+                  className="input w-auto tabular-nums"
                 />
               </div>
             ) : (
-              <span className="text-sm text-muted">Closed</span>
+              <span className="text-sm uppercase tracking-wider text-muted">
+                Closed
+              </span>
             )}
           </div>
         ))}
       </div>
+
       {error && <ErrorNote>{error}</ErrorNote>}
-      <div className="mt-6 flex items-center gap-4">
+
+      {/* Sticky, because a seven-row form on a phone puts Save below the fold
+          and nothing here saves itself. */}
+      <div className="sticky bottom-0 mt-5 flex items-center gap-4 bg-background/90 py-3 backdrop-blur">
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-md bg-accent px-8 py-3 text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="rounded-md bg-accent px-6 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save hours"}
         </button>
@@ -671,6 +698,10 @@ function formatBlock(b: Block) {
 }
 
 function TimeOff() {
+  // Read once on mount rather than on every render — "is this block over?"
+  // doesn't need to be accurate to the millisecond, and calling the clock
+  // during render makes the component impure.
+  const [mountedAt] = useState(() => Date.now());
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -733,14 +764,17 @@ function TimeOff() {
 
   return (
     <div>
-      <p className="text-muted">
-        Block off a single day or a whole stretch — e.g. closed until
-        September. Clients can&apos;t book during blocked dates.
+      <h2 className="font-display text-2xl leading-none sm:text-3xl">
+        Time off
+      </h2>
+      <p className="mt-2 text-sm text-muted">
+        A single day or a whole stretch — a holiday, a course, closed until
+        September. Clients can&apos;t book across blocked dates.
       </p>
 
       <form
         onSubmit={add}
-        className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-foreground/10 bg-white p-5"
+        className="mt-5 flex flex-wrap items-end gap-3 rounded-xl border border-foreground/15 bg-white p-5"
       >
         <label className="block">
           <span className="mb-1 block text-sm">From</span>
@@ -804,7 +838,7 @@ function TimeOff() {
         </label>
         <button
           type="submit"
-          className="rounded-md bg-accent px-6 py-3 text-white transition hover:bg-accent-dark"
+          className="rounded-md bg-accent px-6 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark"
         >
           Add
         </button>
@@ -812,32 +846,54 @@ function TimeOff() {
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+      <div className="mt-6 flex items-baseline gap-3">
+        <h3 className="text-xs uppercase tracking-[0.15em] text-muted">
+          Blocked
+        </h3>
+        <span className="h-px flex-1 bg-foreground/10" />
+        {!loading && blocks.length > 0 && (
+          <span className="text-xs tabular-nums text-muted">
+            {blocks.length}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-2 overflow-hidden rounded-xl border border-foreground/15 bg-white">
         {loading && <p className="px-4 py-3 text-muted">Loading…</p>}
         {!loading && blocks.length === 0 && (
-          <p className="px-4 py-3 text-muted">No time off scheduled.</p>
+          <p className="px-4 py-6 text-sm text-muted">
+            Nothing blocked. Every day inside your hours is bookable.
+          </p>
         )}
-        {blocks.map((b, i) => (
-          <div
-            key={b.id}
-            className={`flex items-center justify-between px-4 py-3 ${
-              i > 0 ? "border-t border-foreground/10" : ""
-            }`}
-          >
-            <span className="text-sm">
-              {formatBlock(b)}
-              {b.reason && (
-                <span className="ml-2 text-muted">· {b.reason}</span>
-              )}
-            </span>
-            <button
-              onClick={() => remove(b.id)}
-              className="text-sm text-muted hover:text-accent-dark"
+        {blocks.map((b, i) => {
+          // Past blocks are history, not plans — they stay visible so she can
+          // see what she took, but they stop competing with what's coming.
+          const over = new Date(b.ends_at).getTime() < mountedAt;
+          return (
+            <div
+              key={b.id}
+              style={{ boxShadow: over ? undefined : "inset 4px 0 0 #bd8f45" }}
+              className={`flex items-center justify-between gap-3 py-3 pl-5 pr-4 ${
+                i > 0 ? "border-t border-foreground/10" : ""
+              } ${over ? "bg-background/40" : ""}`}
             >
-              Remove
-            </button>
-          </div>
-        ))}
+              <span className="min-w-0 text-sm">
+                <span className={over ? "text-muted" : "font-medium"}>
+                  {formatBlock(b)}
+                </span>
+                {b.reason && (
+                  <span className="ml-2 text-muted">{b.reason}</span>
+                )}
+              </span>
+              <button
+                onClick={() => remove(b.id)}
+                className="shrink-0 text-sm text-muted transition hover:text-accent-dark"
+              >
+                Remove
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
