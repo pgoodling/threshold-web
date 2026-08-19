@@ -187,7 +187,7 @@ export default function HairNotes({
       <section>
         <div className="flex items-baseline gap-3">
           <h3 className="text-xs uppercase tracking-[0.15em] text-muted">
-            From her
+            From the client
           </h3>
           <span className="h-px flex-1 bg-foreground/10" />
           {latest && (
@@ -212,7 +212,7 @@ export default function HairNotes({
                 <p className="pl-2 text-sm">
                   <span className="font-medium">This one may run long.</span>{" "}
                   <span className="text-muted">
-                    She has {flag} hair — worth checking the time you&apos;ve
+                    {flag} hair — worth checking the time you&apos;ve
                     allowed.
                   </span>
                 </p>

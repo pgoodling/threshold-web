@@ -12,6 +12,13 @@
 const TZ = "America/New_York";
 const ACCENT = "#bd6b4d";
 
+// Absolute, because an email has no origin to resolve a relative link against.
+// Vercel sets VERCEL_PROJECT_PRODUCTION_URL, but the custom domain is what a
+// client should see in a link, so that's the default rather than the fallback.
+const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://threshold.salon"
+).replace(/\/$/, "");
+
 export type SendResult =
   | { ok: true; id: string }
   | { ok: false; reason: "unconfigured" | "error"; detail?: string };
@@ -103,6 +110,8 @@ type ApptEmail = {
   service: string;
   startsAt: string;
   kind: "confirmation" | "reminder";
+  /** Appointment id, so the mail can link to the hair-notes form. */
+  appointmentId?: string | null;
 };
 
 export function appointmentEmail({
@@ -110,6 +119,7 @@ export function appointmentEmail({
   service,
   startsAt,
   kind,
+  appointmentId,
 }: ApptEmail) {
   const when = longWhen(startsAt);
   const hi = `Hi ${firstName},`;
@@ -127,6 +137,17 @@ export function appointmentEmail({
       ? `You're booked — ${service}, ${when}`
       : `Reminder: ${service} on ${when}`;
 
+  // The hair-notes form, in both the confirmation and the reminder. The
+  // reminder is arguably the better of the two: the day before is when someone
+  // actually thinks to photograph their roots.
+  const notesUrl = appointmentId
+    ? `${SITE_URL}/hair-notes/${appointmentId}`
+    : null;
+  const notesLead =
+    kind === "confirmation"
+      ? "One optional extra: tell Evelyn about your hair before you come in — a minute of questions and a photo or two means your appointment is spent on your hair rather than on questions."
+      : "Not filled in your hair notes yet? There's still time — it helps Evelyn have everything ready for you.";
+
   const text = `${hi}
 
 ${lead}
@@ -135,7 +156,7 @@ ${service}
 ${when}
 
 ${tail}
-
+${notesUrl ? `\n${notesLead}\n${notesUrl}\n` : ""}
 — Evelyn
 Threshold — Studio by Evelyn
 (937) 936-2138`;
@@ -150,6 +171,16 @@ Threshold — Studio by Evelyn
       </td></tr>
     </table>
     <p style="margin:20px 0 0 0;">${esc(tail)}</p>
+    ${
+      notesUrl
+        ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;border-top:1px solid #e6ddd6;">
+      <tr><td style="padding:20px 0 0 0;">
+        <p style="margin:0 0 14px 0;color:#6b5d56;">${esc(notesLead)}</p>
+        <a href="${esc(notesUrl)}" style="display:inline-block;background:${ACCENT};color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:6px;font-weight:600;">Tell Evelyn about my hair</a>
+      </td></tr>
+    </table>`
+        : ""
+    }
     <p style="margin:24px 0 0 0;">&mdash; Evelyn</p>
   `);
 

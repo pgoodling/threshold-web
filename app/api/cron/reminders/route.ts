@@ -99,6 +99,7 @@ async function run() {
         service: serviceName,
         startsAt: appt.starts_at as string,
         kind: "reminder",
+        appointmentId: appt.id as string,
       });
       const res = await sendEmail({ to: client.email, subject, html, text });
       if (res.ok) {

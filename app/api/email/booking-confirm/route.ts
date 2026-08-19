@@ -72,6 +72,7 @@ export async function POST(req: Request) {
     service: service?.name ?? "your appointment",
     startsAt: appt.starts_at as string,
     kind: "confirmation",
+    appointmentId: appt.id as string,
   });
 
   const res = await sendEmail({ to: client.email, subject, html, text });

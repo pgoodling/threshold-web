@@ -834,7 +834,7 @@ export default function ApptDetailModal({
 
                 <ActionGroup label="Next" show>
                   <ActionBtn onClick={() => setMode("rebook")}>
-                    Book her again
+                    Book again
                   </ActionBtn>
                 </ActionGroup>
               </div>

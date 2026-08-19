@@ -98,7 +98,7 @@ export default function HairNotesForm({
       <div className="mx-auto max-w-lg px-6 py-20 text-center">
         <h1 className="font-display text-3xl">Thank you</h1>
         <p className="mt-3 text-muted">
-          Evelyn will read this before you come in. See you soon.
+          Evelyn will read this before your appointment. See you soon.
         </p>
         <Link href="/" className="mt-8 inline-block text-accent-dark underline decoration-accent underline-offset-4">
           Back to the website

@@ -673,7 +673,7 @@ function ClientDetail({
             {/* Her formula — the thing she actually mixes, as text. */}
             <div className="flex flex-wrap items-center gap-3 border-t border-foreground/10 px-4 py-4 sm:px-6">
               <p className="text-xs uppercase tracking-wide text-muted">
-                Her formula
+                Formula
               </p>
               {c.hair_formula ? (
                 <>
@@ -721,7 +721,7 @@ function ClientDetail({
           <p className="text-sm">
             {weeksSince != null &&
               `${Math.round(weeksSince)} weeks since her last visit`}
-            {gap && ` — she usually comes every ${Math.round(gap)}.`}
+            {gap && ` — usually every ${Math.round(gap)} weeks.`}
           </p>
           <a
             href={`sms:${c.phone}?&body=${encodeURIComponent(
@@ -729,7 +729,7 @@ function ClientDetail({
             )}`}
             className="mt-2 inline-flex text-sm font-medium text-accent-dark underline decoration-accent underline-offset-4 hover:decoration-accent-dark"
           >
-            Send her a win-back text
+            Send a win-back text
           </a>
           {/* "Not yet" needs somewhere to go, or the only way to stop the
               nagging is to book her or ignore it forever. */}
@@ -762,7 +762,7 @@ function ClientDetail({
             onClick={() => snooze(0)}
             className="text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
           >
-            Wake her up
+            Wake them up
           </button>
         </div>
       )}
@@ -1218,7 +1218,7 @@ function ClientForm({
 
       {/* Color / formula — what she mixes, named back to her as she types. */}
       <div className="rounded-xl border border-foreground/10 bg-background p-4">
-        <span className="mb-2 block text-sm">Her color / formula</span>
+        <span className="mb-2 block text-sm">Color / formula</span>
         <div className="flex flex-wrap items-center gap-3">
           <input
             className="input w-28 font-mono"
