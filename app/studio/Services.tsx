@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
+import WebsiteServices from "./WebsiteServices";
 import {
   DndContext,
   closestCenter,
@@ -212,7 +213,56 @@ function draftToRow(d: Draft) {
   };
 }
 
+// Two lists that look alike and aren't.
+//
+// Booking is the engine: durations, deposits, categories, the timings the
+// calendar and the overlap rules depend on. Renaming one rewrites appointment
+// history.
+//
+// Website is the shop window: longer copy, "from $105" rather than a real price,
+// and the freedom to advertise something she doesn't take online bookings for.
+//
+// They were one hardcoded array and one table, silently drifting apart. Tabbing
+// them makes the difference something she can see rather than something she has
+// to remember.
 export default function Services() {
+  const [area, setArea] = useState<"booking" | "website">("booking");
+
+  return (
+    <div>
+      <div className="flex gap-5 border-b border-foreground/15">
+        {(
+          [
+            ["booking", "Booking"],
+            ["website", "Website"],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setArea(k)}
+            className={`-mb-px border-b-2 pb-2 text-sm transition ${
+              area === k
+                ? "border-accent font-medium text-accent-dark"
+                : "border-transparent text-muted hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <p className="mt-3 text-sm text-muted">
+        {area === "booking"
+          ? "What clients can book, with the timings and deposits your calendar runs on."
+          : "What the website says you do. Changing this doesn't touch bookings — it updates threshold.salon within a few minutes."}
+      </p>
+
+      {area === "booking" ? <BookingServices /> : <WebsiteServices />}
+    </div>
+  );
+}
+
+function BookingServices() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,44 +1,33 @@
 import OpeningCountdown from "./OpeningCountdown";
 import MobileNav from "./MobileNav";
+import { supabase } from "../lib/supabase";
 
-const services: { name: string; description: string; price?: string }[] = [
-  {
-    name: "Custom Highlights",
-    description:
-      "Balayage, foils, and lived-in dimension, from a soft rooted blonde to bright, blended highlights that grow out beautifully — including seamless gray blending.",
-    price: "from $105",
-  },
-  {
-    name: "Custom Color",
-    description:
-      "All-over color, root touch-ups, and glosses with gentle, professional-grade formulas that protect the integrity of your hair.",
-    price: "from $90",
-  },
-  {
-    name: "Cut and Style",
-    description:
-      "A precision cut shaped to your hair type, texture, and lifestyle, finished with a look you can actually recreate at home.",
-    price: "from $55",
-  },
-  {
-    name: "Treatments",
-    description:
-      "Deep conditioning, bond-building, and scalp care, customized to your hair's needs to restore strength and shine and keep it healthy between visits.",
-    price: "from $35",
-  },
-  {
-    name: "Blowouts",
-    description:
-      "A smooth, voluminous finish for events, date nights, or any day you want to feel put together.",
-    price: "from $45",
-  },
-  {
-    name: "Men's Cuts",
-    description:
-      "Clean, tailored cuts and styling for men, from classic tapers to relaxed, low-maintenance looks.",
-    price: "from $50",
-  },
-];
+type SiteService = {
+  id: string;
+  name: string;
+  description: string;
+  price_label: string | null;
+};
+
+// The service list comes from the database now, so Evelyn can change what the
+// website says without a deploy. It's her `site_services` table, edited under
+// Services → Website — deliberately not the bookable services, which carry
+// durations and deposits and can't be reworded without touching her calendar.
+//
+// Re-rendered at most every five minutes rather than on every visit: her edits
+// appear while she's still at the screen, and a busy day doesn't turn into a
+// database query per visitor.
+export const revalidate = 300;
+
+async function getSiteServices(): Promise<SiteService[]> {
+  const { data } = await supabase
+    .from("site_services")
+    .select("id,name,description,price_label")
+    .eq("active", true)
+    .order("sort_order");
+  return (data ?? []) as SiteService[];
+}
+
 
 const hours = [
   ["Monday", "9am – 7pm"],
@@ -67,7 +56,9 @@ const gallery = [
   { src: "/clients/dana.jpg", alt: "Warm blonde balayage with long waves by Evelyn" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const services = await getSiteServices();
+
   return (
     <main className="flex-1">
       {/* Navigation */}
@@ -152,14 +143,14 @@ export default function Home() {
           <div className="mt-10 grid gap-8 sm:grid-cols-2">
             {services.map((service) => (
               <div
-                key={service.name}
+                key={service.id}
                 className="rounded-2xl border border-foreground/10 p-6"
               >
                 <div className="flex items-baseline justify-between gap-4">
                   <h3 className="font-display text-xl">{service.name}</h3>
-                  {service.price && (
+                  {service.price_label && (
                     <span className="whitespace-nowrap text-sm text-accent">
-                      {service.price}
+                      {service.price_label}
                     </span>
                   )}
                 </div>
