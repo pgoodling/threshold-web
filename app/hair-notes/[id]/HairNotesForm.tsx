@@ -138,7 +138,7 @@ export default function HairNotesForm({
 
       <div className="mt-8 grid gap-7">
         <ChoiceRow
-          label="What's your hair like?"
+          label="Hair type"
           options={HAIR_TYPE}
           value={hairType}
           onChange={setHairType}
