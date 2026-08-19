@@ -104,8 +104,13 @@ export default function ClientMessages({
     (m) => m.direction === "inbound" && !m.read_at,
   ).length;
 
-  // Oldest first, so it reads like a conversation.
-  const ordered = [...lines].reverse();
+  // Newest at the top, older pushed down.
+  //
+  // A chat app puts the newest at the bottom because it scrolls itself there.
+  // This sits inside a page that doesn't, so oldest-first meant scrolling past
+  // a year of history to find what just arrived — the one thing she opened the
+  // client to read.
+  const ordered = compact ? [...lines].reverse() : lines;
 
   return (
     <div className={compact ? "mt-4" : "mt-6"}>
@@ -125,6 +130,25 @@ export default function ClientMessages({
           </Button>
         )}
       </div>
+
+      {/* Above the thread, because the thread runs newest-first — a reply box
+          under a year of history would never be on screen. */}
+      {!compact && phone && (
+        <div className="mt-3 flex items-end gap-2">
+          <textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            rows={2}
+            placeholder="Type a reply…"
+            className="input flex-1"
+          />
+          <Button onClick={send} disabled={sending || !reply.trim()}>
+            {sending ? "Sending…" : "Send"}
+          </Button>
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-sm text-accent-dark">{error}</p>}
 
       {lines.length === 0 ? (
         <p className="mt-2 text-sm text-muted">
@@ -167,23 +191,6 @@ export default function ClientMessages({
               </div>
             );
           })}
-        </div>
-      )}
-
-      {error && <p className="mt-2 text-sm text-accent-dark">{error}</p>}
-
-      {!compact && phone && (
-        <div className="mt-3 flex items-end gap-2">
-          <textarea
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            rows={2}
-            placeholder="Type a reply…"
-            className="input flex-1"
-          />
-          <Button onClick={send} disabled={sending || !reply.trim()}>
-            {sending ? "Sending…" : "Send"}
-          </Button>
         </div>
       )}
     </div>

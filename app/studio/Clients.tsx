@@ -129,9 +129,14 @@ function viewFor(c: Client, agg: Agg | undefined): View {
 export default function Clients({
   initialClientId,
   onOpened,
+  cameFrom,
+  onGoBack,
 }: {
   initialClientId?: string | null;
   onOpened?: () => void;
+  /** Where she was when she tapped through — "Messages", "Tasks", "Calendar". */
+  cameFrom?: string | null;
+  onGoBack?: () => void;
 }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [aggs, setAggs] = useState<Map<string, Agg>>(new Map());
@@ -232,9 +237,12 @@ export default function Clients({
     return (
       <ClientDetail
         client={selected}
+        backLabel={cameFrom ?? undefined}
         onBack={() => {
           setSelected(null);
           load();
+          // Send her back where she came from, not to a list she never saw.
+          if (cameFrom && onGoBack) onGoBack();
         }}
       />
     );
@@ -428,12 +436,25 @@ type Visit = {
   services: { name: string } | null;
 };
 
-function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }) {
+function ClientDetail({
+  client,
+  onBack,
+  backLabel,
+}: {
+  client: Client;
+  onBack: () => void;
+  backLabel?: string;
+}) {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [c, setC] = useState<Client>(client);
   const [booking, setBooking] = useState(false);
+  // Conversation leads: when she opens a client it's usually because someone
+  // said something.
+  const [pane, setPane] = useState<"conversation" | "appointments" | "tasks">(
+    "conversation",
+  );
   const [openId, setOpenId] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
 
@@ -529,8 +550,11 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
 
   return (
     <div>
+      {/* Back where she came from. Arriving from Messages and being offered
+          only "All clients" left her stranded — the way out was the browser's
+          Back button, which on an installed app she may not have. */}
       <Button variant="ghost" onClick={onBack}>
-        ← All clients
+        ← {backLabel ?? "All clients"}
       </Button>
 
       {error && <ErrorNote>{error}</ErrorNote>}
@@ -665,43 +689,70 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
         </div>
       )}
 
-      {/* Her conversation lives on her record, the way a CRM keeps it — the
-          Messages tab is the inbox, this is the thread. */}
-      <ClientMessages clientId={client.id} phone={c.phone} />
-
-      <ClientTasks clientId={client.id} />
-
-      {/* Visit history */}
-      <div className="mt-6">
-        <h3 className="font-display text-lg">Appointments</h3>
+      {/* Three sections that used to stack, so opening one pushed the others
+          off the screen — and a long conversation pushed everything below it
+          out of reach entirely. They're tabs now: one at a time, in a fixed
+          place, whatever their length. */}
+      <div className="mt-6 flex gap-5 border-b border-foreground/15">
+        {(
+          [
+            ["conversation", "Conversation"],
+            ["appointments", "Appointments"],
+            ["tasks", "Tasks"],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setPane(k)}
+            className={`-mb-px border-b-2 pb-2 text-sm transition ${
+              pane === k
+                ? "border-accent font-medium text-accent-dark"
+                : "border-transparent text-muted hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {booking && (
-        <div className="mt-3 rounded-2xl border border-accent/30 bg-white p-5">
-          <NewAppointment
-            clientId={client.id}
-            onDone={() => {
-              setBooking(false);
-              loadVisits();
-            }}
-          />
-        </div>
+      {pane === "conversation" && (
+        <ClientMessages clientId={client.id} phone={c.phone} />
       )}
 
-      {upcoming.length > 0 && (
-        <div className="mt-4">
-          <p className="text-xs uppercase tracking-wide text-muted">Upcoming</p>
-          <VisitList visits={upcoming} onSelect={setOpenId} />
-        </div>
+      {pane === "tasks" && <ClientTasks clientId={client.id} />}
+
+      {pane === "appointments" && (
+        <>
+          {booking && (
+            <div className="mt-4 rounded-xl border border-foreground/15 bg-white p-5">
+              <NewAppointment
+                clientId={client.id}
+                onDone={() => {
+                  setBooking(false);
+                  loadVisits();
+                }}
+              />
+            </div>
+          )}
+
+          {upcoming.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs uppercase tracking-wide text-muted">
+                Upcoming
+              </p>
+              <VisitList visits={upcoming} onSelect={setOpenId} />
+            </div>
+          )}
+          <div className="mt-4">
+            <p className="text-xs uppercase tracking-wide text-muted">History</p>
+            {past.length === 0 ? (
+              <p className="mt-2 text-sm text-muted">No past visits.</p>
+            ) : (
+              <VisitList visits={past} onSelect={setOpenId} />
+            )}
+          </div>
+        </>
       )}
-      <div className="mt-4">
-        <p className="text-xs uppercase tracking-wide text-muted">History</p>
-        {past.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">No past visits.</p>
-        ) : (
-          <VisitList visits={past} onSelect={setOpenId} />
-        )}
-      </div>
 
       {openId && (
         <ApptDetailModal

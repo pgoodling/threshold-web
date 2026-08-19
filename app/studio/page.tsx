@@ -29,7 +29,13 @@ import {
   LogOut,
   type LucideIcon,
 } from "lucide-react";
-import { salonWallToISO, dayKey, dateLabel, timeLabel } from "../../lib/format";
+import {
+  salonWallToISO,
+  dayKey,
+  dateLabel,
+  timeLabel,
+  serviceEdge,
+} from "../../lib/format";
 
 const TZ = "America/New_York";
 const WEEKDAYS = [
@@ -178,7 +184,7 @@ const TABS: [Tab, string, LucideIcon][] = [
   ["tasks", "Tasks", ListChecks],
   ["messages", "Messages", MessageSquare],
   ["calendar", "Calendar", CalendarIcon],
-  ["appointments", "List", ListIcon],
+  ["appointments", "Appointments", ListIcon],
   ["clients", "Clients", Users],
   ["services", "Services", Scissors],
   ["reports", "Reports", BarChart3],
@@ -252,7 +258,11 @@ function Dashboard() {
       clearInterval(t);
     };
   }, [tab]);
+  // Remember where she was, so the client card can offer a way back there
+  // rather than only "All clients" — a list she may never have been looking at.
+  const [cameFrom, setCameFrom] = useState<Tab | null>(null);
   const goToClient = (id: string) => {
+    setCameFrom(tab === "clients" ? null : tab);
     setPendingClient(id);
     setTab("clients");
     window.history.pushState(null, "", `#clients/${id}`);
@@ -387,6 +397,16 @@ function Dashboard() {
             <Clients
               initialClientId={pendingClient}
               onOpened={() => setPendingClient(null)}
+              cameFrom={
+                cameFrom
+                  ? (TABS.find(([k]) => k === cameFrom)?.[1] ?? null)
+                  : null
+              }
+              onGoBack={() => {
+                const back = cameFrom;
+                setCameFrom(null);
+                if (back) select(back);
+              }}
             />
           )}
           {tab === "services" && <Services />}
@@ -439,22 +459,55 @@ function Appointments({
   if (appts.length === 0)
     return <p className="text-muted">No upcoming appointments.</p>;
 
+  // Grouped by month, because a flat run of a hundred appointments gives no
+  // sense of where "next week" ends and "November" begins.
+  const months: { label: string; items: Appt[] }[] = [];
+  for (const a of appts) {
+    const label = new Intl.DateTimeFormat("en-US", {
+      timeZone: TZ,
+      month: "long",
+      year: "numeric",
+    }).format(new Date(a.starts_at));
+    const last = months[months.length - 1];
+    if (last?.label === label) last.items.push(a);
+    else months.push({ label, items: [a] });
+  }
+
   return (
-    <div className="overflow-hidden rounded-xl border border-foreground/15 bg-white">
-      {appts.map((a, i) => (
-        <button
-          key={a.id}
-          onClick={() => setOpenId(a.id)}
-          className={`flex w-full flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-left transition hover:bg-background/60 ${i > 0 ? "border-t border-foreground/10" : ""}`}
-        >
-          <span className="font-medium">
-            {a.clients?.full_name ?? "Unknown"}
-            <span className="ml-2 text-sm font-normal text-muted">
-              {a.services?.name}
+    <div>
+      {months.map((m) => (
+        <section key={m.label} className="mt-6 first:mt-0">
+          <h3 className="mb-2 text-xs uppercase tracking-[0.15em] text-muted">
+            {m.label}
+            <span className="ml-2 normal-case tracking-normal">
+              {m.items.length}
             </span>
-          </span>
-          <span className="text-sm text-accent">{whenLabel(a.starts_at)}</span>
-        </button>
+          </h3>
+          <div className="overflow-hidden rounded-xl border border-foreground/15 bg-white">
+            {m.items.map((a, i) => (
+              <button
+                key={a.id}
+                onClick={() => setOpenId(a.id)}
+                style={{
+                  boxShadow: `inset -3px 0 0 ${serviceEdge(a.services?.name)}`,
+                }}
+                className={`flex w-full flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-left transition hover:bg-background/60 ${
+                  i > 0 ? "border-t border-foreground/10" : ""
+                }`}
+              >
+                <span className="font-medium">
+                  {a.clients?.full_name ?? "Unknown"}
+                  <span className="ml-2 text-sm font-normal text-muted">
+                    {a.services?.name}
+                  </span>
+                </span>
+                <span className="text-sm tabular-nums text-accent">
+                  {whenLabel(a.starts_at)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
       ))}
       {openId && (
         <ApptDetailModal
