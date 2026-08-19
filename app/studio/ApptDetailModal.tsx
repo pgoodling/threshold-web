@@ -474,7 +474,7 @@ export default function ApptDetailModal({
               </button>
             </div>
 
-            <ClientMessages clientId={appt.client_id} />
+            <ClientMessages clientId={appt.client_id} compact />
 
             <div className="mt-4">
               <p className="text-xs uppercase tracking-wide text-muted">

@@ -380,7 +380,7 @@ function Dashboard() {
             />
           )}
           {tab === "tasks" && <Tasks onOpenClient={goToClient} />}
-          {tab === "messages" && <Messages />}
+          {tab === "messages" && <Messages onOpenClient={goToClient} />}
           {tab === "calendar" && <Calendar onOpenClient={goToClient} />}
           {tab === "appointments" && <Appointments onOpenClient={goToClient} />}
           {tab === "clients" && (

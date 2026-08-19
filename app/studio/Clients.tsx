@@ -16,6 +16,7 @@ import {
   money,
   statusLabel,
   statusBlockColor,
+  serviceEdge,
 } from "../../lib/format";
 import {
   clientState,
@@ -27,6 +28,7 @@ import {
 } from "../../lib/clientState";
 import { formulaName } from "../../lib/hair";
 import ApptDetailModal from "./ApptDetailModal";
+import ClientMessages from "./ClientMessages";
 import Rail from "./Rail";
 import Button from "./Button";
 import ActionStrip, { type Action } from "./ActionStrip";
@@ -240,93 +242,108 @@ export default function Clients({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted">
-          {clients.length} client{clients.length === 1 ? "" : "s"}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl leading-none sm:text-3xl">
+            Her book
+          </h2>
+          <p className="mt-2 text-sm text-muted">
+            {clients.length} client{clients.length === 1 ? "" : "s"}
+          </p>
+        </div>
         <Button variant="quiet" onClick={() => setAdding(true)}>
           + Add client
         </Button>
       </div>
 
-      {/* The book at a glance. Overdue leads, because that's the work — and
-          each tile is also the filter for that state. */}
-      {!loading && views.length > 0 && (
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {BOOK_TILES.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setStageFilter(t.key)}
-              className={`flex items-stretch overflow-hidden rounded-xl border bg-white text-left transition ${
-                stageFilter === t.key
-                  ? "border-accent"
-                  : "border-foreground/10 hover:border-accent/40"
-              }`}
-            >
-              {t.state ? (
-                <Rail state={t.state} width={4} />
-              ) : (
-                <span className="w-1 shrink-0 self-stretch bg-foreground/10" />
-              )}
-              <span className="min-w-0 px-3 py-2">
-                <span className="block text-xl font-medium leading-none">
-                  {counts[t.key] ?? 0}
+      {/* One object, not four floating ones: the counts, the search and the
+          book itself share a single border, divided by hairlines. A stack of
+          separately-bordered boxes with gaps between them reads as a pile of
+          lozenges however the corners are rounded — the same mistake the month
+          grid was making. */}
+      <div className="mt-5 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+        {!loading && views.length > 0 && (
+          <div className="grid grid-cols-5">
+            {BOOK_TILES.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setStageFilter(t.key)}
+                className={`flex items-stretch border-l border-foreground/10 text-left transition first:border-l-0 ${
+                  stageFilter === t.key
+                    ? "bg-accent/5"
+                    : "hover:bg-background/60"
+                }`}
+              >
+                {t.state ? (
+                  <Rail state={t.state} width={3} />
+                ) : (
+                  <span className="w-[3px] shrink-0 self-stretch bg-foreground/15" />
+                )}
+                <span className="min-w-0 px-2 py-2.5 sm:px-3">
+                  <span className="block text-lg font-medium leading-none tabular-nums sm:text-xl">
+                    {counts[t.key] ?? 0}
+                  </span>
+                  <span className="mt-1 block truncate text-[10px] uppercase tracking-wider text-muted">
+                    {t.label}
+                  </span>
                 </span>
-                <span className="mt-1 block text-[11px] uppercase tracking-wide text-muted">
-                  {t.label}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
+              </button>
+            ))}
+          </div>
+        )}
 
-      <input
-        className="input mt-4"
-        placeholder="Search by name, email, or phone…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
+        <input
+          className="w-full border-t border-foreground/10 bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted focus:bg-background/50"
+          placeholder="Search by name, email, or phone…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
 
-      {error && <ErrorNote>{error}</ErrorNote>}
+        {adding && (
+          <div className="border-t border-foreground/10 bg-background/50 p-5">
+            <p className="mb-4 font-medium">New client</p>
+            <ClientForm
+              initial={{
+                full_name: "",
+                email: "",
+                phone: "",
+                birthday: "",
+                hair_formula: "",
+                notes: "",
+              }}
+              serviceName={null}
+              submitLabel="Add client"
+              onCancel={() => setAdding(false)}
+              onSubmit={async (vals) => {
+                const { error } = await saveClient("insert", vals);
+                if (error) {
+                  setError(error.message);
+                  return false;
+                }
+                setAdding(false);
+                load();
+                return true;
+              }}
+            />
+          </div>
+        )}
 
-      {adding && (
-        <div className="mt-4 rounded-2xl border border-accent/30 bg-white p-5">
-          <p className="mb-4 font-medium">New client</p>
-          <ClientForm
-            initial={{
-              full_name: "",
-              email: "",
-              phone: "",
-              birthday: "",
-              hair_formula: "",
-              notes: "",
-            }}
-            serviceName={null}
-            submitLabel="Add client"
-            onCancel={() => setAdding(false)}
-            onSubmit={async (vals) => {
-              const { error } = await saveClient("insert", vals);
-              if (error) {
-                setError(error.message);
-                return false;
-              }
-              setAdding(false);
-              load();
-              return true;
-            }}
-          />
-        </div>
-      )}
+        {error && (
+          <p className="border-t border-foreground/10 px-4 py-3 text-sm text-accent-dark">
+            {error}
+          </p>
+        )}
 
-      {loading ? (
-        <p className="mt-6 text-muted">Loading clients…</p>
-      ) : shown.length === 0 ? (
-        <p className="mt-6 text-muted">
-          {clients.length === 0 ? "No clients yet." : "No matches."}
-        </p>
-      ) : (
-        <div className="mt-4 grid gap-2">
+        {loading ? (
+          <p className="border-t border-foreground/10 px-4 py-6 text-muted">
+            Loading clients…
+          </p>
+        ) : shown.length === 0 ? (
+          <p className="border-t border-foreground/10 px-4 py-6 text-muted">
+            {clients.length === 0 ? "No clients yet." : "No matches."}
+          </p>
+        ) : (
+          <div>
           {shown.map((v) => {
             const meta =
               v.agg.upcomingCount > 0 && v.agg.nextStart
@@ -338,7 +355,7 @@ export default function Clients({
               <button
                 key={v.c.id}
                 onClick={() => setSelected(v.c)}
-                className="flex items-stretch overflow-hidden rounded-xl border border-foreground/10 bg-white text-left transition hover:border-accent"
+                className="flex w-full items-stretch border-t border-foreground/10 text-left transition hover:bg-background/60"
               >
                 <Rail
                   state={v.state}
@@ -346,12 +363,12 @@ export default function Clients({
                   width={5}
                 />
                 <span className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
-                  <Avatar name={v.c.full_name} />
+                  <Avatar name={v.c.full_name} size={34} />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">
                       {v.c.full_name}
                     </span>
-                    <span className="mt-0.5 block truncate text-xs uppercase tracking-wider text-muted">
+                    <span className="mt-0.5 block truncate text-[11px] uppercase tracking-wider text-muted">
                       {STATE_LABEL[v.state]}
                       {v.weeks != null && ` · ${Math.round(v.weeks)}w`}
                     </span>
@@ -363,8 +380,9 @@ export default function Clients({
               </button>
             );
           })}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -647,6 +665,10 @@ function ClientDetail({ client, onBack }: { client: Client; onBack: () => void }
         </div>
       )}
 
+      {/* Her conversation lives on her record, the way a CRM keeps it — the
+          Messages tab is the inbox, this is the thread. */}
+      <ClientMessages clientId={client.id} phone={c.phone} />
+
       <ClientTasks clientId={client.id} />
 
       {/* Visit history */}
@@ -711,25 +733,37 @@ function VisitList({
   visits: Visit[];
   onSelect: (id: string) => void;
 }) {
+  // One surface with hairline dividers and a status rail per row — the same
+  // shape as the client list, rather than a stack of separately-bordered cards.
   return (
-    <div className="mt-2 grid gap-2">
-      {visits.map((v) => (
+    <div className="mt-2 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+      {visits.map((v, i) => (
         <button
           key={v.id}
           onClick={() => onSelect(v.id)}
-          className="flex w-full items-center justify-between rounded-xl border border-foreground/10 bg-white px-4 py-3 text-left text-sm transition hover:border-accent"
+          className={`flex w-full items-stretch text-left text-sm transition hover:bg-background/60 ${
+            i > 0 ? "border-t border-foreground/10" : ""
+          }`}
         >
-          <span>{v.services?.name ?? "Service"}</span>
-          <span className="text-muted">
-            {whenLabel(v.starts_at)}
-            {v.status !== "booked" && v.status !== "confirmed" && (
-              <span
-                className="ml-2 text-[11px] uppercase tracking-wider"
-                style={{ color: statusBlockColor(v.status)?.bg ?? "#6f5c52" }}
-              >
-                {statusLabel(v.status)}
-              </span>
-            )}
+          <Rail
+            color={
+              statusBlockColor(v.status)?.bg ?? serviceEdge(v.services?.name)
+            }
+            width={4}
+          />
+          <span className="flex flex-1 items-center justify-between gap-3 px-4 py-3">
+            <span className="truncate">{v.services?.name ?? "Service"}</span>
+            <span className="shrink-0 whitespace-nowrap text-muted">
+              {whenLabel(v.starts_at)}
+              {v.status !== "booked" && v.status !== "confirmed" && (
+                <span
+                  className="ml-2 text-[11px] uppercase tracking-wider"
+                  style={{ color: statusBlockColor(v.status)?.bg ?? "#6f5c52" }}
+                >
+                  {statusLabel(v.status)}
+                </span>
+              )}
+            </span>
           </span>
         </button>
       ))}
@@ -813,11 +847,13 @@ function ClientTasks({ clientId }: { clientId: string }) {
       </form>
 
       {tasks.length > 0 && (
-        <div className="mt-3 grid gap-2">
-          {tasks.map((t) => (
+        <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+          {tasks.map((t, i) => (
             <div
               key={t.id}
-              className="flex items-center gap-3 rounded-xl border border-foreground/10 bg-white px-4 py-3"
+              className={`flex items-center gap-3 px-4 py-3 ${
+                i > 0 ? "border-t border-foreground/10" : ""
+              }`}
             >
               <button
                 onClick={() => complete(t.id)}

@@ -32,7 +32,18 @@ type Convo = {
   lastAt: string;
 };
 
-export default function Messages() {
+// The inbox, not the archive.
+//
+// Most CRMs keep the conversation on the record it belongs to, and that's the
+// right instinct here: a client's texts are part of her file, alongside her
+// formula and her visits. So tapping a known client opens her profile, where the
+// running conversation lives. Only numbers we can't match to anyone open a
+// thread here, because there's no record to put them on.
+export default function Messages({
+  onOpenClient,
+}: {
+  onOpenClient?: (clientId: string) => void;
+}) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,11 +170,14 @@ export default function Messages() {
           )}
         </div>
 
-        <div className="mt-4 grid gap-2">
+        {/* A flex column with per-bubble alignment, and words that break.
+            The old grid let a long unbroken string — a phone number, a link —
+            push a bubble past its max width and the whole page with it. */}
+        <div className="mt-4 flex w-full flex-col gap-2 overflow-x-hidden">
           {open.list.map((m) => (
             <div
               key={m.id}
-              className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${
+              className={`max-w-[85%] break-words rounded-xl px-4 py-2 text-sm ${
                 m.direction === "inbound"
                   ? "self-start bg-foreground/5 text-foreground"
                   : "self-end bg-accent text-white"
@@ -228,29 +242,48 @@ export default function Messages() {
           </span>
         )}
       </div>
-      <div className="mt-4 grid gap-2">
-        {convos.map((c) => {
+      {/* One surface with hairline dividers, and an accent rail on anything
+          unread — the same shape as the client list. */}
+      <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+        {convos.map((c, i) => {
           const last = c.list[c.list.length - 1];
           return (
             <button
               key={c.key}
-              onClick={() => openConvo(c)}
-              className="flex w-full items-center gap-3 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-left transition hover:border-accent"
+              onClick={() =>
+                c.clientId && onOpenClient
+                  ? onOpenClient(c.clientId)
+                  : openConvo(c)
+              }
+              className={`flex w-full items-stretch text-left transition hover:bg-background/60 ${
+                i > 0 ? "border-t border-foreground/10" : ""
+              }`}
             >
-              <span className="font-medium">{c.name}</span>
-              {c.unread > 0 && (
-                <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
-              )}
-              <span className="ml-auto flex max-w-[45%] items-center gap-1.5 truncate text-sm text-muted">
-                {last.kind === "voicemail" && (
-                  <Mic className="h-3.5 w-3.5 shrink-0 text-accent" />
-                )}
-                {last.kind === "missed_call" && (
-                  <PhoneMissed className="h-3.5 w-3.5 shrink-0 text-accent" />
-                )}
-                <span className="truncate">
-                  {last.direction === "outbound" && "You: "}
-                  {last.body}
+              <span
+                aria-hidden="true"
+                className="w-1 shrink-0 self-stretch"
+                style={{
+                  background: c.unread > 0 ? "var(--accent)" : "transparent",
+                }}
+              />
+              <span className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{c.name}</span>
+                  <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                    {last.kind === "voicemail" && (
+                      <Mic className="h-3 w-3 shrink-0" />
+                    )}
+                    {last.kind === "missed_call" && (
+                      <PhoneMissed className="h-3 w-3 shrink-0" />
+                    )}
+                    <span className="truncate">
+                      {last.direction === "outbound" && "You: "}
+                      {last.body}
+                    </span>
+                  </span>
+                </span>
+                <span className="ml-auto shrink-0 whitespace-nowrap text-xs text-muted">
+                  {c.unread > 0 ? `${c.unread} new` : whenLabel(c.lastAt)}
                 </span>
               </span>
             </button>

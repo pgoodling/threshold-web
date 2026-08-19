@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { whenLabel } from "../../lib/format";
 import VoicemailPlayer from "./VoicemailPlayer";
+import Button from "./Button";
 
-// What this client has said recently, shown on the appointment detail.
+// The running conversation with this client, on her own record.
 //
-// The Messages tab is where she goes to have a conversation. This is for the
-// other moment: she's opened an appointment to check the time or the formula,
-// and needs to know — without going looking — that the client texted "running
-// 10 late" an hour ago, or left a voicemail asking to bring her daughter.
+// This is where a CRM keeps it: her texts, voicemails and missed calls belong in
+// her file next to her formula and her visits, not in a separate inbox she has
+// to cross-reference. The Messages tab is the list of what still wants a reply;
+// this is the conversation itself.
 //
-// Deliberately does not mark anything read. She's glancing at an appointment,
-// not answering; clearing the badge from here would hide a message she hasn't
-// dealt with yet.
+// On the appointment detail it stays collapsed to the last few lines, because
+// she opened an appointment, not a conversation.
 
 type Line = {
   id: string;
@@ -28,14 +28,23 @@ type Line = {
   recording_seconds: number | null;
 };
 
-const LIMIT = 3;
-
-export default function ClientMessages({ clientId }: { clientId: string }) {
+export default function ClientMessages({
+  clientId,
+  phone,
+  /** Collapsed to the last few lines, read-only — for the appointment detail. */
+  compact = false,
+}: {
+  clientId: string;
+  phone?: string | null;
+  compact?: boolean;
+}) {
   const [lines, setLines] = useState<Line[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
+  const load = useCallback(() => {
     supabase
       .from("messages")
       .select(
@@ -43,66 +52,140 @@ export default function ClientMessages({ clientId }: { clientId: string }) {
       )
       .eq("client_id", clientId)
       .order("created_at", { ascending: false })
-      .limit(LIMIT)
+      .limit(compact ? 3 : 200)
       .then(({ data }) => {
-        if (!active) return;
         setLines((data ?? []) as unknown as Line[]);
         setLoaded(true);
       });
-    return () => {
-      active = false;
-    };
-  }, [clientId]);
+  }, [clientId, compact]);
 
-  // Nothing to say is the common case — stay out of the way entirely rather
-  // than adding an empty heading to every appointment she opens.
-  if (!loaded || lines.length === 0) return null;
+  useEffect(load, [load]);
+
+  async function markRead() {
+    const unread = lines
+      .filter((m) => m.direction === "inbound" && !m.read_at)
+      .map((m) => m.id);
+    if (!unread.length) return;
+    await supabase
+      .from("messages")
+      .update({ read_at: new Date().toISOString() })
+      .in("id", unread);
+    load();
+  }
+
+  async function send() {
+    if (!phone || !reply.trim()) return;
+    setSending(true);
+    setError(null);
+    const { data: sess } = await supabase.auth.getSession();
+    const res = await fetch("/api/sms/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+      },
+      body: JSON.stringify({ to: phone, body: reply.trim(), clientId }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setSending(false);
+    if (!res.ok) {
+      setError(json.error || "Couldn't send the text.");
+      return;
+    }
+    setReply("");
+    load();
+  }
+
+  // Nothing said yet is the common case on the appointment detail — stay out of
+  // the way rather than adding an empty heading to every appointment she opens.
+  if (!loaded || (compact && lines.length === 0)) return null;
+
+  const unreadCount = lines.filter(
+    (m) => m.direction === "inbound" && !m.read_at,
+  ).length;
+
+  // Oldest first, so it reads like a conversation.
+  const ordered = [...lines].reverse();
 
   return (
-    <div className="mt-4">
-      <p className="text-xs uppercase tracking-wide text-muted">
-        Recent messages
-      </p>
-      <div className="mt-2 grid gap-1.5">
-        {/* Oldest first, so it reads like a conversation. */}
-        {[...lines].reverse().map((m) => {
-          const unread = m.direction === "inbound" && !m.read_at;
-          return (
-            <div
-              key={m.id}
-              style={{
-                borderLeftColor:
-                  m.direction === "outbound"
-                    ? "#e8e0d6"
-                    : unread
-                      ? "#a32d2d"
-                      : "#c9b8a8",
-                borderLeftWidth: 3,
-              }}
-              className="rounded-lg bg-foreground/[0.03] px-3 py-2"
-            >
-              {m.kind === "voicemail" && m.recording_sid && (
-                <VoicemailPlayer
-                  sid={m.recording_sid}
-                  seconds={m.recording_seconds}
-                />
-              )}
-              <p className="text-sm">
-                {m.direction === "outbound" && (
-                  <span className="text-muted">You: </span>
-                )}
-                {m.body}
-              </p>
-              <p className="mt-0.5 flex items-center gap-1 text-[11px] text-muted">
-                {m.kind === "voicemail" && <Mic className="h-3 w-3" />}
-                {m.kind === "missed_call" && <PhoneMissed className="h-3 w-3" />}
-                {whenLabel(m.created_at)}
-                {unread && <span className="text-accent-dark">· unread</span>}
-              </p>
-            </div>
-          );
-        })}
+    <div className={compact ? "mt-4" : "mt-6"}>
+      <div className="flex items-baseline justify-between gap-3">
+        <h3
+          className={
+            compact
+              ? "text-xs uppercase tracking-wide text-muted"
+              : "font-display text-lg"
+          }
+        >
+          {compact ? "Recent messages" : "Conversation"}
+        </h3>
+        {!compact && unreadCount > 0 && (
+          <Button variant="quiet" onClick={markRead}>
+            Mark {unreadCount} read
+          </Button>
+        )}
       </div>
+
+      {lines.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">
+          Nothing yet. Texts and voicemails from her number land here.
+        </p>
+      ) : (
+        <div className="mt-2 flex w-full flex-col gap-2 overflow-x-hidden">
+          {ordered.map((m) => {
+            const unread = m.direction === "inbound" && !m.read_at;
+            return (
+              <div
+                key={m.id}
+                className={`max-w-[85%] break-words rounded-xl px-3.5 py-2 text-sm ${
+                  m.direction === "inbound"
+                    ? "self-start bg-foreground/5"
+                    : "self-end bg-accent text-white"
+                }`}
+                style={
+                  unread
+                    ? { boxShadow: "inset 3px 0 0 var(--accent)" }
+                    : undefined
+                }
+              >
+                {m.kind === "voicemail" && m.recording_sid && (
+                  <VoicemailPlayer
+                    sid={m.recording_sid}
+                    seconds={m.recording_seconds}
+                  />
+                )}
+                <p>{m.body}</p>
+                <p
+                  className={`mt-0.5 flex items-center gap-1 text-[11px] ${
+                    m.direction === "inbound" ? "text-muted" : "text-white/70"
+                  }`}
+                >
+                  {m.kind === "voicemail" && <Mic className="h-3 w-3" />}
+                  {m.kind === "missed_call" && <PhoneMissed className="h-3 w-3" />}
+                  {whenLabel(m.created_at)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-sm text-accent-dark">{error}</p>}
+
+      {!compact && phone && (
+        <div className="mt-3 flex items-end gap-2">
+          <textarea
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            rows={2}
+            placeholder="Type a reply…"
+            className="input flex-1"
+          />
+          <Button onClick={send} disabled={sending || !reply.trim()}>
+            {sending ? "Sending…" : "Send"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
