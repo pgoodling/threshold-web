@@ -378,10 +378,22 @@ function BookingServices() {
       </p>
       {error && <ErrorNote>{error}</ErrorNote>}
 
-      {/* Above the list, not below it — with a full menu the old bottom button
-          meant scrolling past every service to add one. */}
+      {hasCategories && (
+        <CategoryManager
+          categories={categories}
+          services={services}
+          onChanged={() => {
+            loadCategories();
+            load();
+          }}
+          onError={setError}
+        />
+      )}
+
+      {/* Directly above the service list it adds to. It used to sit above the
+          categories block, which put it nowhere near the list it belonged to. */}
       {adding ? (
-        <div className="mt-6 rounded-2xl border border-accent/30 bg-white p-5">
+        <div className="mt-8 rounded-xl border border-accent/30 bg-white p-5">
           <p className="mb-4 font-medium">New service</p>
           <ServiceForm
             initial={emptyDraft}
@@ -395,22 +407,10 @@ function BookingServices() {
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="mt-6 rounded-md border border-foreground/15 px-6 py-3 text-sm transition hover:border-accent hover:text-accent"
+          className="mt-8 rounded-md border border-foreground/15 px-6 py-2.5 text-sm transition hover:border-accent hover:text-accent"
         >
           + Add service
         </button>
-      )}
-
-      {hasCategories && (
-        <CategoryManager
-          categories={categories}
-          services={services}
-          onChanged={() => {
-            loadCategories();
-            load();
-          }}
-          onError={setError}
-        />
       )}
 
       <DndContext
@@ -548,6 +548,27 @@ function CategoryManager({
         services&rdquo;.
       </p>
 
+      {/* Above its own list, matching the service list below — an add button at
+          the foot of a list means scrolling past everything to use it. */}
+      <form onSubmit={add} className="mt-4 flex flex-wrap items-end gap-2">
+        <label className="block flex-1">
+          <span className="mb-1 block text-sm">New category</span>
+          <input
+            className="input"
+            placeholder="e.g. Color"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={busy || !name.trim()}
+          className="rounded-md border border-foreground/15 px-5 py-2.5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
+        >
+          + Add category
+        </button>
+      </form>
+
       {categories.length > 0 && (
         <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
           {categories.map((c, i) => (
@@ -654,24 +675,6 @@ function CategoryManager({
         </div>
       )}
 
-      <form onSubmit={add} className="mt-4 flex flex-wrap items-end gap-2">
-        <label className="block flex-1">
-          <span className="mb-1 block text-sm">New category</span>
-          <input
-            className="input"
-            placeholder="e.g. Color"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={busy || !name.trim()}
-          className="rounded-md border border-foreground/15 px-5 py-2.5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
-        >
-          + Add category
-        </button>
-      </form>
     </div>
   );
 }
