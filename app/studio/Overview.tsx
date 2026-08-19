@@ -15,6 +15,7 @@ import {
   money,
 } from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
+import OpeningCountdown from "../OpeningCountdown";
 
 type TodayAppt = {
   id: string;
@@ -186,6 +187,8 @@ export default function Overview({
         </h1>
         <span className="text-sm text-muted">{dateLabel}</span>
       </div>
+
+      <OpeningCountdown compact />
 
       {hasAttention && (
         <div className="mt-5">

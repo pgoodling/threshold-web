@@ -1,3 +1,4 @@
+import OpeningCountdown from "./OpeningCountdown";
 import MobileNav from "./MobileNav";
 
 const services: { name: string; description: string; price?: string }[] = [
@@ -125,9 +126,7 @@ export default function Home() {
             alt=""
             className="mx-auto mb-2 w-56 sm:w-72"
           />
-          <p className="mb-4 text-sm uppercase tracking-[0.25em] text-accent">
-            Coming soon
-          </p>
+          <OpeningCountdown />
           <h1 className="font-display text-4xl leading-tight sm:text-6xl">
             Step over the threshold.
             <br />
