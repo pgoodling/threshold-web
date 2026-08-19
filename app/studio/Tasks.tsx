@@ -40,6 +40,28 @@ const RECURRENCE: [string, string][] = [
 
 const dayText = (d: string) => dateLabel(`${d}T12:00:00`);
 
+// Follow-ups first: something owed to a person outranks something owed to the
+// stockroom.
+const GROUPS: {
+  key: string;
+  label: string;
+  blurb: string;
+  match: (t: Task) => boolean;
+}[] = [
+  {
+    key: "followups",
+    label: "Follow-ups",
+    blurb: "someone to get back to",
+    match: (t) => !!t.client_id,
+  },
+  {
+    key: "salon",
+    label: "Salon",
+    blurb: "everything else",
+    match: (t) => !t.client_id,
+  },
+];
+
 // Compact date label for a task: a single day, a start→due range, or one side.
 function taskDates(t: Task): string {
   if (t.start_date && t.due_date)
@@ -243,50 +265,76 @@ function ToDos() {
 
           {error && <ErrorNote>{error}</ErrorNote>}
 
-          <div className="mt-4 overflow-hidden rounded-xl border border-foreground/15 bg-white">
-            {loading && <p className="px-4 py-3 text-muted">Loading…</p>}
-            {!loading && tasks.length === 0 && (
-              <p className="px-4 py-3 text-sm text-muted">Nothing on the list.</p>
-            )}
-            {tasks.map((t, i) => (
-              <div
-                key={t.id}
-                className={`flex items-center gap-3 px-4 py-3 ${
-                  i > 0 ? "border-t border-foreground/10" : ""
-                }`}
-              >
-                <button
-                  onClick={() => complete(t)}
-                  aria-label="Mark done"
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs hover:border-accent hover:text-accent"
-                >
-                  ✓
-                </button>
-                <span className="flex-1">
-                  {t.title}
-                  {t.clients && (
-                    <span className="ml-2 text-xs font-medium text-accent-dark">
-                      {t.clients.full_name}
-                    </span>
-                  )}
-                </span>
-                {t.recurrence !== "none" && (
-                  <span className="text-xs text-muted">
-                    {RECURRENCE.find(([v]) => v === t.recurrence)?.[1]}
+          {loading && <p className="mt-4 text-muted">Loading…</p>}
+          {!loading && tasks.length === 0 && (
+            <p className="mt-4 text-sm text-muted">Nothing on the list.</p>
+          )}
+
+          {/* Two groups, off client_id, with no category column behind them.
+              A task either belongs to a person or it doesn't, and those two
+              behave differently: one wants a name beside it and lives on her
+              card, the other is a shopping list. A type field would ask her to
+              answer a question the data already answers. */}
+          {GROUPS.map(({ key, label, blurb, match }) => {
+            const items = tasks.filter(match);
+            if (items.length === 0) return null;
+            return (
+              <section key={key} className="mt-6">
+                <div className="mb-2 flex items-baseline gap-2">
+                  <h4 className="text-xs uppercase tracking-[0.15em] text-muted">
+                    {label}
+                  </h4>
+                  <span className="text-xs tabular-nums text-muted">
+                    {items.length}
                   </span>
-                )}
-                {(t.start_date || t.due_date) && (
-                  <span className="text-sm text-muted">{taskDates(t)}</span>
-                )}
-                <button
-                  onClick={() => remove(t.id)}
-                  className="text-sm text-muted hover:text-accent-dark"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
+                  <span className="text-xs text-muted/70">{blurb}</span>
+                </div>
+                <div className="overflow-hidden rounded-xl border border-foreground/15 bg-white">
+                  {items.map((t, i) => (
+                    <div
+                      key={t.id}
+                      className={`flex items-center gap-3 px-4 py-3 ${
+                        i > 0 ? "border-t border-foreground/10" : ""
+                      }`}
+                    >
+                      <button
+                        onClick={() => complete(t)}
+                        aria-label="Mark done"
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
+                      >
+                        ✓
+                      </button>
+                      <span className="min-w-0 flex-1">
+                        {t.clients && (
+                          <span className="mr-2 font-medium text-accent-dark">
+                            {t.clients.full_name}
+                          </span>
+                        )}
+                        {t.title}
+                      </span>
+                      {t.recurrence !== "none" && (
+                        <span className="shrink-0 text-xs text-muted">
+                          {RECURRENCE.find(([v]) => v === t.recurrence)?.[1]}
+                        </span>
+                      )}
+                      {(t.start_date || t.due_date) && (
+                        <span className="shrink-0 text-sm text-muted">
+                          {taskDates(t)}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => remove(t.id)}
+                        aria-label="Delete"
+                        className="shrink-0 text-sm text-muted transition hover:text-accent-dark"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
         </>
       )}
     </div>
