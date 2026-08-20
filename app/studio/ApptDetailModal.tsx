@@ -1,7 +1,14 @@
 "use client";
 
 import { Children, useCallback, useEffect, useState } from "react";
-import { Mail, MessageSquare, Phone, Smartphone, User } from "lucide-react";
+import {
+  Link as LinkIcon,
+  Mail,
+  MessageSquare,
+  Phone,
+  Smartphone,
+  User,
+} from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
   salonWallToISO,
@@ -20,6 +27,7 @@ import AppointmentPhotos from "./AppointmentPhotos";
 import ClientMessages from "./ClientMessages";
 import Rail from "./Rail";
 import ActionStrip, { type Action } from "./ActionStrip";
+import { appointmentUrl } from "../../lib/policy";
 
 // One appointment detail, shown as a centered modal, used everywhere an
 // appointment is clicked (calendar, list, overview, client history).
@@ -114,6 +122,7 @@ export default function ApptDetailModal({
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const load = useCallback(() => {
     supabase
@@ -414,6 +423,20 @@ export default function ApptDetailModal({
     if (email) {
       contactActions.push({ label: "Email", icon: Mail, href: `mailto:${email}` });
     }
+    // The client's own page for this appointment: hair notes, the details, and
+    // cancelling. Until A2P clears, the automated confirmation can't send it —
+    // and it never reaches anyone she books over the phone. This opens her
+    // Messages app with the link written, so she can send it from her own
+    // number today.
+    if (phone) {
+      contactActions.push({
+        label: "Send link",
+        icon: LinkIcon,
+        href: `sms:${phone}?&body=${encodeURIComponent(
+          `Hi ${appt.clients?.full_name?.split(" ")[0] ?? "there"}, here's your appointment with everything in one place — you can add notes about your hair or change it here: ${appointmentUrl(appt.id)}`,
+        )}`,
+      });
+    }
     if (onOpenClient) {
       contactActions.push({
         label: "Profile",
@@ -477,6 +500,25 @@ export default function ApptDetailModal({
                 className="text-muted hover:text-accent"
               >
                 ✕
+              </button>
+            </div>
+
+            {/* Visible as well as sendable — she may want to paste it into a
+                text she's already writing, or read it out. */}
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-foreground/10 bg-background/50 px-3 py-2">
+              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">
+                {appointmentUrl(appt.id)}
+              </span>
+              <button
+                onClick={() => {
+                  navigator.clipboard
+                    ?.writeText(appointmentUrl(appt.id))
+                    .then(() => setCopied(true))
+                    .catch(() => setError("Couldn't copy that link."));
+                }}
+                className="shrink-0 text-xs text-accent-dark underline decoration-accent underline-offset-4"
+              >
+                {copied ? "Copied" : "Copy"}
               </button>
             </div>
 
