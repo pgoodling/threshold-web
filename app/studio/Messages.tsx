@@ -76,12 +76,38 @@ export default function Messages({
   async function setArchived(c: Convo, archived: boolean) {
     const ids = c.list.map((m) => m.id);
     if (!ids.length) return;
+    const now = new Date().toISOString();
+
     const { error } = await supabase
       .from("messages")
-      .update({ archived_at: archived ? new Date().toISOString() : null })
+      .update({ archived_at: archived ? now : null })
       .in("id", ids);
-    if (error) setError(error.message);
-    else load();
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    // Archiving is her saying she's dealt with it, so it marks read too.
+    //
+    // These were separate before, and separate is wrong: archiving from the
+    // list without opening the thread left read_at null, the badge counts
+    // unread, and the inbox hides archived — so the count stayed at 1 with
+    // nothing behind it to click. Unarchiving deliberately does NOT undo this;
+    // putting a thread back in the inbox shouldn't resurrect a notification for
+    // a message she's already seen.
+    if (archived) {
+      const unreadIds = c.list
+        .filter((m) => m.direction === "inbound" && !m.read_at)
+        .map((m) => m.id);
+      if (unreadIds.length) {
+        await supabase
+          .from("messages")
+          .update({ read_at: now })
+          .in("id", unreadIds);
+      }
+    }
+
+    load();
   }
   useEffect(load, [load]);
 

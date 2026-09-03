@@ -243,6 +243,12 @@ function Dashboard() {
 
   // Count of unread incoming texts, for the Messages tab badge. Refreshes on
   // tab change and every minute.
+  //
+  // Archived is excluded as well as read. Archiving marks read, so this is
+  // belt-and-braces — but the badge and the inbox disagreeing is what produced
+  // a permanent "1" with an empty inbox behind it, and the invariant worth
+  // holding is that nothing can be counted here which she can't reach by
+  // opening the tab.
   useEffect(() => {
     let active = true;
     const loadUnread = () =>
@@ -251,6 +257,7 @@ function Dashboard() {
         .select("id", { count: "exact", head: true })
         .eq("direction", "inbound")
         .is("read_at", null)
+        .is("archived_at", null)
         .then(({ count }) => {
           if (active) setUnread(count ?? 0);
         });

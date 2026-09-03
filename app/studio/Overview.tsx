@@ -137,6 +137,9 @@ export default function Overview({
         .select("id,body,created_at,kind,from_number,clients(full_name)")
         .eq("direction", "inbound")
         .is("read_at", null)
+        // Same filter as the tab badge. An archived thread has been dealt with;
+        // surfacing it here sent her to an inbox that no longer contained it.
+        .is("archived_at", null)
         .order("created_at", { ascending: false })
         .limit(NAMED_UNREAD),
       // Anything she meant to do by today and hasn't. A to-do that only exists
