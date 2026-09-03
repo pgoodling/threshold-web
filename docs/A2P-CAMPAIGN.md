@@ -64,17 +64,26 @@ Lovely — you're confirmed for Friday 1:00 PM. See you then! Threshold Salon (R
 Hi Sarah, it's Threshold Salon — we had you down for 1:00 PM. Are you still on your way? No rush, just let us know. (Reply STOP to opt out.)
 ```
 
-**5 — Reply from the stylist** *(sent by hand, in conversation)*
+**5 — Appointment change** *(sent by hand, from the studio)*
 
 ```
-Hi Sarah — I've got 2:00 on the 14th if that works better for you. Want me to move you across? — Evelyn, Threshold Salon (Reply STOP to opt out.)
+Hi Sarah, your Threshold appointment has moved to Thursday, Sept 4 at 2:00 PM. Reply here if that doesn't work for you. — Evelyn (Reply STOP to opt out.)
 ```
 
-Sample 5 was the one that failed. It is now a conversational reply, which is
-what the free-form send path in `app/api/sms/send/route.ts` actually produces,
-rather than anything promotional. Promotional traffic has its own consent
-checkbox and isn't being sent yet — don't describe it in a transactional
-campaign just because the field is there.
+### What failed last time
+
+Samples 2 and 5 in the submitted campaign had no opt-out line. Sample 5 —
+the late-arrival message — is the one the rejection named, but 2 would have
+failed the same check on the next pass. Both templates now carry it in code,
+so the samples and the live traffic can't disagree.
+
+The manual catch-up text is deliberately **not** in this list. It goes from
+Evelyn's personal handset, not the Twilio number, so it isn't A2P traffic at
+all and describing it here would misrepresent the campaign.
+
+Promotional messages are also absent on purpose. They have their own consent
+checkbox and none are being sent — don't describe a message type she doesn't
+send just because the field is there.
 
 ## Opt-out, help, and start
 

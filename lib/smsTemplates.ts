@@ -94,14 +94,24 @@ export function reminderText(opts: {
 //
 // This is the first text most of these people will ever get from the salon.
 // They booked weeks ago, off Instagram or in person, and have heard nothing
-// since — so it can't read like the third reminder in a sequence. It has four
-// jobs, in this order: say who's texting, give them a reason to keep the
-// number, confirm the specific appointment, and hand over the link.
+// since — so it can't read like the third reminder in a sequence. Three jobs,
+// in this order: say who's texting, confirm the specific appointment, hand over
+// the link.
 //
-// It goes from Evelyn's own phone, so length costs nothing. The automated
-// confirmation that replaces this once A2P clears is shorter on purpose —
-// that one is a receipt for something they did thirty seconds ago, and warmth
-// there reads as padding.
+// It goes from Evelyn's PERSONAL phone, not the salon number — the campaign
+// isn't approved, which is the whole reason this exists. So it must not tell
+// anyone this is the salon's number or ask them to save it: forty people would
+// file her personal cell under Threshold, and the real salon number would then
+// arrive as a stranger. It identifies her by name and leaves numbers alone.
+//
+// No STOP line either. This is one person texting another from a personal
+// handset — not an A2P message, and nothing is listening for the word. A warm
+// first message that ends in a compliance footer reads like a blast, which is
+// exactly what it isn't. The automated templates keep theirs.
+//
+// Length costs nothing here. The automated confirmation that replaces this once
+// A2P clears is shorter on purpose — that one is a receipt for something they
+// did thirty seconds ago, and warmth there reads as padding.
 export function welcomeConfirmText(opts: {
   clientName: string | null;
   service: string;
@@ -113,12 +123,11 @@ export function welcomeConfirmText(opts: {
   // "We open Monday" has to stop being true on Monday. After opening it's just
   // a confirmation, and the excitement moves to seeing them.
   const opening = beforeOpening(opts.now ?? new Date())
-    ? "We open Monday and I'm so glad you're already on the books."
-    : "So glad you're on the books.";
+    ? "we open Monday and I'm so glad you're already on the books."
+    : "so glad you're on the books.";
 
   const base =
-    `Hi ${firstName(opts.clientName)}! It's Evelyn — this is Threshold's ` +
-    `number now, so save it. ${opening} ` +
+    `Hi ${firstName(opts.clientName)}! It's Evelyn from Threshold — ${opening} ` +
     `You're booked for ${opts.service} on ${longWhen(opts.startsAt)}.`;
 
   const tail = opts.appointmentId
@@ -126,7 +135,7 @@ export function welcomeConfirmText(opts: {
       `${appointmentUrl(opts.appointmentId)}`
     : " Just reply here if you need anything.";
 
-  return `${base}${tail} (Reply STOP to opt out.)`;
+  return `${base}${tail}`;
 }
 
 // Sent when she's past her start time and hasn't arrived. Deliberately not
