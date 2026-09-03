@@ -45,10 +45,17 @@ export function reminderText(opts: {
   /** Changes the wording, not whether the link goes out. */
   hasNotes?: boolean;
 }): string {
+  // STOP on the reminder as well as the confirmation.
+  //
+  // House style was opt-out on the first message only, which is what CTIA
+  // actually requires — every message is belt-and-braces. But the campaign has
+  // already been rejected once, another cycle costs a fortnight, and a reviewer
+  // reading a sample in isolation can't see that the confirmation carried it.
+  // Not worth being right about.
   const base =
     `Hi ${firstName(opts.clientName)}, it's Threshold Salon — ` +
     `you're booked for ${opts.service} ${when(opts.startsAt)}. ` +
-    `Reply C to confirm.`;
+    `Reply C to confirm. (Reply STOP to opt out.)`;
 
   if (!opts.appointmentId) return base;
 
@@ -60,6 +67,29 @@ export function reminderText(opts: {
     ? "Change or cancel:"
     : "Tell me about your hair, or change it:";
   return `${base} ${why} ${appointmentUrl(opts.appointmentId)}`;
+}
+
+// The catch-up confirmation, sent by hand from the Texts screen.
+//
+// Everyone booked before texting worked never got a confirmation, so this is
+// the one-off sweep that fixes that. Worded as a confirmation rather than a
+// reminder — some of these appointments are weeks out, and "reminder" for
+// something in October reads as a mistake.
+export function confirmSweepText(opts: {
+  clientName: string | null;
+  service: string;
+  startsAt: string;
+  appointmentId?: string | null;
+}): string {
+  const base =
+    `Hi ${firstName(opts.clientName)}! It's Evelyn at Threshold Salon — ` +
+    `confirming you're booked for ${opts.service} ${when(opts.startsAt)}.`;
+
+  const tail = opts.appointmentId
+    ? ` Tell me about your hair, or change it: ${appointmentUrl(opts.appointmentId)}`
+    : " Reply here if you need anything.";
+
+  return `${base}${tail} (Reply STOP to opt out.)`;
 }
 
 // Sent when she's past her start time and hasn't arrived. Deliberately not
