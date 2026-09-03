@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { supabase } from "../../../lib/supabase";
+import { getAdminClient } from "../../../lib/supabaseAdmin";
 import CancelPanel from "./CancelPanel";
 import { CANCEL_NOTICE_HOURS } from "../../../lib/policy";
 
@@ -14,7 +14,14 @@ import { CANCEL_NOTICE_HOURS } from "../../../lib/policy";
 // confirmation: an unguessable v4 UUID. It shows what someone would already
 // know from their own confirmation, and the one destructive thing it can do —
 // cancelling — is bounded by the notice period and is theirs to do anyway.
-
+//
+// Which is exactly why it reads through the ADMIN client and not the anon one.
+// RLS on `appointments` grants `authenticated` and nobody else, so an anon read
+// returns no row and the page can't tell "wrong id" from "not allowed" — it
+// showed every client "That link has expired". The row is fetched server-side
+// and only the four fields below ever cross to the browser; the UUID in the URL
+// is the check, as documented above. Nothing here may be handed to a client
+// component beyond what's already rendered.
 export const dynamic = "force-dynamic";
 
 const UUID_RE =
@@ -27,6 +34,11 @@ export default async function AppointmentPage({
 }) {
   const { id } = await params;
   if (!UUID_RE.test(id)) return <Shell><Gone /></Shell>;
+
+  // Unconfigured is not the same as not-found: showing "expired" when the key
+  // is missing is how this went unnoticed in the first place.
+  const supabase = getAdminClient();
+  if (!supabase) return <Shell><Unavailable /></Shell>;
 
   const { data: appt } = await supabase
     .from("appointments")
@@ -144,6 +156,26 @@ export default async function AppointmentPage({
         </p>
       </div>
     </Shell>
+  );
+}
+
+// Something is wrong at our end, and saying so is better than blaming their
+// link for it.
+function Unavailable() {
+  return (
+    <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <h1 className="font-display text-3xl">We can&apos;t load this right now</h1>
+      <p className="mt-3 text-muted">
+        Something&apos;s wrong at our end, not with your link. Try again in a
+        few minutes, or reply to your text and Evelyn will sort it out.
+      </p>
+      <Link
+        href="/"
+        className="mt-6 inline-block text-accent underline underline-offset-4"
+      >
+        Back to the website
+      </Link>
+    </div>
   );
 }
 
