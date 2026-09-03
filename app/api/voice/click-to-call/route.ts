@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { toE164 } from "../../../../lib/phone";
 import { escapeXml } from "../../../../lib/twilioWebhook";
+import { SITE_URL } from "../../../../lib/policy";
 
 // Call a client FROM the salon number, without Evelyn's mobile ever showing.
 //
@@ -67,7 +68,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No phone number on file." }, { status: 400 });
   }
 
-  const target = toE164(client.phone);
+  const who = escapeXml((client.full_name ?? "your client").split(" ")[0]);
+
+  // A keypress before the client is dialled, and the reason is not politeness.
+  //
+  // Twilio can't tell Evelyn from Evelyn's voicemail — both "answer". Without a
+  // key to press, a call she missed would dial the client anyway, reach THEIR
+  // voicemail, and connect the two answerphones: their greeting recorded into
+  // her voicemail, and a missed call from the salon at the client's end. That
+  // is what happened the first time this was used for real. Voicemail can hear
+  // the prompt; it cannot press a key.
+  //
+  // Same guard the inbound path has had all along — see /api/voice/screen.
+  const action = `${SITE_URL}/api/voice/connect?clientId=${encodeURIComponent(clientId)}`;
 
   try {
     const call = await twilio(sid, token).calls.create({
@@ -75,11 +88,21 @@ export async function POST(req: Request) {
       // that this is the app connecting her, not a client calling in.
       to: toE164(owner),
       from,
-      // Leg 2, once she answers: dial the client as the salon.
+      // Shorter than a typical 25-second voicemail pickup, so most missed calls
+      // give up before the answerphone gets to them. The keypress covers the
+      // rest.
+      timeout: 20,
       twiml:
-        `<Response><Say voice="alice">Connecting you to ` +
-        `${escapeXml((client.full_name ?? "your client").split(" ")[0])}.</Say>` +
-        `<Dial callerId="${from}">${target}</Dial></Response>`,
+        `<Response>` +
+        `<Gather numDigits="1" timeout="10" action="${action}">` +
+        `<Say voice="Polly.Joanna">Threshold. Press any key to call ` +
+        `${who}.</Say>` +
+        `</Gather>` +
+        // Unreachable while the Gather has an action URL — a timeout posts
+        // there with no digits — but it drops the leg rather than leaving it
+        // open if anything goes wrong.
+        `<Hangup/>` +
+        `</Response>`,
     });
     return NextResponse.json({ sid: call.sid, status: call.status });
   } catch (e) {
