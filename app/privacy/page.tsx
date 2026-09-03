@@ -1,22 +1,30 @@
 import type { Metadata } from "next";
-import { SMS_CONSENT_TEXT, SMS_MARKETING_TEXT } from "../../lib/smsConsent";
 
-// Privacy policy + SMS terms.
+// The privacy policy: what we collect, who touches it, how long we keep it.
+//
+// It is NOT the messaging terms. Those are /terms, and the split matters —
+// A2P registration asks for both as separate URLs, so they have to be genuinely
+// different documents rather than one document served twice. The line between
+// them: this page answers "what happens to my information", /terms answers
+// "how does the texting program work". Anything about frequency, cost, or
+// opt-out keywords belongs there, not here.
 //
 // This page exists for two reasons. The obvious one: clients hand over a phone
 // number, a card, and photos of their hair, and deserve to be told what happens
 // to it. The less obvious one: A2P 10DLC campaign vetting runs automated
 // compliance checks against the business website, and a missing privacy policy
 // — specifically one stating that SMS opt-in data isn't sold or shared — is a
-// common rejection reason. The SMS section below is written to satisfy that.
+// common rejection reason. The messaging section below is written to satisfy
+// that, and the required sentence must stay on this page even though the rest
+// of the program details moved.
 //
 // Every claim here has to stay TRUE of the app. If data handling changes, this
 // changes with it.
 
 export const metadata: Metadata = {
-  title: "Privacy & SMS Terms · Threshold",
+  title: "Privacy Policy · Threshold",
   description:
-    "How Threshold — Studio by Evelyn handles your personal information, and the terms of our appointment text messages.",
+    "How Threshold — Studio by Evelyn collects, uses and protects your personal information.",
 };
 
 const UPDATED = "September 3, 2026";
@@ -56,7 +64,7 @@ export default function PrivacyPage() {
       </header>
 
       <div className="mx-auto max-w-3xl px-6 py-12 sm:py-16">
-        <h1 className="font-display text-4xl">Privacy &amp; text message terms</h1>
+        <h1 className="font-display text-4xl">Privacy policy</h1>
         <p className="mt-3 text-sm text-muted">Last updated {UPDATED}</p>
 
         <p className="mt-6 leading-relaxed text-muted">
@@ -110,35 +118,29 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <Section title="Text messages">
+        {/* This section covers what happens to your DATA. How the messaging
+            program itself works — the two opt-ins word for word, frequency,
+            cost, STOP/START/HELP — lives on /terms, and should stay there.
+            Both pages used to carry both halves, which made them read as
+            duplicates of each other and made a reworded sentence a two-file
+            change with a chance of them disagreeing. Vetting reads both, and
+            two pages that contradict each other is what it's looking for. */}
+        <Section title="Your phone number and text messages">
           <p>
-            Appointment texts are optional. You opt in by ticking the box at
-            booking, which reads:
-          </p>
-          <blockquote className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm">
-            {SMS_CONSENT_TEXT}
-          </blockquote>
-          <p>
-            If you don&rsquo;t tick it, we don&rsquo;t text you. You can book
-            either way &mdash; consent is not a condition of getting an
-            appointment. Full messaging terms are on our{" "}
+            Appointment texts are optional and you opt in by ticking a box when
+            you book &mdash; nothing is ticked for you, and consent is not a
+            condition of getting an appointment. Promotional texts are a{" "}
+            <strong className="text-foreground">separate</strong> box; agreeing
+            to one does not sign you up for the other. The exact wording of both,
+            along with message frequency, cost and how to stop, is on our{" "}
             <a href="/terms" className="text-accent hover:underline">
               text message terms
             </a>{" "}
             page.
           </p>
           <p>
-            There is a <strong className="text-foreground">separate</strong> box
-            for promotional texts &mdash; offers, and news from the salon:
-          </p>
-          <blockquote className="rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 text-sm">
-            {SMS_MARKETING_TEXT}
-          </blockquote>
-          <p>
-            The two are independent on purpose. Agreeing to appointment texts
-            does <strong className="text-foreground">not</strong> sign you up
-            for offers, and you can take either one without the other. Neither
-            is a condition of booking or of any purchase.
+            What we keep is your mobile number, which of the two you agreed to,
+            and the date you agreed.
           </p>
           {/* Worded to match what A2P vetting checks for, close to verbatim.
               The earlier version said the same thing in plainer English — "with
@@ -159,12 +161,9 @@ export default function PrivacyPage() {
             No mobile opt-in data is ever shared for marketing.
           </p>
           <p>
-            To stop receiving texts, reply <strong className="text-foreground">STOP</strong>{" "}
-            to any message and we&rsquo;ll stop immediately. Reply{" "}
-            <strong className="text-foreground">HELP</strong> for help, or just
-            call the salon. Message frequency varies with your appointments.
-            Message and data rates may apply. Carriers are not liable for
-            delayed or undelivered messages.
+            To stop receiving texts, reply{" "}
+            <strong className="text-foreground">STOP</strong> to any message and
+            we&rsquo;ll stop immediately, or just tell Evelyn.
           </p>
         </Section>
 
