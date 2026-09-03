@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     "How Threshold — Studio by Evelyn handles your personal information, and the terms of our appointment text messages.",
 };
 
-const UPDATED = "August 17, 2026";
+const UPDATED = "September 3, 2026";
 
 function Section({
   title,
@@ -86,7 +86,7 @@ export default function PrivacyPage() {
           </ul>
           <p>
             Over time Evelyn may also keep notes on your file that help her do
-            your hair well &mdash; your colour formula, your history of visits,
+            your hair well &mdash; your color formula, your history of visits,
             and your birthday if you share it.
           </p>
         </Section>
@@ -202,7 +202,7 @@ export default function PrivacyPage() {
         <Section title="How long we keep it">
           <p>
             We keep your client file while you&rsquo;re a client of the salon,
-            because your colour history and notes are what let Evelyn pick up
+            because your color history and notes are what let Evelyn pick up
             where she left off. Ask us to delete it and we will &mdash; though we
             may keep basic records of past payments where we&rsquo;re required
             to.

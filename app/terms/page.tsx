@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     "Terms for Threshold — Studio by Evelyn's appointment and promotional text messages: what we send, how to opt out, and how to get help.",
 };
 
-const UPDATED = "August 17, 2026";
+const UPDATED = "September 3, 2026";
 
 function Section({
   title,
