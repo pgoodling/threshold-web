@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Archive, ArchiveRestore, Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { messagesChanged } from "../../lib/messagesChanged";
 import { whenLabel, shortWhen } from "../../lib/format";
 import VoicemailPlayer from "./VoicemailPlayer";
 import Button from "./Button";
@@ -107,6 +108,7 @@ export default function Messages({
       }
     }
 
+    messagesChanged();
     load();
   }
   useEffect(load, [load]);
@@ -155,6 +157,7 @@ export default function Messages({
         .from("messages")
         .update({ read_at: new Date().toISOString() })
         .in("id", unreadIds);
+      messagesChanged();
       load();
     }
   }

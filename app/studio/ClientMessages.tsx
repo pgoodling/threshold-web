@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { messagesChanged } from "../../lib/messagesChanged";
 import { whenLabel } from "../../lib/format";
 import VoicemailPlayer from "./VoicemailPlayer";
 import Button from "./Button";
@@ -70,6 +71,9 @@ export default function ClientMessages({
       .from("messages")
       .update({ read_at: new Date().toISOString() })
       .in("id", unread);
+    // Reading a thread from the client card clears the shell badge too — the
+    // count doesn't care which screen she read it on.
+    messagesChanged();
     load();
   }
 

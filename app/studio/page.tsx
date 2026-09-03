@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
+import { onMessagesChanged } from "../../lib/messagesChanged";
 import Overview from "./Overview";
 import Tasks from "./Tasks";
 import Calendar from "./Calendar";
@@ -241,33 +242,41 @@ function Dashboard() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // Count of unread incoming texts, for the Messages tab badge. Refreshes on
-  // tab change and every minute.
+  // Count of unread incoming texts, for the Messages tab badge.
   //
   // Archived is excluded as well as read. Archiving marks read, so this is
   // belt-and-braces — but the badge and the inbox disagreeing is what produced
   // a permanent "1" with an empty inbox behind it, and the invariant worth
   // holding is that nothing can be counted here which she can't reach by
   // opening the tab.
-  useEffect(() => {
-    let active = true;
-    const loadUnread = () =>
+  const loadUnread = useCallback(
+    () =>
       supabase
         .from("messages")
         .select("id", { count: "exact", head: true })
         .eq("direction", "inbound")
         .is("read_at", null)
         .is("archived_at", null)
-        .then(({ count }) => {
-          if (active) setUnread(count ?? 0);
-        });
+        .then(({ count }) => setUnread(count ?? 0)),
+    [],
+  );
+
+  // Three clocks, in decreasing order of how often they matter.
+  //
+  // The event is the one that makes it feel right: archiving or reading a
+  // thread drops the badge immediately rather than up to a minute later, which
+  // is long enough for her to wonder whether it worked. The interval catches
+  // messages arriving while she's looking at something else. The tab change is
+  // free.
+  useEffect(() => {
     loadUnread();
     const t = setInterval(loadUnread, 60000);
+    const off = onMessagesChanged(loadUnread);
     return () => {
-      active = false;
       clearInterval(t);
+      off();
     };
-  }, [tab]);
+  }, [tab, loadUnread]);
   // Remember where she was, so the client card can offer a way back there
   // rather than only "All clients" — a list she may never have been looking at.
   const [cameFrom, setCameFrom] = useState<Tab | null>(null);
