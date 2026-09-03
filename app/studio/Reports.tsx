@@ -9,6 +9,7 @@ import {
   PAYMENT_METHODS,
   paymentLabel,
 } from "../../lib/format";
+import Ahead from "./Ahead";
 
 type Row = {
   id: string;
@@ -170,7 +171,18 @@ export default function Reports() {
       <h2 className="mb-4 font-display text-2xl leading-none sm:text-3xl">
         Reports
       </h2>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+
+      {/* Forward first. Everything below this line records what happened;
+          this is the only part of the screen she can still act on. It carries
+          its own horizon control and is deliberately NOT scoped by the range
+          buttons underneath — those look backwards. */}
+      <Ahead rows={rows} />
+
+      <div className="mt-10 border-t border-foreground/15 pt-8">
+        <h3 className="font-display text-lg">Looking back</h3>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">
           Revenue counts checked-out (paid) visits.
         </p>
