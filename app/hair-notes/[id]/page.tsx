@@ -1,4 +1,4 @@
-import { supabase } from "../../../lib/supabase";
+import { getAdminClient } from "../../../lib/supabaseAdmin";
 import HairNotesForm from "./HairNotesForm";
 
 // /hair-notes/<appointment-id>
@@ -12,6 +12,13 @@ import HairNotesForm from "./HairNotesForm";
 // because the page never READS anything sensitive back — RLS lets anon write
 // intake rows but not select them, so a leaked link can leave answers, not
 // retrieve someone else's.
+//
+// The greeting lookup goes through the ADMIN client, for the same reason
+// /appointment/[id] does: RLS on `appointments` and `clients` grants
+// `authenticated` and nobody else, so an anon read comes back empty and the
+// page can't tell "wrong id" from "not allowed". Every client got "That link
+// has expired". Only the first name and the appointment time cross to the
+// browser — the form writes as anon, and still can't read anyone's answers.
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +34,12 @@ export default async function HairNotesPage({
 
   if (!UUID_RE.test(id)) return <Shell><NotFound /></Shell>;
 
-  // Only to greet them by name and confirm the link is live. `clients` is
-  // readable here because the booking flow already needs it.
+  // Unconfigured is not not-found. Reporting our own missing key as their link
+  // expiring is how the same bug on /appointment went unnoticed for weeks.
+  const supabase = getAdminClient();
+  if (!supabase) return <Shell><Unavailable /></Shell>;
+
+  // Only to greet them by name and confirm the link is live.
   const { data: appt } = await supabase
     .from("appointments")
     .select("id, client_id, status, starts_at, clients(full_name)")
@@ -85,6 +96,25 @@ function Shell({ children }: { children: React.ReactNode }) {
       </header>
       {children}
     </main>
+  );
+}
+
+// Ours, not theirs — say so rather than blaming their link.
+function Unavailable() {
+  return (
+    <div className="mx-auto max-w-lg px-6 py-24 text-center">
+      <h1 className="font-display text-3xl">We can&apos;t load this right now</h1>
+      <p className="mt-3 text-muted">
+        Something&apos;s wrong at our end, not with your link. Try again in a
+        few minutes, or reply to your text and Evelyn will sort it out.
+      </p>
+      <a
+        href="/"
+        className="mt-8 inline-block text-accent-dark underline decoration-accent underline-offset-4"
+      >
+        Back to the website
+      </a>
+    </div>
   );
 }
 
