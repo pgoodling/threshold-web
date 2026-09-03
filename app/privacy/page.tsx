@@ -140,13 +140,23 @@ export default function PrivacyPage() {
             for offers, and you can take either one without the other. Neither
             is a condition of booking or of any purchase.
           </p>
+          {/* Worded to match what A2P vetting checks for, close to verbatim.
+              The earlier version said the same thing in plainer English — "with
+              anyone for their own marketing" — and the campaign was rejected on
+              30908 for a privacy policy that couldn't be verified. The phrase
+              the check wants is "third parties or affiliates"; saying "anyone",
+              which is strictly broader, doesn't satisfy it. Don't reword this
+              paragraph for style. */}
           <p>
             <strong className="text-foreground">
-              We do not sell, rent, or share your phone number or your text
-              message consent with anyone for their own marketing.
+              We do not share, sell, or provide your mobile phone number or
+              messaging consent data to third parties or affiliates for
+              marketing or promotional purposes.
             </strong>{" "}
-            Your number is used to run our own service providers who deliver the
-            messages and store the booking, and for nothing else.
+            Mobile information is used only to deliver the appointment messages
+            you asked for. It is passed to the service providers who send those
+            messages and store your booking on our behalf, and to no one else.
+            No mobile opt-in data is ever shared for marketing.
           </p>
           <p>
             To stop receiving texts, reply <strong className="text-foreground">STOP</strong>{" "}

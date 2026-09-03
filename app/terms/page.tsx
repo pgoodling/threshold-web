@@ -139,10 +139,13 @@ export default function TermsPage() {
         </Section>
 
         <Section title="Your information">
+          {/* Same wording as the privacy policy, deliberately. Vetting reads
+              both pages and flags inconsistency between them. */}
           <p>
-            We never sell, rent, or share your phone number or your consent with
-            anyone for their own marketing. What we collect and who processes it
-            is set out in full in our{" "}
+            We do not share, sell, or provide your mobile phone number or
+            messaging consent data to third parties or affiliates for marketing
+            or promotional purposes. What we collect and who processes it is set
+            out in full in our{" "}
             <a href="/privacy" className="text-accent hover:underline">
               privacy policy
             </a>
