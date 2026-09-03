@@ -23,17 +23,21 @@ import {
 // The client is anonymous — they've just booked and have no account. What
 // protects this is the appointment id in the URL, which is an unguessable v4
 // UUID, the same thing that protects the booking confirmation.
+//
+// The answers go to /api/hair-notes rather than to the table. Writing directly
+// meant granting anon UPDATE on appointment_intake, and that couldn't be scoped
+// to one row without also granting a read that would expose other clients — so
+// it was scoped to none, and every anonymous caller could rewrite every row.
+// Migration 0030 removed it.
 
 const MAX_PHOTOS = 3;
 
 export default function HairNotesForm({
   appointmentId,
-  clientId,
   firstName,
   when,
 }: {
   appointmentId: string;
-  clientId: string | null;
   firstName: string;
   /** "Friday, September 11 at 2:00 PM" — reassurance, not a form field. */
   when?: string | null;
@@ -55,24 +59,27 @@ export default function HairNotesForm({
     setBusy(true);
     setError(null);
 
-    const { error: err } = await supabase.from("appointment_intake").upsert(
-      {
-        appointment_id: appointmentId,
-        client_id: clientId,
-        hair_type: hairType,
+    // Through the server, not straight to the table. The anon key can no longer
+    // write here at all — see /api/hair-notes and migration 0030. The route
+    // reads client_id from the appointment rather than trusting this form, so
+    // it's no longer sent.
+    const res = await fetch("/api/hair-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appointmentId,
+        hairType,
         strand,
         density,
         length,
-        last_cut: lastCut,
+        lastCut,
         struggles,
-        allergies: allergies.trim() || null,
-        note: note.trim() || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "appointment_id" },
-    );
+        allergies,
+        note,
+      }),
+    });
 
-    if (err) {
+    if (!res.ok) {
       setBusy(false);
       setError("Something went wrong saving that. Please try again.");
       return;

@@ -8,17 +8,17 @@ import HairNotesForm from "./HairNotesForm";
 // when people actually think of it.
 //
 // The appointment id in the URL is the only credential, which is the same model
-// the booking confirmation already uses: an unguessable v4 UUID. It's enough
-// because the page never READS anything sensitive back — RLS lets anon write
-// intake rows but not select them, so a leaked link can leave answers, not
-// retrieve someone else's.
+// the booking confirmation already uses: an unguessable v4 UUID. The browser
+// can neither read nor write this appointment's notes with it — both go through
+// the server, which checks the id names a real, live appointment first.
 //
 // The greeting lookup goes through the ADMIN client, for the same reason
 // /appointment/[id] does: RLS on `appointments` and `clients` grants
 // `authenticated` and nobody else, so an anon read comes back empty and the
 // page can't tell "wrong id" from "not allowed". Every client got "That link
 // has expired". Only the first name and the appointment time cross to the
-// browser — the form writes as anon, and still can't read anyone's answers.
+// browser; client_id used to as well, and stopped when the form no longer
+// needed it.
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export default async function HairNotesPage({
   // Only to greet them by name and confirm the link is live.
   const { data: appt } = await supabase
     .from("appointments")
-    .select("id, client_id, status, starts_at, clients(full_name)")
+    .select("id, status, starts_at, clients(full_name)")
     .eq("id", id)
     .maybeSingle();
 
@@ -67,7 +67,6 @@ export default async function HairNotesPage({
     <Shell>
       <HairNotesForm
         appointmentId={appt.id as string}
-        clientId={(appt.client_id as string) ?? null}
         firstName={firstName}
         when={when}
       />

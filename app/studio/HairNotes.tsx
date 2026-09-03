@@ -21,7 +21,8 @@ import Button from "./Button";
 
 type FormulaRow = {
   id: string;
-  formula: string;
+  /** Null when the entry is an observation about the formula already on file. */
+  formula: string | null;
   note: string | null;
   created_at: string;
 };
@@ -72,9 +73,17 @@ export default function HairNotes({
 
   useEffect(load, [load]);
 
-  async function saveFormula() {
+  // Either field on its own is a valid entry.
+  //
+  // It used to demand a formula, so "pulled warm, 35 min — go cooler next time"
+  // couldn't be recorded unless the same formula was retyped beside it. The
+  // observation is usually the point; the formula hasn't changed. Requiring
+  // both meant the useful half went unwritten, or got attached to a duplicate
+  // formula row that made the history harder to read.
+  async function saveEntry() {
     const value = formula.trim();
-    if (!value) return;
+    const noteValue = note.trim();
+    if (!value && !noteValue) return;
     setBusy(true);
     setError(null);
 
@@ -82,8 +91,8 @@ export default function HairNotes({
     // formula with nothing behind it.
     const { error: histErr } = await supabase.from("client_formulas").insert({
       client_id: clientId,
-      formula: value,
-      note: note.trim() || null,
+      formula: value || null,
+      note: noteValue || null,
     });
     if (histErr) {
       setBusy(false);
@@ -91,17 +100,19 @@ export default function HairNotes({
       return;
     }
 
-    // The client record keeps the current one, so everything that already reads
-    // `hair_formula` keeps working.
-    await supabase
-      .from("clients")
-      .update({ hair_formula: value })
-      .eq("id", clientId);
+    // Only a new formula changes the current one. A note about the existing
+    // formula must not blank it — everything downstream reads `hair_formula`.
+    if (value) {
+      await supabase
+        .from("clients")
+        .update({ hair_formula: value })
+        .eq("id", clientId);
+      onFormulaSaved?.(value);
+    }
 
     setBusy(false);
     setFormula("");
     setNote("");
-    onFormulaSaved?.(value);
     load();
   }
 
@@ -156,7 +167,10 @@ export default function HairNotes({
               onChange={(e) => setNote(e.target.value)}
             />
           </label>
-          <Button onClick={saveFormula} disabled={busy || !formula.trim()}>
+          <Button
+            onClick={saveEntry}
+            disabled={busy || (!formula.trim() && !note.trim())}
+          >
             {busy ? "Saving…" : "Record"}
           </Button>
         </div>
@@ -172,7 +186,9 @@ export default function HairNotes({
                   i > 0 ? "border-t border-foreground/10" : ""
                 } ${i === 0 ? "" : "text-muted"}`}
               >
-                <span className="font-mono text-sm">{h.formula}</span>
+                {h.formula && (
+                  <span className="font-mono text-sm">{h.formula}</span>
+                )}
                 {h.note && <span className="text-sm">{h.note}</span>}
                 <span className="ml-auto shrink-0 text-xs text-muted">
                   {whenLabel(h.created_at)}
