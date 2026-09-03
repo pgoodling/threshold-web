@@ -61,6 +61,41 @@ export function completionRate(rows: ApptLike[], now = Date.now()) {
   return { rate: total > 0 ? kept / total : null, sample: decided.length };
 }
 
+/**
+ * Where this calendar month is heading.
+ *
+ * Deliberately adds two different kinds of money together, because the question
+ * "will I make my target this month" can't be answered by either alone. On the
+ * 20th, the appointments still to come are a small part of the month and the
+ * booked-only figure would look like a disaster; the collected-only figure has
+ * the opposite problem on the 2nd.
+ *
+ *   taken     what's actually been paid so far this month
+ *   booked    the price of what's still to come this month
+ *   projected the two together — what the month ends at if nobody cancels
+ */
+export function monthToDate(rows: ApptLike[], now = new Date()) {
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  let taken = 0;
+  let booked = 0;
+  for (const r of rows) {
+    const t = new Date(r.starts_at);
+    if (t < start || t >= nextMonth) continue;
+    if (PAID.includes(r.status)) taken += value(r);
+    else if (isAhead(r, now.getTime())) booked += value(r);
+  }
+
+  // Days left counts today, because today can still be sold.
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((nextMonth.getTime() - now.getTime()) / 86400000),
+  );
+
+  return { taken, booked, projected: taken + booked, daysLeft };
+}
+
 export type Bucket = {
   /** Start of the bucket, salon-local. */
   start: Date;

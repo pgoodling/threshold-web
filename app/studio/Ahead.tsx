@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase";
 import { money } from "../../lib/format";
 import {
   bucketAhead,
   completionRate,
   isAhead,
+  monthToDate,
   value,
   MIN_DECIDED_FOR_RATE,
   type ApptLike,
 } from "../../lib/projection";
+import Button from "./Button";
 
 // What's coming, in money.
 //
@@ -31,6 +34,10 @@ import {
 // colour alone. A louder green would also undo the soft palette this whole UI
 // was deliberately built around.
 const BAR = "#647f5a";
+// The target rule. Honey rather than a dash: a dashed line is visual noise and
+// the guidance is right that it reads as "threshold" even when it isn't one —
+// here it IS one, so it earns a colour and a label instead.
+const TARGET = "#bd8f45";
 
 type Grain = "day" | "week" | "month";
 const GRAINS: [Grain, number, string][] = [
@@ -51,7 +58,63 @@ export default function Ahead({ rows }: { rows: ApptLike[] }) {
 
   const total = buckets.reduce((s, b) => s + b.booked, 0);
   const appts = buckets.reduce((s, b) => s + b.count, 0);
-  const max = Math.max(...buckets.map((b) => b.booked), 1);
+
+  // ── The monthly target ──────────────────────────────────────────────────
+  const [target, setTarget] = useState<number | null>(null);
+  const [noTable, setNoTable] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const loadTarget = useCallback(() => {
+    supabase
+      .from("salon_settings")
+      .select("monthly_revenue_target_cents")
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          setNoTable(true);
+          return;
+        }
+        setTarget(data?.monthly_revenue_target_cents ?? null);
+      });
+  }, []);
+
+  useEffect(loadTarget, [loadTarget]);
+
+  async function saveTarget() {
+    // She types dollars; the column is cents, like every other money column.
+    const dollars = Number(draft.replace(/[^0-9.]/g, ""));
+    const cents =
+      draft.trim() === "" || !Number.isFinite(dollars)
+        ? null
+        : Math.round(dollars * 100);
+    setTarget(cents);
+    setEditing(false);
+    await supabase
+      .from("salon_settings")
+      .update({
+        monthly_revenue_target_cents: cents,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", true);
+  }
+
+  const mtd = useMemo(() => monthToDate(rows), [rows]);
+
+  // The rule has to be inside the plot to be read as a threshold, so the scale
+  // stretches to include it. Without this a target above every bar would sit
+  // off the top of the chart, which is exactly when she most needs to see it.
+  //
+  // The headroom is not cosmetic. When the target is higher than every bar it
+  // becomes the maximum, lands at exactly 100%, and its label renders outside
+  // the container and over whatever sits above — which is the normal case for
+  // a salon that isn't hitting target, i.e. precisely when she's looking.
+  const showRule = grain === "month" && target !== null && target > 0;
+  const tallestBar = Math.max(...buckets.map((b) => b.booked), 1);
+  const max = showRule
+    ? Math.max(tallestBar, target! * 1.12)
+    : tallestBar;
+  const rulePct = showRule ? (target! / max) * 100 : 0;
 
   const { rate, sample } = useMemo(() => completionRate(rows), [rows]);
   const expected = rate === null ? null : Math.round(total * rate);
@@ -125,9 +188,84 @@ export default function Ahead({ rows }: { rows: ApptLike[] }) {
         )}
       </p>
 
+      {/* ── This month against target ──────────────────────────────────── */}
+      {!noTable && (
+        <div className="mt-5 rounded-xl border border-foreground/15 bg-white px-4 py-3">
+          {editing ? (
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="block">
+                <span className="mb-1 block text-xs uppercase tracking-wider text-muted">
+                  Monthly target
+                </span>
+                <input
+                  className="input w-32"
+                  autoFocus
+                  inputMode="decimal"
+                  placeholder="6000"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveTarget()}
+                />
+              </label>
+              <Button onClick={saveTarget}>Save</Button>
+              <button
+                onClick={() => setEditing(false)}
+                className="pb-2 text-sm text-muted hover:text-foreground"
+              >
+                Cancel
+              </button>
+              <p className="w-full text-xs text-muted">
+                Leave it empty to stop tracking against a target.
+              </p>
+            </div>
+          ) : target === null ? (
+            <p className="text-sm text-muted">
+              <button
+                onClick={() => {
+                  setDraft("");
+                  setEditing(true);
+                }}
+                className="font-medium text-accent-dark underline decoration-accent underline-offset-4"
+              >
+                Set a monthly target
+              </button>{" "}
+              and this will tell you where the month stands against it.
+            </p>
+          ) : (
+            <MonthProgress
+              mtd={mtd}
+              target={target}
+              onEdit={() => {
+                setDraft(String(Math.round(target / 100)));
+                setEditing(true);
+              }}
+            />
+          )}
+        </div>
+      )}
+
       {/* Bars for the shape; the table below carries every figure, so nothing
           here is readable only by hovering. */}
-      <div className="mt-6 flex h-40 items-end gap-[2px]">
+      <div className="relative mt-6 flex h-40 items-end gap-[2px]">
+        {/* The target, drawn only where a monthly figure means something. */}
+        {showRule && (
+          <div
+            className="pointer-events-none absolute inset-x-0 z-10"
+            style={{ bottom: `${rulePct}%` }}
+          >
+            <div className="h-px w-full" style={{ background: TARGET }} />
+            {/* Below the line when there's no room above it, so the label can
+                never be clipped or land on top of the card above. */}
+            <span
+              className={`absolute right-0 text-[10px] ${
+                rulePct > 85 ? "top-0.5" : "-top-4"
+              }`}
+              style={{ color: TARGET }}
+            >
+              target {money(target!)}
+            </span>
+          </div>
+        )}
         {buckets.map((b) => (
           <div
             key={b.start.toISOString()}
@@ -214,5 +352,75 @@ export default function Ahead({ rows }: { rows: ApptLike[] }) {
         </div>
       </details>
     </section>
+  );
+}
+
+// Where the month stands, in the order she'd ask it: how much, against what,
+// and what the gap is.
+//
+// The gap is the whole point, so it's the sentence and not a percentage. "72%
+// of target" needs arithmetic before it becomes an action; "$1,680 short with
+// 11 days left" already is one.
+function MonthProgress({
+  mtd,
+  target,
+  onEdit,
+}: {
+  mtd: ReturnType<typeof monthToDate>;
+  target: number;
+  onEdit: () => void;
+}) {
+  const gap = target - mtd.projected;
+  const pct = Math.min((mtd.projected / target) * 100, 100);
+  // Taken and booked are different kinds of certainty, so the bar shows where
+  // one ends and the other begins rather than presenting a single confident
+  // block.
+  const takenPct = Math.min((mtd.taken / target) * 100, 100);
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+        <span className="font-medium">This month</span>
+        <span className="tabular-nums">
+          {money(mtd.projected)} of {money(target)}
+        </span>
+        <button
+          onClick={onEdit}
+          className="ml-auto text-xs text-muted underline underline-offset-4 hover:text-foreground"
+        >
+          Change target
+        </button>
+      </div>
+
+      {/* Square-ish ends on purpose. A fully rounded meter is a pill, and the
+          9999px radius is retired everywhere in this UI except avatars. */}
+      <div className="mt-2 flex h-1.5 overflow-hidden rounded-[2px] bg-foreground/10">
+        <div style={{ width: `${takenPct}%`, background: BAR }} />
+        {/* The booked remainder, lighter — money that hasn't arrived yet and
+            shouldn't look as solid as money that has. */}
+        <div
+          style={{
+            width: `${Math.max(pct - takenPct, 0)}%`,
+            background: BAR,
+            opacity: 0.4,
+          }}
+        />
+      </div>
+
+      <p className="mt-2 text-sm text-muted">
+        {money(mtd.taken)} taken
+        {mtd.booked > 0 && <> · {money(mtd.booked)} still booked in</>} ·{" "}
+        {gap > 0 ? (
+          <span className="text-foreground">
+            {money(gap)} short with {mtd.daysLeft}{" "}
+            {mtd.daysLeft === 1 ? "day" : "days"} left
+          </span>
+        ) : (
+          <span className="text-foreground">
+            {money(-gap)} clear of target
+          </span>
+        )}
+      </p>
+    </div>
   );
 }
