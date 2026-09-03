@@ -2,6 +2,7 @@ import { TZ } from "./format";
 // One link per appointment: it carries the hair-notes form, the details and
 // cancellation, so a text needs only one URL rather than several.
 import { appointmentUrl } from "./policy";
+import { beforeOpening } from "./opening";
 
 // What the automated texts actually say.
 //
@@ -10,19 +11,38 @@ import { appointmentUrl } from "./policy";
 // what was described. Keeping the copy here means a reworded reminder is a
 // visible, dated change rather than something buried in a cron handler.
 //
-// House style, such as it is: say who it's from, keep it to one thought, and
-// leave STOP off every message except the first. Carriers want the opt-out
-// language available, not stapled to every text — and a reminder that reads
-// like a compliance notice doesn't sound like Evelyn.
+// House style, such as it is: say who it's from, and keep it to one thought.
+//
+// STOP used to go on the first message only, which is all CTIA actually
+// requires and keeps the rest sounding like a person rather than a compliance
+// notice. It's now on every message, and that's a deliberate trade rather than
+// a change of mind: the campaign was rejected once for a sample without it, a
+// reviewer reads each sample in isolation and can't see what came before it,
+// and another rejection cycle costs a fortnight the opening doesn't have.
+// Revisit once the campaign is approved and there's room to be right.
 
 const firstName = (full: string | null | undefined) =>
   (full ?? "").trim().split(" ")[0] || "there";
 
 
+// For the day-before reminder, where "Friday" can only mean tomorrow.
 const when = (iso: string) =>
   new Intl.DateTimeFormat("en-US", {
     timeZone: TZ,
     weekday: "long",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+
+// For anything further out. The catch-up sweep covers appointments booked weeks
+// ahead, and "Friday at 1:00" for a date in October reads as this Friday — the
+// kind of mistake that has someone turning up six weeks early.
+const longWhen = (iso: string) =>
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(iso));
@@ -52,12 +72,13 @@ export function reminderText(opts: {
   // already been rejected once, another cycle costs a fortnight, and a reviewer
   // reading a sample in isolation can't see that the confirmation carried it.
   // Not worth being right about.
+  const stop = "(Reply STOP to opt out.)";
   const base =
     `Hi ${firstName(opts.clientName)}, it's Threshold Salon — ` +
     `you're booked for ${opts.service} ${when(opts.startsAt)}. ` +
-    `Reply C to confirm. (Reply STOP to opt out.)`;
+    `Reply C to confirm.`;
 
-  if (!opts.appointmentId) return base;
+  if (!opts.appointmentId) return `${base} ${stop}`;
 
   // The link always goes out, because it's also how they cancel. Only the
   // reason to tap it changes: the day before is when someone actually thinks to
@@ -66,28 +87,44 @@ export function reminderText(opts: {
   const why = opts.hasNotes
     ? "Change or cancel:"
     : "Tell me about your hair, or change it:";
-  return `${base} ${why} ${appointmentUrl(opts.appointmentId)}`;
+  return `${base} ${why} ${appointmentUrl(opts.appointmentId)} ${stop}`;
 }
 
 // The catch-up confirmation, sent by hand from the Texts screen.
 //
-// Everyone booked before texting worked never got a confirmation, so this is
-// the one-off sweep that fixes that. Worded as a confirmation rather than a
-// reminder — some of these appointments are weeks out, and "reminder" for
-// something in October reads as a mistake.
-export function confirmSweepText(opts: {
+// This is the first text most of these people will ever get from the salon.
+// They booked weeks ago, off Instagram or in person, and have heard nothing
+// since — so it can't read like the third reminder in a sequence. It has four
+// jobs, in this order: say who's texting, give them a reason to keep the
+// number, confirm the specific appointment, and hand over the link.
+//
+// It goes from Evelyn's own phone, so length costs nothing. The automated
+// confirmation that replaces this once A2P clears is shorter on purpose —
+// that one is a receipt for something they did thirty seconds ago, and warmth
+// there reads as padding.
+export function welcomeConfirmText(opts: {
   clientName: string | null;
   service: string;
   startsAt: string;
   appointmentId?: string | null;
+  /** Injectable so the studio preview and tests don't drift with the clock. */
+  now?: Date;
 }): string {
+  // "We open Monday" has to stop being true on Monday. After opening it's just
+  // a confirmation, and the excitement moves to seeing them.
+  const opening = beforeOpening(opts.now ?? new Date())
+    ? "We open Monday and I'm so glad you're already on the books."
+    : "So glad you're on the books.";
+
   const base =
-    `Hi ${firstName(opts.clientName)}! It's Evelyn at Threshold Salon — ` +
-    `confirming you're booked for ${opts.service} ${when(opts.startsAt)}.`;
+    `Hi ${firstName(opts.clientName)}! It's Evelyn — this is Threshold's ` +
+    `number now, so save it. ${opening} ` +
+    `You're booked for ${opts.service} on ${longWhen(opts.startsAt)}.`;
 
   const tail = opts.appointmentId
-    ? ` Tell me about your hair, or change it: ${appointmentUrl(opts.appointmentId)}`
-    : " Reply here if you need anything.";
+    ? ` Tell me about your hair before you come in, or change your time here: ` +
+      `${appointmentUrl(opts.appointmentId)}`
+    : " Just reply here if you need anything.";
 
   return `${base}${tail} (Reply STOP to opt out.)`;
 }
@@ -102,14 +139,18 @@ export function runningLateText(opts: {
   return (
     `Hi ${firstName(opts.clientName)}, it's Threshold Salon — ` +
     `we had you down for ${time(opts.startsAt)}. ` +
-    `Are you still on your way? No rush, just let us know.`
+    `Are you still on your way? No rush, just let us know. ` +
+    `(Reply STOP to opt out.)`
   );
 }
 
 // The acknowledgement after a client replies C. Short on purpose; it exists so
 // the reply doesn't vanish into silence and leave them wondering.
 export function confirmedText(opts: { startsAt: string }): string {
-  return `Lovely — you're confirmed for ${when(opts.startsAt)}. See you then! Threshold Salon`;
+  return (
+    `Lovely — you're confirmed for ${when(opts.startsAt)}. See you then! ` +
+    `Threshold Salon (Reply STOP to opt out.)`
+  );
 }
 
 // What counts as "yes I'm coming". Kept liberal: people reply how they talk,

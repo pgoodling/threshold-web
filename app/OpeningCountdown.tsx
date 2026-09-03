@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { pepLine } from "../lib/pep";
+// 9am on 7 September 2026, Eastern — the salon's timezone, hardcoded rather than
+// the visitor's, because opening day is a fact about Kettering and not about
+// wherever they happen to be reading this.
+import { OPENING } from "../lib/opening";
 
 // The countdown to opening day, on the hero.
 //
@@ -9,11 +13,6 @@ import { pepLine } from "../lib/pep";
 // date they can put in their calendar, and a number that visibly moves, is the
 // difference between a page that says it's coming and a page that feels like
 // it's about to happen.
-//
-// 9am on 7 September 2026, Eastern — the salon's timezone, hardcoded rather than
-// the visitor's, because opening day is a fact about Kettering and not about
-// wherever they happen to be reading this.
-const OPENING = new Date("2026-09-07T09:00:00-04:00");
 
 // How far out the studio progress bar starts filling from.
 const RUN_UP_DAYS = 30;

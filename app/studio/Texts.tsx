@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { toE164 } from "../../lib/phone";
 import { whenLabel } from "../../lib/format";
-import { confirmSweepText, reminderText } from "../../lib/smsTemplates";
+import { welcomeConfirmText, reminderText } from "../../lib/smsTemplates";
 import Rail from "./Rail";
 
 // The texts that have to go out by hand until A2P clears.
@@ -116,7 +116,7 @@ export default function Texts() {
     const name = row.clients?.full_name ?? null;
     const service = row.services?.name ?? "your appointment";
     return kind === "confirm"
-      ? confirmSweepText({
+      ? welcomeConfirmText({
           clientName: name,
           service,
           startsAt: row.starts_at,

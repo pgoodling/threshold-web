@@ -143,7 +143,7 @@ export default function PrivacyPage() {
           {/* Worded to match what A2P vetting checks for, close to verbatim.
               The earlier version said the same thing in plainer English — "with
               anyone for their own marketing" — and the campaign was rejected on
-              30908 for a privacy policy that couldn't be verified. The phrase
+              3 September for a privacy policy that couldn't be verified. The phrase
               the check wants is "third parties or affiliates"; saying "anyone",
               which is strictly broader, doesn't satisfy it. Don't reword this
               paragraph for style. */}
@@ -239,7 +239,10 @@ export default function PrivacyPage() {
             <br />
             Threshold &mdash; Studio by Evelyn
             <br />
-            Salon Lofts, 424 E. Stroop Rd., Kettering, OH 45429
+            {/* Must match /terms character for character — vetting reads both
+                pages and flags a business whose address doesn't agree with
+                itself. */}
+            Salon Lofts, 424 E Stroop Rd, Kettering, OH 45429
             <br />
             <a href="tel:+19379362138" className="text-accent hover:underline">
               (937) 936-2138

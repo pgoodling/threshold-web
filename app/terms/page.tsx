@@ -157,6 +157,8 @@ export default function TermsPage() {
           <p>
             Threshold Salon LLC
             <br />
+            Threshold &mdash; Studio by Evelyn
+            <br />
             Salon Lofts, 424 E Stroop Rd, Kettering, OH 45429
             <br />
             <a href="tel:+19379362138" className="text-accent hover:underline">
