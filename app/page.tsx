@@ -300,9 +300,22 @@ export default async function Home() {
             © {new Date().getFullYear()} Threshold · Studio by Evelyn. All
             rights reserved.
           </span>
-          <a href="/privacy" className="hover:text-accent">
-            Privacy &amp; text terms
-          </a>
+          {/* All three, separately. Carrier vetting wants a privacy policy AND
+              terms and conditions, and it starts from the homepage — /terms was
+              reachable only from inside /privacy and from the booking form's
+              third step, which is to say not reachable at all by a reviewer who
+              opens the site and looks. */}
+          <span className="flex flex-wrap gap-x-5 gap-y-2">
+            <a href="/messaging" className="hover:text-accent">
+              Text messages
+            </a>
+            <a href="/terms" className="hover:text-accent">
+              Text message terms
+            </a>
+            <a href="/privacy" className="hover:text-accent">
+              Privacy policy
+            </a>
+          </span>
         </div>
       </footer>
     </main>

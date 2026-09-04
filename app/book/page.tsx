@@ -12,6 +12,9 @@ import {
   SMS_MARKETING_HEADING,
   SMS_MARKETING_TEXT,
 } from "../../lib/smsConsent";
+// Shared with /messaging, which shows carriers the real opt-in rather than a
+// screenshot that would drift the first time this wording changed.
+import SmsConsentBox from "../SmsConsentBox";
 
 const TZ = "America/New_York";
 const MONTHS_AHEAD = 6; // how far out clients may book
@@ -615,13 +618,13 @@ export default function BookPage() {
               </Field>
 
               <div className="grid gap-3">
-                <SmsConsent
+                <SmsConsentBox
                   checked={smsConsent}
                   onChange={setSmsConsent}
                   heading={SMS_CONSENT_HEADING}
                   body={SMS_CONSENT_TEXT}
                 />
-                <SmsConsent
+                <SmsConsentBox
                   checked={smsMarketing}
                   onChange={setSmsMarketing}
                   heading={SMS_MARKETING_HEADING}
@@ -861,57 +864,6 @@ function Field({
 // user to actively select it. Wording lives in lib/smsConsent.ts because the
 // campaign submission has to quote it exactly, and the links beside it are the
 // Terms and Privacy Policy that vetting checks for.
-function SmsConsent({
-  checked,
-  onChange,
-  heading,
-  body,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  heading: string;
-  body: string;
-}) {
-  return (
-    <label className="flex cursor-pointer gap-3 rounded-xl border border-foreground/10 bg-accent/5 px-4 py-3.5 transition hover:border-accent/40">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 shrink-0 accent-[#bd6b4d]"
-      />
-      <span className="text-sm text-muted">
-        <span className="block font-medium text-foreground">{heading}</span>
-        <span className="mt-1.5 block leading-relaxed">
-          {body}{" "}
-          {/* Reachable from the opt-in itself — carrier vetting checks that the
-              consent point links to the policy, and a client agreeing to texts
-              should be one tap from what we do with the number. */}
-          <a
-            href="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-accent underline"
-          >
-            Text terms
-          </a>{" "}
-          &middot;{" "}
-          <a
-            href="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="text-accent underline"
-          >
-            Privacy policy
-          </a>
-        </span>
-      </span>
-    </label>
-  );
-}
-
 // Explains why we collect a card and the cancellation policy (24h notice; late
 // cancels / no-shows may be charged up to the full service price, at Evelyn's
 // discretion). Shown before and during card entry.

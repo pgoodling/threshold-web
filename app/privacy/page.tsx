@@ -158,7 +158,28 @@ export default function PrivacyPage() {
             Mobile information is used only to deliver the appointment messages
             you asked for. It is passed to the service providers who send those
             messages and store your booking on our behalf, and to no one else.
-            No mobile opt-in data is ever shared for marketing.
+          </p>
+          {/* Twilio's onboarding guide publishes the sentence its reviewers look
+              for, close to word for word. The paragraph above says the same
+              thing and is what CTIA asks for, but it qualifies the promise with
+              "for marketing or promotional purposes" — and a check looking for
+              an unqualified statement doesn't find one. This is that statement,
+              in their phrasing. It costs a sentence; a rejection costs a
+              fortnight. Do not merge these two paragraphs. */}
+          <p>
+            <strong className="text-foreground">
+              All the above categories exclude text messaging originator opt-in
+              data and consent; this information will not be shared with any
+              third parties.
+            </strong>
+          </p>
+          <p>
+            How the messaging program works &mdash; how you opt in, what
+            you&rsquo;ll receive, and how to stop &mdash; is set out on our{" "}
+            <a href="/messaging" className="text-accent hover:underline">
+              text messages
+            </a>{" "}
+            page.
           </p>
           <p>
             To stop receiving texts, reply{" "}
