@@ -122,9 +122,10 @@ export default function MessagingPage() {
             program sends occasional promotions and salon news.
           </Row>
           <Row label="Message frequency">
-            Message frequency varies &mdash; appointment messages depend on how
-            often you visit, typically a confirmation when you book and a
-            reminder before each appointment.
+            Message frequency varies. Appointment messages depend on how often
+            you visit &mdash; typically a confirmation when you book and a
+            reminder before each appointment. Offers are occasional, and never
+            more than a few times a month.
           </Row>
           <Row label="Cost">
             We don&rsquo;t charge you for messages.{" "}
@@ -169,15 +170,36 @@ export default function MessagingPage() {
           </Row>
         </dl>
 
+        {/* Both kinds, because both boxes are on the form. A page showing only
+            appointment texts next to a checkbox offering offers is the same
+            mismatch that got the campaign rejected. Placeholders rather than a
+            person's name — reviewers flag anything that reads as real client
+            data, even invented. */}
         <h2 className="mt-12 font-display text-2xl">What the messages say</h2>
-        <p className="mt-3 text-muted">
-          Real examples, with names and times changed:
-        </p>
-        <div className="mt-4 grid gap-2">
+        <h3 className="mt-5 text-xs uppercase tracking-[0.15em] text-muted">
+          Appointment messages
+        </h3>
+        <div className="mt-2 grid gap-2">
           {[
-            "Hi Sarah! You're booked at Threshold for Blonding Session on Fri, Sep 25, 1:00 PM. Tell me about your hair, or change it: https://threshold.salon/appointment/a1b2c3 — Evelyn (Reply STOP to opt out.)",
-            "Hi Sarah, it's Threshold Salon — you're booked for Blonding Session Friday 1:00 PM. Reply C to confirm. (Reply STOP to opt out.)",
-            "Lovely — you're confirmed for Friday 1:00 PM. See you then! Threshold Salon (Reply STOP to opt out.)",
+            "Hi [Name]! You're booked at Threshold for [Service] on [Day, Date, Time]. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] — Evelyn (Reply STOP to opt out.)",
+            "Hi [Name], it's Threshold Salon — you're booked for [Service] [Day, Time]. Reply C to confirm. (Reply STOP to opt out.)",
+            "Hi [Name], it's Threshold Salon — we had you down for [Time]. Are you still on your way? No rush, just let us know. (Reply STOP to opt out.)",
+          ].map((s) => (
+            <p
+              key={s}
+              className="rounded-xl border border-foreground/15 bg-white px-4 py-3 text-sm leading-relaxed text-muted"
+            >
+              {s}
+            </p>
+          ))}
+        </div>
+        <h3 className="mt-6 text-xs uppercase tracking-[0.15em] text-muted">
+          Offers, if you tick the second box
+        </h3>
+        <div className="mt-2 grid gap-2">
+          {[
+            "Hi [Name], it's Evelyn at Threshold — I've had a cancellation this [Day] at [Time] if you'd like it. Reply here to take it. Msg & data rates may apply. Reply STOP to opt out.",
+            "[Name], Threshold Salon is doing [Offer] through [Date]. Book at https://threshold.salon/book — Evelyn. Msg & data rates may apply. Reply STOP to opt out.",
           ].map((s) => (
             <p
               key={s}
