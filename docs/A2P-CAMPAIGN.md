@@ -215,15 +215,16 @@ The brand name is in both replies because the guide requires it in each, and
 the help message carries an actual route to a human — it previously only
 explained how to unsubscribe, which is what the STOP reply is for.
 
-**The published address is `info@threshold.salon`, not `hello@`.** The domain
-uses Namecheap forwarding rather than mailboxes, and only the aliases that
-exist receive anything: `info@` and `evelyn@` do, `hello@` never did. The site
-had been publishing `hello@` on four pages, so the contact address in a
-compliance document bounced. The campaign submitted on 9 Sep still carries
-`hello@` in its help message — fix that on the next edit, not now, because
-editing a campaign under review resets its place in the queue. Until then the
-help reply still gives a working route: it carries the salon's phone number
-alongside the address.
+**The published address is `info@threshold.salon`.** The domain uses Namecheap
+forwarding rather than mailboxes, so only configured aliases receive anything.
+`hello@` was never one of them, and the site published it on five pages — a
+contact address in a privacy policy that silently bounced.
+
+The campaign submitted on 9 Sep carries `hello@` in its help message. Rather
+than edit a campaign under review, which resets its place in the queue, `hello@`
+was added as a third forward on 9 Sep so the submitted text is simply true. All
+three aliases — `info@`, `evelyn@`, `hello@` — now land in the same inbox.
+Nothing to fix on the next edit; use `info@` for anything new.
 
 STOP, START and HELP are also honoured in `app/api/sms/inbound/route.ts`, and
 `/terms` documents all three.
