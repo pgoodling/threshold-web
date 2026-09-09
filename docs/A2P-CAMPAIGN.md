@@ -15,6 +15,14 @@ what was described, and a mismatch is a rejection.
 | 3 Sep 2026 | Rejected — "a compliant privacy policy can not be verified", and sample 5 had no opt-out. |
 | ~6 Sep 2026 | Rejected — same privacy wording. The policy was never the problem: `/book` is a four-step wizard, so a reviewer landing there saw a price list, no checkbox and no fee disclosure. Fixed by publishing `/messaging`. |
 | 8 Sep 2026 | **Webform opt-in confirmed compliant.** Three things outstanding: the campaign describes only non-marketing messages while the form collects consent for both; no marketing samples; verbal script not compliant. |
+| 9 Sep 2026 | Error 30909 — message flow insufficient. "Verbal consent was selected as an opt-in method, but the script used by your agents was not provided." No privacy-policy error this cycle, so `/messaging` settled that. Verbal is a *second* opt-in method and needed its own flow and its own public link; only the web form had one. Script now published on `/messaging`. |
+
+Verbal stays in the campaign rather than being dropped to simplify approval.
+Evelyn takes phone bookings constantly, and once the campaign is live the
+automated confirmations and reminders go to everyone on the books — including
+people who never touched the website. Removing verbal would leave those clients
+with no registered consent path, and adding it back later is another review
+cycle anyway.
 
 ## The mismatch that matters
 
@@ -52,18 +60,30 @@ Both types named, because both are collected. No PII.
 
 ## How end users consent (Message Flow)
 
-Two methods, so both are described — the guide requires a flow for each.
+Two methods, so both are described — the guide requires a flow for each, and
+naming a method without describing it is what error 30909 is. Paste the whole
+block below into the console field "How do end-users consent to receive
+messages?".
 
-> **Web form.** Clients opt in at https://threshold.salon/book. Step 3 of the
+Both methods need a public link, not just prose. The guide lists "part of an
+in-app flow" and "via verbal script (IVR or agent)" side by side as cases
+needing "a publicly accessible link… directly in your message flow
+description". `/messaging` carries both.
+
+> Threshold Salon uses two opt-in methods. Both are published at
+> https://threshold.salon/messaging
+>
+> 1) WEB FORM. Clients opt in at https://threshold.salon/book. Step 3 of the
 > booking form collects name and mobile number, with two separate checkboxes
 > below it: one for appointment messages, one for promotional messages. Neither
 > is pre-selected, and consent is not a condition of booking. Because the
 > booking form is a multi-step flow, the call-to-action and disclosures exactly
-> as displayed at the point of phone number collection are published at
+> as displayed at the point of phone number collection are shown at
 > https://threshold.salon/messaging
 >
-> **Verbal.** Clients who book by phone or in the salon are asked the script
-> below and the answer is recorded on their file with a timestamp.
+> 2) VERBAL. Clients who book by phone or in the salon are read the script
+> below word for word. It is also published at
+> https://threshold.salon/messaging
 
 ### Verbal script
 
