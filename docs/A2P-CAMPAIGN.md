@@ -158,8 +158,62 @@ single-stylist salon — the guide describes it as "great for brands that need t
 cover multiple use cases but won't be sending high volumes". `MIXED` also works
 but carries higher cost and lower throughput for no benefit at this size.
 
-## Opt-out, help, and start
+## Keywords and automated replies
 
-Handled at the messaging-service level by Twilio's Advanced Opt-Out, and again
-in `app/api/sms/inbound/route.ts`. STOP, START and HELP all work, and `/terms`
-documents all three.
+The console fields, exactly as submitted. Recorded here because they live only
+in a form that is easy to overwrite by accident.
+
+**Opt-in keywords**
+
+```
+START,UNSTOP,OPTIN
+```
+
+`YES` was in this list and was removed — not for compliance, for behaviour. The
+inbound handler treats `yes`/`y`/`yeah`/`yep` as confirming an appointment,
+because people answer how they talk (see `CONFIRM_WORDS` in
+`lib/smsTemplates.ts`). If `YES` is also an opt-in keyword, Advanced Opt-Out can
+intercept it and answer with the subscription notice, so a client confirming
+their appointment gets told they're subscribed and is never actually confirmed.
+
+**Opt-in message**
+
+```
+Threshold Salon: You are now opted in to appointment texts. Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to opt out.
+```
+
+Scoped to appointment texts on purpose. A keyword opt-in grants what it grants;
+enrolling someone into the marketing program off a single `START` is the
+"multiple campaigns from one opt-in" case the guide says gets campaigns
+rejected.
+
+**Opt-out keywords**
+
+```
+CANCEL,QUIT,STOP,OPTOUT,UNSUBSCRIBE,STOPALL,REVOKE,END
+```
+
+**Opt-out message**
+
+```
+You have been unsubscribed from Threshold Salon messages. No more messages will be sent. Reply START to resubscribe or HELP for help.
+```
+
+**Help keywords**
+
+```
+HELP,INFO
+```
+
+**Help message**
+
+```
+Threshold Salon: Help at hello@threshold.salon or (937) 936-2138. Msg frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe.
+```
+
+The brand name is in both replies because the guide requires it in each, and
+the help message carries an actual route to a human — it previously only
+explained how to unsubscribe, which is what the STOP reply is for.
+
+STOP, START and HELP are also honoured in `app/api/sms/inbound/route.ts`, and
+`/terms` documents all three.
