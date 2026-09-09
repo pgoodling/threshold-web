@@ -208,12 +208,22 @@ HELP,INFO
 **Help message**
 
 ```
-Threshold Salon: Help at hello@threshold.salon or (937) 936-2138. Msg frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe.
+Threshold Salon: Help at info@threshold.salon or (937) 936-2138. Msg frequency varies. Msg & data rates may apply. Reply STOP to unsubscribe.
 ```
 
 The brand name is in both replies because the guide requires it in each, and
 the help message carries an actual route to a human — it previously only
 explained how to unsubscribe, which is what the STOP reply is for.
+
+**The published address is `info@threshold.salon`, not `hello@`.** The domain
+uses Namecheap forwarding rather than mailboxes, and only the aliases that
+exist receive anything: `info@` and `evelyn@` do, `hello@` never did. The site
+had been publishing `hello@` on four pages, so the contact address in a
+compliance document bounced. The campaign submitted on 9 Sep still carries
+`hello@` in its help message — fix that on the next edit, not now, because
+editing a campaign under review resets its place in the queue. Until then the
+help reply still gives a working route: it carries the salon's phone number
+alongside the address.
 
 STOP, START and HELP are also honoured in `app/api/sms/inbound/route.ts`, and
 `/terms` documents all three.

@@ -192,10 +192,10 @@ export default function MessagingPage() {
             </a>
             , or email{" "}
             <a
-              href="mailto:hello@threshold.salon"
+              href="mailto:info@threshold.salon"
               className="text-accent hover:underline"
             >
-              hello@threshold.salon
+              info@threshold.salon
             </a>
             .
           </Row>

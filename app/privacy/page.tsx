@@ -269,10 +269,10 @@ export default function PrivacyPage() {
             </a>
             <br />
             <a
-              href="mailto:hello@threshold.salon"
+              href="mailto:info@threshold.salon"
               className="text-accent hover:underline"
             >
-              hello@threshold.salon
+              info@threshold.salon
             </a>
           </p>
         </Section>
