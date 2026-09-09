@@ -192,6 +192,24 @@ Whichever way it goes, do not switch on `SMS_AUTOMATION_ENABLED` while assuming
 this sample is covered by samples 1–5. It isn't; they all carry STOP and are
 addressed to clients.
 
+## Geo permissions
+
+A2P registration is not the only thing that can block a send. Twilio also gates
+by destination region, and the default set is the US and Canada only.
+
+**Puerto Rico is separate**, despite being +1. The first bulk confirmation run
+stopped on a 787 number with:
+
+> Permission to send an SMS has not been enabled for the region indicated by
+> the 'To' number
+
+Fixed under **Messaging → Geo Permissions** by enabling Puerto Rico. The same
+will happen for any client whose number is outside the enabled set.
+
+Check the client's record before enabling a region. A 787 that should have been
+a local area code is a typo, not a client in San Juan, and switching on a whole
+region to get past it leaves the bad number in place.
+
 ## Use case
 
 Collecting both types means the use case has to cover both. `LOW_VOLUME` fits a
