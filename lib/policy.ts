@@ -15,6 +15,13 @@ export const SITE_URL = (
 ).replace(/\/$/, "");
 
 /**
+ * The Google review link, from the Business Profile's own "ask for reviews"
+ * short URL. It opens the review box directly rather than the listing, which is
+ * the difference between a review and a good intention.
+ */
+export const GOOGLE_REVIEW_URL = "https://g.page/r/Cb3Vr4qTlT9JEBM/review";
+
+/**
  * The one link a client gets for an appointment: what and when, the hair-notes
  * form if they haven't filled it in, and a way to cancel.
  *

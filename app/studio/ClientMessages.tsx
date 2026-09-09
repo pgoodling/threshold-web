@@ -5,6 +5,7 @@ import { Mic, PhoneMissed } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { messagesChanged } from "../../lib/messagesChanged";
 import { whenLabel } from "../../lib/format";
+import { reviewRequestText } from "../../lib/smsTemplates";
 import VoicemailPlayer from "./VoicemailPlayer";
 import Button from "./Button";
 
@@ -32,11 +33,14 @@ type Line = {
 export default function ClientMessages({
   clientId,
   phone,
+  clientName,
   /** Collapsed to the last few lines, read-only — for the appointment detail. */
   compact = false,
 }: {
   clientId: string;
   phone?: string | null;
+  /** Only used to greet them in the review request. */
+  clientName?: string | null;
   compact?: boolean;
 }) {
   const [lines, setLines] = useState<Line[]>([]);
@@ -138,18 +142,32 @@ export default function ClientMessages({
       {/* Above the thread, because the thread runs newest-first — a reply box
           under a year of history would never be on screen. */}
       {!compact && phone && (
-        <div className="mt-3 flex items-end gap-2">
-          <textarea
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            rows={2}
-            placeholder="Type a reply…"
-            className="input flex-1"
-          />
-          <Button onClick={send} disabled={sending || !reply.trim()}>
-            {sending ? "Sending…" : "Send"}
-          </Button>
-        </div>
+        <>
+          <div className="mt-3 flex items-end gap-2">
+            <textarea
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              rows={2}
+              placeholder="Type a reply…"
+              className="input flex-1"
+            />
+            <Button onClick={send} disabled={sending || !reply.trim()}>
+              {sending ? "Sending…" : "Send"}
+            </Button>
+          </div>
+          {/* Fills the box; doesn't send.
+              A review request that goes out on a tap is a form letter, and the
+              ones worth having are the ones she sends because she remembers
+              this client leaving happy. Putting the words in front of her and
+              letting her change them is the whole point — the wording is a
+              starting position, not a script. */}
+          <button
+            onClick={() => setReply(reviewRequestText(clientName ?? null))}
+            className="mt-2 text-xs text-muted underline underline-offset-4 transition hover:text-accent-dark"
+          >
+            Ask for a Google review
+          </button>
+        </>
       )}
 
       {error && <p className="mt-2 text-sm text-accent-dark">{error}</p>}

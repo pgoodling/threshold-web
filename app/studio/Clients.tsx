@@ -824,7 +824,11 @@ function ClientDetail({
       )}
 
       {pane === "conversation" && (
-        <ClientMessages clientId={client.id} phone={c.phone} />
+        <ClientMessages
+          clientId={client.id}
+          phone={c.phone}
+          clientName={c.full_name}
+        />
       )}
 
       {pane === "tasks" && <ClientTasks clientId={client.id} />}

@@ -1,7 +1,7 @@
 import { TZ } from "./format";
 // One link per appointment: it carries the hair-notes form, the details and
 // cancellation, so a text needs only one URL rather than several.
-import { appointmentUrl } from "./policy";
+import { appointmentUrl, GOOGLE_REVIEW_URL } from "./policy";
 import { beforeOpening } from "./opening";
 
 // What the automated texts actually say.
@@ -189,6 +189,25 @@ export function ownerNewBookingText(opts: {
   return (
     `New booking — ${label}: ${who}${tag}, ${what}. ` +
     `Booked just now at threshold.salon.`
+  );
+}
+
+// Asking for a Google review.
+//
+// Never automatic, and there's no cron that sends it. A review request that
+// arrives on a timer reads as a form letter, which is exactly what it must not
+// be — and the ones that convert are the ones sent because she remembers a
+// particular client leaving happy.
+//
+// So this only fills the reply box. She reads it, changes it if she wants to,
+// and presses send. Saying why it matters is the ask: "a quick review would be
+// lovely" is a chore, "it means the world to a new salon" is a favour someone
+// can choose to do.
+export function reviewRequestText(clientName: string | null): string {
+  return (
+    `Hi ${firstName(clientName)}! It's Evelyn — I loved doing your hair. ` +
+    `If you have a minute, a quick Google review means the world to a new ` +
+    `salon: ${GOOGLE_REVIEW_URL} (Reply STOP to opt out.)`
   );
 }
 
