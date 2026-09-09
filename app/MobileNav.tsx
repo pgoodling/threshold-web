@@ -5,6 +5,9 @@ import { useState } from "react";
 const links = [
   { href: "#services", label: "Services" },
   { href: "#about", label: "About" },
+  // A real page, not an anchor — the products story is too long to sit on the
+  // homepage, so the nav goes straight to it.
+  { href: "/products", label: "Products" },
   { href: "#portfolio", label: "Portfolio" },
   { href: "#visit", label: "Visit" },
 ];

@@ -79,6 +79,9 @@ export default async function Home() {
             <a href="#about" className="hidden hover:text-accent sm:block">
               About
             </a>
+            <a href="/products" className="hidden hover:text-accent sm:block">
+              Products
+            </a>
             <a href="#portfolio" className="hidden hover:text-accent sm:block">
               Portfolio
             </a>
@@ -207,6 +210,65 @@ export default async function Home() {
             <p className="mt-4 text-muted">
               I can&apos;t wait to welcome you into my chair!
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Products — a teaser only. The full argument for each brand lives at
+          /products; what belongs on the homepage is the fact that there are two
+          lines, both chosen, and that she'll tell you why. */}
+      <section id="products" className="border-t border-foreground/10 bg-white">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="grid gap-10 sm:grid-cols-[1fr_1.1fr] sm:items-center">
+            <div>
+              <p className="mb-2 text-sm uppercase tracking-[0.25em] text-accent">
+                On the shelf
+              </p>
+              <h2 className="font-display text-3xl">What I use, and why</h2>
+              {/* The tiles beside this carry the names, countries, and what
+                  each brand does, so the paragraph only has to carry the why. */}
+              <p className="mt-6 text-muted">
+                I use two brands, and I picked them both myself &mdash; no sales
+                rep talked me into either one. Neither is sold in stores. Both
+                are still run by the families that started them. And both are
+                here for the same reason: they change your hair&rsquo;s color
+                without damaging it in the process.
+              </p>
+              <a
+                href="/products"
+                className="mt-6 inline-block text-accent hover:underline"
+              >
+                Read why I picked them &rarr;
+              </a>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                {
+                  name: "Keune",
+                  meta: "Netherlands · est. 1922",
+                  use: "Permanent color, care, styling",
+                },
+                {
+                  name: "Maria Nila",
+                  meta: "Sweden · est. 1999",
+                  use: "Glosses and toning",
+                },
+              ].map((brand) => (
+                <div
+                  key={brand.name}
+                  className="flex overflow-hidden rounded-2xl border border-foreground/10"
+                >
+                  <div aria-hidden="true" className="w-1.5 shrink-0 bg-accent" />
+                  <div className="px-5 py-6">
+                    <h3 className="font-display text-2xl">{brand.name}</h3>
+                    <p className="mt-1 text-xs uppercase tracking-[0.15em] text-muted">
+                      {brand.meta}
+                    </p>
+                    <p className="mt-4 text-sm text-muted">{brand.use}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
