@@ -120,6 +120,8 @@ export default function ApptDetailModal({
   const [when, setWhen] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [calling, setCalling] = useState(false);
+  const [sendingLink, setSendingLink] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -386,6 +388,41 @@ export default function ApptDetailModal({
     }
   }
 
+  // Send this appointment's link from the salon number.
+  //
+  // It used to open her own Messages app with the text written, because the
+  // campaign hadn't cleared and the salon number couldn't send. It can now, and
+  // sending it properly is better on every axis: the client sees the number
+  // they'll get reminders from, the reply comes back to the studio, and the
+  // message lands on their record instead of only in her personal thread.
+  async function sendLink(clientId: string, phone: string, body: string) {
+    setSendingLink(true);
+    setError(null);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch("/api/sms/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({
+          to: phone,
+          body,
+          clientId,
+          appointmentId: appt?.id,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? "Couldn't send that.");
+      setLinkSent(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't send that.");
+    } finally {
+      setSendingLink(false);
+    }
+  }
+
   const live = appt ? liveStatus(appt.status, appt.starts_at) : "";
 
   // Settled appointments can't be undone this way — money has changed hands.
@@ -410,11 +447,16 @@ export default function ApptDetailModal({
         busyLabel: "Ringing…",
         primary: true,
       });
-      contactActions.push({
-        label: "Text",
-        icon: MessageSquare,
-        href: `sms:${phone}`,
-      });
+      // Her conversation with this client, on the client's record — not her
+      // phone's Messages app, which is where this used to go and which leaves
+      // the exchange invisible to the studio.
+      if (onOpenClient) {
+        contactActions.push({
+          label: "Text",
+          icon: MessageSquare,
+          onClick: () => onOpenClient(appt.client_id),
+        });
+      }
       contactActions.push({
         label: "My phone",
         icon: Smartphone,
@@ -425,17 +467,23 @@ export default function ApptDetailModal({
       contactActions.push({ label: "Email", icon: Mail, href: `mailto:${email}` });
     }
     // The client's own page for this appointment: hair notes, the details, and
-    // cancelling. Until A2P clears, the automated confirmation can't send it —
-    // and it never reaches anyone she books over the phone. This opens her
-    // Messages app with the link written, so she can send it from her own
-    // number today.
+    // cancelling. The automated confirmation carries it for anyone who books
+    // online, so this is for the ones she books over the phone, who never get
+    // that message.
     if (phone) {
       contactActions.push({
-        label: "Send link",
+        label: linkSent ? "Link sent" : "Send link",
         icon: LinkIcon,
-        href: `sms:${phone}?&body=${encodeURIComponent(
-          `Hi ${appt.clients?.full_name?.split(" ")[0] ?? "there"}, here's your appointment with everything in one place — you can add notes about your hair or change it here: ${appointmentUrl(appt.id)}`,
-        )}`,
+        busy: sendingLink,
+        busyLabel: "Sending…",
+        onClick: linkSent
+          ? undefined
+          : () =>
+              sendLink(
+                appt.client_id,
+                phone,
+                `Hi ${appt.clients?.full_name?.split(" ")[0] ?? "there"}, here's your appointment with everything in one place — you can add notes about your hair or change it here: ${appointmentUrl(appt.id)}`,
+              ),
       });
     }
     if (onOpenClient) {

@@ -576,7 +576,19 @@ function ClientDetail({
     primary: true,
   });
   if (c.phone) {
-    cardActions.push({ label: "Text", icon: MessageSquare, href: `sms:${c.phone}` });
+    // Opens the Conversation tab rather than her phone's Messages app.
+    //
+    // It was an `sms:` link, from when the salon number couldn't send and the
+    // only way to text a client was from her own handset. Now that it can, a
+    // text sent from her phone is the worse option in every way: it comes from
+    // a number the client doesn't know as the salon, the reply goes to her
+    // personal phone, and neither side of it appears on the client's record.
+    // The Conversation tab sends from the salon number and logs both halves.
+    cardActions.push({
+      label: "Text",
+      icon: MessageSquare,
+      onClick: () => setPane("conversation"),
+    });
     cardActions.push({
       label: "Call",
       icon: Phone,
@@ -724,13 +736,21 @@ function ClientDetail({
               `${Math.round(weeksSince)} weeks since her last visit`}
             {gap && ` — usually every ${Math.round(gap)} weeks.`}
           </p>
+          {/* This one stays on her own phone, deliberately.
+              "I'd love to get you back in the chair" is a promotional message,
+              and the salon number may only send those to clients who ticked the
+              separate marketing box — which most of these people won't have.
+              Sent person to person from her handset it isn't A2P traffic and
+              needs no such consent. The label says so, because every other
+              Text button in the studio now sends from the salon number and she
+              shouldn't have to remember which is which. */}
           <a
             href={`sms:${c.phone}?&body=${encodeURIComponent(
               `Hi ${c.full_name.split(" ")[0]}, it's Evelyn at Threshold! It's been a while — I'd love to get you back in the chair. Want me to save you a spot?`,
             )}`}
             className="mt-2 inline-flex text-sm font-medium text-accent-dark underline decoration-accent underline-offset-4 hover:decoration-accent-dark"
           >
-            Send a win-back text
+            Send a win-back text from your phone
           </a>
           {/* "Not yet" needs somewhere to go, or the only way to stop the
               nagging is to book her or ignore it forever. */}
