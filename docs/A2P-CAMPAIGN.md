@@ -130,11 +130,18 @@ Hi [Name]! You're booked at Threshold for [Service] on [Day, Date, Time]. Tell m
 Hi [Name], it's Threshold Salon — you're booked for [Service] [Day, Time]. Reply C to confirm. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] (Reply STOP to opt out.)
 ```
 
-**3 — Late arrival** *(automatic, past the start time)*
+**3 — Late arrival** *(submitted, but retired — no longer sent)*
 
 ```
 Hi [Name], it's Threshold Salon — we had you down for [Time]. Are you still on your way? No rush, just let us know. (Reply STOP to opt out.)
 ```
+
+This was approved as sample 3 and then withdrawn in migration 0032: Evelyn
+didn't want it. **Leave it in the console.** Describing a message type you no
+longer send is harmless — the rule carriers enforce is the reverse, sending
+traffic you didn't describe — and editing an approved campaign risks putting it
+back through review for no gain. If the campaign is ever edited for another
+reason, drop this sample then.
 
 **4 — Offer** *(marketing)*
 

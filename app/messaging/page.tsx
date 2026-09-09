@@ -163,10 +163,12 @@ export default function MessagingPage() {
             Threshold Salon appointment messages, and separately, Threshold
             Salon offers
           </Row>
+          {/* No running-late text any more — see migration 0032. This page
+              describes what actually gets sent, so it loses the promise too. */}
           <Row label="What we send">
-            Appointment confirmations, reminders the day before, a note if
-            you&rsquo;re running late, and replies from Evelyn. The offers
-            program sends occasional promotions and salon news.
+            Appointment confirmations, reminders the day before, appointment
+            changes, and replies from Evelyn. The offers program sends
+            occasional promotions and salon news.
           </Row>
           <Row label="Message frequency">
             Message frequency varies. Appointment messages depend on how often

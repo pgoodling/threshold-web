@@ -138,20 +138,11 @@ export function welcomeConfirmText(opts: {
   return `${base}${tail}`;
 }
 
-// Sent when she's past her start time and hasn't arrived. Deliberately not
-// scolding: most people who are late already know, and the useful thing is to
-// find out whether they're coming at all so the chair isn't held for nothing.
-export function runningLateText(opts: {
-  clientName: string | null;
-  startsAt: string;
-}): string {
-  return (
-    `Hi ${firstName(opts.clientName)}, it's Threshold Salon — ` +
-    `we had you down for ${time(opts.startsAt)}. ` +
-    `Are you still on your way? No rush, just let us know. ` +
-    `(Reply STOP to opt out.)`
-  );
-}
+// The running-late text is gone — see migration 0032. It assumed a stylist who
+// can't see the door; in a one-chair studio she knows within seconds whether
+// someone has walked in, so a text at ten minutes past reached people who were
+// parking, or standing in front of her. The studio still shows her who hasn't
+// arrived. Nothing texts them.
 
 // The acknowledgement after a client replies C. Short on purpose; it exists so
 // the reply doesn't vanish into silence and leave them wondering.
