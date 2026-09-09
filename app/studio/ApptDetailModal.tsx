@@ -28,6 +28,7 @@ import ClientMessages from "./ClientMessages";
 import Rail from "./Rail";
 import ActionStrip, { type Action } from "./ActionStrip";
 import { appointmentUrl } from "../../lib/policy";
+import { insertStudioAppointment } from "../../lib/appointments";
 
 // One appointment detail, shown as a centered modal, used everywhere an
 // appointment is clicked (calendar, list, overview, client history).
@@ -1003,7 +1004,7 @@ export function RebookForm({
     const endsISO = new Date(
       new Date(startsISO).getTime() + svc.duration_minutes * 60000,
     ).toISOString();
-    const { error } = await supabase.from("appointments").insert({
+    const { error } = await insertStudioAppointment(supabase, {
       client_id: clientId,
       service_id: svc.id,
       starts_at: startsISO,

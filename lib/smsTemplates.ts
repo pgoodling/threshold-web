@@ -162,6 +162,45 @@ export function confirmedText(opts: { startsAt: string }): string {
   );
 }
 
+// The short-notice booking alert — the one message in this file that goes to
+// Evelyn rather than to a client.
+//
+// It lives here anyway, because the reason this file exists is that message
+// copy shouldn't be buried in a handler. But it is NOT a consumer message and
+// carries no STOP: she cannot opt out of her own business, and offering her the
+// keyword would put her number into the opt-out list that governs her clients.
+//
+// A2P: this is a message type the campaign does not currently describe. See
+// docs/A2P-CAMPAIGN.md — it needs adding to the submission before the alert is
+// switched on, or it's the same describe-one-thing-send-another mismatch that
+// has caused rejections already.
+//
+// Written to be readable from a lock screen without opening it, so the useful
+// part comes first: when, then who, then what. "TODAY 2:00 PM" rather than a
+// date, because the whole point of this alert is that it's imminent.
+export function ownerNewBookingText(opts: {
+  clientName: string | null;
+  serviceName: string | null;
+  startsAt: string;
+  isNewClient: boolean;
+}): string {
+  const now = new Date();
+  const start = new Date(opts.startsAt);
+  const sameDay =
+    new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now) ===
+    new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(start);
+
+  const label = sameDay ? `TODAY ${time(opts.startsAt)}` : when(opts.startsAt);
+  const who = (opts.clientName ?? "").trim() || "Someone";
+  const what = opts.serviceName ?? "an appointment";
+  const tag = opts.isNewClient ? " (new client)" : "";
+
+  return (
+    `New booking — ${label}: ${who}${tag}, ${what}. ` +
+    `Booked just now at threshold.salon.`
+  );
+}
+
 // What counts as "yes I'm coming". Kept liberal: people reply how they talk,
 // and a client who typed "confirmed!" should not be treated as unconfirmed.
 const CONFIRM_WORDS = [

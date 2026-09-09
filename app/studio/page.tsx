@@ -710,6 +710,43 @@ function Hours() {
 
 type Block = { id: string; starts_at: string; ends_at: string; reason: string | null };
 
+// A client already booked inside the range she's about to block.
+type Clash = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  clients: { full_name: string } | null;
+  services: { name: string } | null;
+};
+
+// Booking is guarded against time off, but time off was never guarded against
+// booking — the check ran in one direction only. She could block Thursday
+// afternoon with a client sitting in it, get no warning, and (because blocks
+// don't render on the calendar) never see the collision afterwards. She'd find
+// out when the client walked in.
+//
+// A warning rather than a refusal. Blocking over a booking is sometimes exactly
+// what she means to do — she's about to move that client, or they've already
+// called to cancel — and a studio that won't let her edit her own day is worse
+// than one that asks. It names who, so the answer is obvious either way.
+//
+// Anything cancelled or marked a no-show is not a clash; nobody's coming.
+async function findClashes(startsISO: string, endsISO: string) {
+  const { data, error } = await supabase
+    .from("appointments")
+    .select("id,starts_at,ends_at,clients(full_name),services(name)")
+    // Half-open overlap: a block starting exactly when an appointment ends is
+    // not a clash, and neither is one ending exactly as another begins.
+    .lt("starts_at", endsISO)
+    .gt("ends_at", startsISO)
+    .not("status", "in", "(cancelled,no_show)")
+    .order("starts_at");
+  // On error, report no clashes and let the insert proceed. A warning that
+  // can't be computed must not become a wall she can't get past.
+  if (error) return [] as Clash[];
+  return (data ?? []) as unknown as Clash[];
+}
+
 function formatBlock(b: Block) {
   const sameDay = dayKey(b.starts_at) === dayKey(b.ends_at);
   if (!sameDay) return `${dateLabel(b.starts_at)} – ${dateLabel(b.ends_at)}`;
@@ -734,6 +771,13 @@ function TimeOff() {
   const [end, setEnd] = useState("17:00");
   const [allDay, setAllDay] = useState(true);
   const [reason, setReason] = useState("");
+  // Set when the range she asked for has clients in it. Holds the exact range
+  // as well as the clashes, so confirming blocks what she was warned about.
+  const [pending, setPending] = useState<{
+    startsISO: string;
+    endsISO: string;
+    clashes: Clash[];
+  } | null>(null);
   const multiDay = Boolean(toDate && toDate > fromDate);
 
   const load = useCallback(() => {
@@ -765,6 +809,18 @@ function TimeOff() {
     const endsISO = fullDays
       ? salonWallToISO(`${to}T23:59`)
       : salonWallToISO(`${fromDate}T${end}`);
+
+    const clashes = await findClashes(startsISO, endsISO);
+    if (clashes.length > 0) {
+      // Hold the exact range she asked for. Recomputing it on confirm would
+      // read the form again, and the form is still editable behind the warning.
+      setPending({ startsISO, endsISO, clashes });
+      return;
+    }
+    await write(startsISO, endsISO);
+  }
+
+  async function write(startsISO: string, endsISO: string) {
     const { error } = await supabase.from("time_off").insert({
       starts_at: startsISO,
       ends_at: endsISO,
@@ -772,6 +828,7 @@ function TimeOff() {
     });
     if (error) setError(error.message);
     else {
+      setPending(null);
       setFromDate("");
       setToDate("");
       setReason("");
@@ -791,8 +848,9 @@ function TimeOff() {
         Time off
       </h2>
       <p className="mt-2 text-sm text-muted">
-        A single day or a whole stretch — a holiday, a course, closed until
-        September. Clients can&apos;t book across blocked dates.
+        A dentist appointment, a school run, a course, a holiday, closed until
+        September &mdash; any time you don&apos;t want bookable. Part of a day
+        or a stretch of days. Clients can&apos;t book across it.
       </p>
 
       <form
@@ -868,6 +926,54 @@ function TimeOff() {
       </form>
 
       {error && <ErrorNote>{error}</ErrorNote>}
+
+      {/* Names the people, not a count. "1 conflict" sends her to the calendar
+          to find out who; the name and the time usually settle it from here —
+          she either recognises someone she's already moving, or she doesn't and
+          cancels the block. */}
+      {pending && (
+        <div className="mt-4 overflow-hidden rounded-xl border border-[#8f3f4a]/35 bg-[#8f3f4a]/5">
+          <p className="px-4 pt-3.5 text-sm font-medium text-[#8f3f4a]">
+            {pending.clashes.length === 1
+              ? "Someone is booked in that time."
+              : `${pending.clashes.length} clients are booked in that time.`}
+          </p>
+          <ul className="mt-2 px-4 text-sm">
+            {pending.clashes.map((c) => (
+              <li key={c.id} className="flex flex-wrap gap-x-2 py-0.5">
+                <span className="font-medium">
+                  {c.clients?.full_name ?? "A client"}
+                </span>
+                <span className="text-muted">
+                  {dateLabel(c.starts_at)} · {timeLabel(c.starts_at)} –{" "}
+                  {timeLabel(c.ends_at)}
+                </span>
+                {c.services?.name && (
+                  <span className="text-muted">{c.services.name}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <p className="px-4 pt-2 text-sm text-muted">
+            Blocking won&apos;t cancel or move them &mdash; it only stops new
+            bookings. You&apos;ll still need to sort these out with them.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-[#8f3f4a]/20 px-4 py-3">
+            <button
+              onClick={() => write(pending.startsISO, pending.endsISO)}
+              className="rounded-md bg-[#8f3f4a] px-4 py-2 text-sm font-medium text-white transition hover:brightness-110"
+            >
+              Block it anyway
+            </button>
+            <button
+              onClick={() => setPending(null)}
+              className="rounded-md px-4 py-2 text-sm text-muted transition hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 flex items-baseline gap-3">
         <h3 className="text-xs uppercase tracking-[0.15em] text-muted">

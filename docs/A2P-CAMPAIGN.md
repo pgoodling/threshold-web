@@ -151,6 +151,40 @@ Hi [Name], it's Evelyn at Threshold — I've had a cancellation this [Day] at [T
 Samples 4 and 5 are the ones added on 8 Sep. Without them the campaign
 collects marketing consent it never demonstrates.
 
+### The internal one, which is not like the others
+
+**6 — Short-notice booking alert** *(automatic, to Evelyn's own mobile)*
+
+```
+New booking — TODAY [Time]: [Name] (new client), [Service]. Booked just now at threshold.salon.
+```
+
+Built 9 Sep 2026 (`lib/smsTemplates.ts` → `ownerNewBookingText`, sent by
+`/api/sms/new-booking` when a booking lands inside the next 24 hours). Gated on
+`SMS_AUTOMATION_ENABLED` like everything else, so it sends nothing yet.
+
+**This needs a decision before the alert is switched on.** It is the one
+message the system sends that is not a consumer message: the recipient is the
+business owner, on the handset the campaign's own number belongs to, and it
+carries no STOP because she cannot opt out of her own business — and putting
+her number through the opt-out flow would file it alongside her clients'.
+
+It is still A2P traffic from a 10DLC number, which is why it is listed here
+rather than treated as out of scope. Two options, and the safe one is not
+obvious:
+
+* **Describe it in the campaign** as an internal operational alert. Honest, and
+  removes any describe-one-thing-send-another risk — the exact failure mode
+  that has already cost three cycles. Costs a resubmission if the campaign is
+  mid-review.
+* **Leave it undescribed** on the grounds that it never reaches a consumer.
+  Lower friction, but it is a message type in the traffic that the campaign
+  does not mention, and reviewers compare traffic against description.
+
+Whichever way it goes, do not switch on `SMS_AUTOMATION_ENABLED` while assuming
+this sample is covered by samples 1–5. It isn't; they all carry STOP and are
+addressed to clients.
+
 ## Use case
 
 Collecting both types means the use case has to cover both. `LOW_VOLUME` fits a

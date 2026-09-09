@@ -28,6 +28,7 @@ import {
   type ClientState,
 } from "../../lib/clientState";
 import { formulaName } from "../../lib/hair";
+import { insertStudioAppointment } from "../../lib/appointments";
 import ApptDetailModal from "./ApptDetailModal";
 import ClientMessages from "./ClientMessages";
 import HairNotes from "./HairNotes";
@@ -1073,7 +1074,7 @@ function NewAppointment({
     const endsISO = new Date(
       new Date(startsISO).getTime() + svc.duration_minutes * 60000,
     ).toISOString();
-    const { error } = await supabase.from("appointments").insert({
+    const { error } = await insertStudioAppointment(supabase, {
       client_id: clientId,
       service_id: svc.id,
       starts_at: startsISO,

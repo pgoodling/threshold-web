@@ -8,6 +8,8 @@ import {
   salonWallToISO,
   timeLabel,
   shortWhen,
+  whenLabel,
+  dayKey,
   statusLabel,
   liveStatus,
   statusBlockColor,
@@ -51,10 +53,53 @@ type DueTask = {
   clients: { full_name: string } | null;
 };
 
+// A booking that arrived without her — taken on the website while she was with
+// a client, or asleep. Not the ones she typed in herself; `source` separates
+// those (migration 0032).
+type NewBooking = {
+  id: string;
+  starts_at: string;
+  created_at: string;
+  clients: { full_name: string } | null;
+  services: { name: string } | null;
+};
+
 // How many unread messages the banner names individually before collapsing the
 // rest into a count. Past a few, the detail stops helping and the banner starts
 // burying today's schedule.
 const NAMED_UNREAD = 3;
+
+// How far back the "booked while you were away" strip will ever look. Bounds
+// the query, and bounds the damage if she's been away a fortnight.
+const NEW_BOOKING_LOOKBACK_DAYS = 14;
+
+// What "new" means before she's ever dismissed the strip. Without this, a
+// null watermark would mean "everything ever booked", and she'd open the studio
+// for the first time to a wall of history.
+const UNSEEN_DEFAULT_DAYS = 7;
+
+// Inside this, a booking is imminent enough to colour like one.
+const IMMINENT_HOURS = 24;
+
+const DAY = 86400000;
+
+// "Today 2:00 PM" / "Tomorrow 9:00 AM" / "Fri, Sep 12, 10:00 AM".
+//
+// shortWhen is the wrong tool here: it measures backwards, for timestamps of
+// things that already happened. Every one of these is in the future, and "when
+// is it" is the only question the row has to answer.
+//
+// `nowMs` is passed in rather than read from the clock, because this is called
+// during render and a component that reads the clock while rendering isn't
+// pure. Same reason TimeOff freezes `mountedAt`.
+function bookedFor(iso: string, nowMs: number): string {
+  const today = dayKey(new Date(nowMs).toISOString());
+  const tomorrow = dayKey(new Date(nowMs + DAY).toISOString());
+  const key = dayKey(iso);
+  if (key === today) return `Today ${timeLabel(iso)}`;
+  if (key === tomorrow) return `Tomorrow ${timeLabel(iso)}`;
+  return whenLabel(iso);
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const TZ = "America/New_York";
@@ -82,6 +127,11 @@ export default function Overview({
   unread?: number;
 }) {
   const [today, setToday] = useState<TodayAppt[]>([]);
+  const [newBookings, setNewBookings] = useState<NewBooking[]>([]);
+  // The clock, sampled when the data was. Refreshed on the same tick as
+  // everything else, so "Today" and "imminent" can be decided during render
+  // without reading the clock there.
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [waiting, setWaiting] = useState<Waiting[]>([]);
   const [dueTasks, setDueTasks] = useState<DueTask[]>([]);
   const [upcomingCount, setUpcomingCount] = useState<number | null>(null);
@@ -155,7 +205,32 @@ export default function Overview({
         )
         .order("due_date", { nullsFirst: false })
         .limit(NAMED_UNREAD),
-    ]).then(([todayRes, upcomingRes, clientsRes, waitingRes, tasksRes]) => {
+      // Bookings she didn't make. Fetched wide and filtered against the
+      // watermark below rather than filtered in the query, so both can come
+      // back in the same round trip — a salon's worth of rows is a handful.
+      supabase
+        .from("appointments")
+        .select("id,starts_at,created_at,clients(full_name),services(name)")
+        .eq("source", "online")
+        .gte("starts_at", nowISO)
+        .gte(
+          "created_at",
+          new Date(Date.now() - NEW_BOOKING_LOOKBACK_DAYS * DAY).toISOString(),
+        )
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(25),
+      // `*` so bookings_seen_at is tolerated before migration 0032 runs.
+      supabase.from("salon_settings").select("*").maybeSingle(),
+    ]).then(([
+      todayRes,
+      upcomingRes,
+      clientsRes,
+      waitingRes,
+      tasksRes,
+      newRes,
+      settingsRes,
+    ]) => {
       setLoading(false);
       setToday((todayRes.data ?? []) as unknown as TodayAppt[]);
       setUpcomingCount(upcomingRes.count ?? 0);
@@ -164,8 +239,41 @@ export default function Overview({
       // Silently empty if migration 0005/0008 hasn't run — the banner simply
       // shows no to-dos rather than an error she can't act on.
       setDueTasks((tasksRes.data ?? []) as unknown as DueTask[]);
+
+      // Same tolerance for 0032: before it runs there is no `source` column,
+      // the query errors, and the strip is simply absent rather than throwing
+      // an error onto her home screen.
+      setNowMs(Date.now());
+      const settings = settingsRes.data as { bookings_seen_at?: string } | null;
+      const watermark =
+        settings?.bookings_seen_at ??
+        new Date(Date.now() - UNSEEN_DEFAULT_DAYS * DAY).toISOString();
+      setNewBookings(
+        ((newRes.data ?? []) as unknown as NewBooking[]).filter(
+          (b) => b.created_at > watermark,
+        ),
+      );
     });
   }, [tick, todayKey]);
+
+  // Dismiss the strip. Optimistic, then written — a watermark of "now" rather
+  // than of the newest row shown, so a booking that lands mid-tap isn't
+  // silently marked seen along with the rest.
+  async function markBookingsSeen() {
+    const seenAt = new Date().toISOString();
+    const dismissed = newBookings;
+    setNewBookings([]);
+    const { error } = await supabase
+      .from("salon_settings")
+      // updated_at set explicitly — the column defaults on insert but there's
+      // no trigger, so an update that didn't touch it would leave it stale.
+      // Same as saveTarget in Ahead.
+      .update({ bookings_seen_at: seenAt, updated_at: seenAt })
+      .eq("id", true);
+    // Put them back rather than pretend. A strip that clears on screen and
+    // returns on refresh is worse than one that admits it didn't save.
+    if (error) setNewBookings(dismissed);
+  }
 
   // Drop it from the list immediately, then reconcile — a tick that appears to
   // do nothing for a second gets tapped twice.
@@ -274,6 +382,65 @@ export default function Overview({
                 {unread - waiting.length} more unread → open messages
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Deliberately its own strip rather than a row in "Needs attention"
+          above. That banner is for people waiting on her — a late client, an
+          unanswered text. A booking that came in overnight is good news, and
+          filing good news under a heading that means "something is wrong"
+          teaches her to read the whole banner as noise. */}
+      {newBookings.length > 0 && (
+        <div className="mt-5">
+          <p className="mb-2 text-xs uppercase tracking-wide text-muted">
+            Booked while you were away
+          </p>
+          <div className="overflow-hidden rounded-xl border border-foreground/15 bg-white">
+            {newBookings.map((b, i) => {
+              // Colour carries urgency so it reads before the words do; the
+              // time is spelled out beside it, so colour is never the only
+              // signal. Same red the late-client rows use.
+              const imminent =
+                new Date(b.starts_at).getTime() - nowMs <
+                IMMINENT_HOURS * 60 * 60 * 1000;
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => setOpenId(b.id)}
+                  className={`flex w-full items-stretch text-left text-sm transition hover:bg-foreground/5 ${
+                    i > 0 ? "border-t border-foreground/10" : ""
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="w-1 shrink-0 self-stretch"
+                    style={{ background: imminent ? "#8f3f4a" : "#bd6b4d" }}
+                  />
+                  <span className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3">
+                    <span className="shrink-0 font-medium">
+                      {b.clients?.full_name ?? "A client"}
+                    </span>
+                    <span className="truncate text-xs text-muted">
+                      {b.services?.name}
+                    </span>
+                    <span
+                      className={`ml-auto shrink-0 whitespace-nowrap text-xs ${
+                        imminent ? "font-semibold text-[#8f3f4a]" : "text-muted"
+                      }`}
+                    >
+                      {bookedFor(b.starts_at, nowMs)}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              onClick={markBookingsSeen}
+              className="w-full border-t border-foreground/10 px-4 py-2.5 text-left text-xs text-accent transition hover:bg-accent/5"
+            >
+              Mark all as seen
+            </button>
           </div>
         </div>
       )}

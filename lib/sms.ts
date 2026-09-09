@@ -52,6 +52,50 @@ export function withinQuietHours(now = new Date()): boolean {
   return hour < QUIET_START_HOUR || hour >= QUIET_END_HOUR;
 }
 
+// Text Evelyn, on her own handset, about her own business.
+//
+// Deliberately NOT sendClientSms. Everything that function enforces — consent,
+// opt-out, quiet hours — exists to protect a consumer from a business texting
+// them. This is the business texting itself: she has no clients row, no consent
+// record to check, and the "recipient" is the person who owns the number it's
+// sent from.
+//
+// Quiet hours are skipped for the same reason. A booking taken at 11pm for 8am
+// tomorrow is precisely the one she must not walk in blind to, and holding it
+// until 9am would deliver it after the appointment it's warning her about. Her
+// phone's own Do Not Disturb is the right place for that decision, not ours.
+//
+// Still gated on automationEnabled(), so nothing goes anywhere until the A2P
+// campaign clears. Messages sent from a 10DLC number are A2P traffic whoever
+// they're addressed to, and carriers filter unregistered traffic to Evelyn
+// exactly as they filter it to a client.
+export async function sendOwnerSms(body: string): Promise<SendResult> {
+  if (!automationEnabled()) return { ok: false, reason: "automation_off" };
+  if (!smsConfigured()) return { ok: false, reason: "sms_unconfigured" };
+
+  const owner = process.env.SALON_OWNER_PHONE;
+  if (!owner) return { ok: false, reason: "no_owner_phone" };
+
+  const from = process.env.TWILIO_PHONE_NUMBER as string;
+  const to = toE164(owner);
+
+  // Not logged to `messages`. That table is the client conversation view — an
+  // operational alert to Evelyn appearing in it would put a thread in her inbox
+  // with herself in it.
+  try {
+    const msg = await twilio(
+      process.env.TWILIO_ACCOUNT_SID as string,
+      process.env.TWILIO_AUTH_TOKEN as string,
+    ).messages.create({ to, from, body });
+    return { ok: true, sid: msg.sid };
+  } catch (e) {
+    return {
+      ok: false,
+      reason: e instanceof Error ? `twilio_error: ${e.message}` : "twilio_error",
+    };
+  }
+}
+
 type ClientConsent = {
   phone: string | null;
   sms_opt_out: boolean | null;

@@ -340,6 +340,11 @@ export default function BookPage() {
       };
       fetch("/api/sms/booking-confirm", opts).catch(() => {});
       fetch("/api/email/booking-confirm", opts).catch(() => {});
+      // And tell Evelyn, if this one lands inside her next 24 hours. The route
+      // decides that, not us — the window is a property of the alert, and
+      // duplicating the rule here is how the two drift apart. Silent today:
+      // it's gated on the same A2P flag as everything else that texts.
+      fetch("/api/sms/new-booking", opts).catch(() => {});
     }
     setStep(4);
   }
