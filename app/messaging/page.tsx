@@ -106,8 +106,55 @@ export default function MessagingPage() {
         <p className="mt-4 text-sm text-muted">
           The two are independent. Agreeing to appointment texts does not sign
           you up for offers, and neither is a condition of booking or of any
-          purchase. If you book by phone or in person, Evelyn asks the same
-          question out loud and records your answer with the date.
+          purchase.
+        </p>
+
+        {/* The verbal script, in public, word for word.
+            Twilio's guide: an opt-in that happens "via verbal script (IVR or
+            agent)" needs a publicly accessible link showing it, in the message
+            flow description. The campaign was rejected on error 30909 for
+            exactly this — verbal was named as a method and the script wasn't
+            provided. Hosting it here rather than as a screenshot on a Drive
+            link means it's the real wording, at a stable URL, and it also tells
+            a client what they'll be asked before they're asked it. */}
+        <h2 className="mt-12 font-display text-2xl">
+          If you book by phone or in the salon
+        </h2>
+        <p className="mt-3 leading-relaxed text-muted">
+          There&rsquo;s no form to tick, so Evelyn asks you directly. This is
+          what she says, word for word, and your answer to each question is
+          recorded on your file with the date:
+        </p>
+
+        <div className="mt-5 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+          {[
+            [
+              "Evelyn",
+              "Would you like to receive text messages from Threshold Salon about your appointments — confirmations, reminders, and any changes? Please reply yes if this is okay with you. You can opt out at any time by replying STOP. Reply HELP for help. Message and data rates may apply. Message frequency varies. For privacy and terms, see threshold.salon/privacy and threshold.salon/terms.",
+            ],
+            ["Client", "Yes, that's good with me."],
+            [
+              "Evelyn",
+              "Would you also like to receive marketing messages from Threshold Salon — offers and salon news? This is separate, and saying no to it won't affect your appointment texts. You can opt out at any time by replying STOP. Reply HELP for help. Message and data rates may apply. Message frequency varies. Privacy policy: threshold.salon/privacy. Terms and conditions: threshold.salon/terms.",
+            ],
+            ["Client", "Yes, please."],
+          ].map(([who, line], i) => (
+            <div
+              key={i}
+              className={`flex flex-col gap-1 px-4 py-3 sm:flex-row sm:gap-4 ${
+                i > 0 ? "border-t border-foreground/10" : ""
+              }`}
+            >
+              <span className="shrink-0 text-xs uppercase tracking-[0.15em] text-muted sm:w-20 sm:pt-1">
+                {who}
+              </span>
+              <span className="text-sm leading-relaxed">{line}</span>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-3 text-sm text-muted">
+          Saying no to either question doesn&rsquo;t affect your appointment.
         </p>
 
         <h2 className="mt-12 font-display text-2xl">The programs</h2>
