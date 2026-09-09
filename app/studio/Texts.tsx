@@ -6,25 +6,29 @@ import { toE164 } from "../../lib/phone";
 import { whenLabel } from "../../lib/format";
 import { welcomeConfirmText, reminderText } from "../../lib/smsTemplates";
 import Rail from "./Rail";
+import Button from "./Button";
 
-// The texts that have to go out by hand until A2P clears.
+// The texts that need a human to decide, not a schedule.
 //
-// Same shape as the Outreach sweep, and for the same reason: the app can't send
-// these, so it writes the message, keeps the list, and remembers who's done.
-// She taps a row, her Messages app opens with the text already written, and she
-// presses send. Nothing leaves the salon number — it goes from her own phone.
+// Built when the app couldn't send at all — every row opened her own Messages
+// app with the text written. The A2P campaign cleared on 22 September, so these
+// send from the salon number now. The by-hand path stays on each row, because
+// a carrier can reject one message and she shouldn't be stuck when it does.
 //
 // Two lists, because they're two different jobs:
 //
 //   Confirm    every upcoming appointment that's never had a confirmation.
-//              A one-off catch-up: everyone booked before texting worked.
-//   Remind     anyone starting in the next day and a bit. A daily habit.
+//              A catch-up for everyone booked before texting worked, which is
+//              why it has a date floor — see DEFAULT_CONFIRM_FROM.
+//   Remind     anyone starting in the next day and a bit. Mostly handled by
+//              the 9am cron now; this is what's left when she wants to look.
 //
-// Marking one done stamps the same columns the automated cron uses, so when
-// A2P clears nobody gets texted twice about the same appointment.
+// Both stamp the same columns the automated crons read, so nothing here can
+// text someone the cron has already reached, or vice versa.
 
 type Row = {
   id: string;
+  client_id: string | null;
   starts_at: string;
   status: string;
   confirm_sms_sent_at: string | null;
@@ -36,6 +40,19 @@ type Row = {
 // How far ahead the reminder list looks. A day and a bit, so an appointment at
 // 9am tomorrow is already on the list when she checks at teatime today.
 const REMIND_AHEAD_HOURS = 30;
+
+// Don't offer to confirm anything before this date.
+//
+// Evelyn hand-texted every September client from her own phone while the
+// carrier registration was stuck. Some of those she marked here, some she
+// didn't — "I sent them all" is a claim about the world, not a fact in the
+// database, and the difference between the two is a client getting the same
+// confirmation twice.
+//
+// So the list starts in October and she can wind it back if she wants to. The
+// floor is the safe default; the control is there because she knows things the
+// database doesn't.
+const DEFAULT_CONFIRM_FROM = "2026-10-01";
 
 const smsHref = (phone: string, body: string) =>
   `sms:${toE164(phone)}?&body=${encodeURIComponent(body)}`;
@@ -52,7 +69,7 @@ export default function Texts() {
     supabase
       .from("appointments")
       .select(
-        "id,starts_at,status,confirm_sms_sent_at,reminder_sms_sent_at,clients(full_name,phone),services(name)",
+        "id,client_id,starts_at,status,confirm_sms_sent_at,reminder_sms_sent_at,clients(full_name,phone),services(name)",
       )
       .gte("starts_at", new Date().toISOString())
       .in("status", ["booked", "confirmed"])
@@ -78,10 +95,18 @@ export default function Texts() {
   // render makes the component impure.
   const [nowMs] = useState(() => Date.now());
 
+  const [confirmFrom, setConfirmFrom] = useState(DEFAULT_CONFIRM_FROM);
+
   const { toConfirm, toRemind } = useMemo(() => {
     const cutoff = nowMs + REMIND_AHEAD_HOURS * 3600 * 1000;
+    const floor = new Date(`${confirmFrom}T00:00:00-04:00`).getTime();
     return {
-      toConfirm: rows.filter((r) => !r.confirm_sms_sent_at && r.clients?.phone),
+      toConfirm: rows.filter(
+        (r) =>
+          !r.confirm_sms_sent_at &&
+          r.clients?.phone &&
+          new Date(r.starts_at).getTime() >= floor,
+      ),
       toRemind: rows.filter(
         (r) =>
           !r.reminder_sms_sent_at &&
@@ -89,7 +114,69 @@ export default function Texts() {
           new Date(r.starts_at).getTime() <= cutoff,
       ),
     };
-  }, [rows, nowMs]);
+  }, [rows, nowMs, confirmFrom]);
+
+  // ── Sending from the salon number ──────────────────────────────────────
+  //
+  // Until the campaign cleared, every row here was an `sms:` link that opened
+  // her own Messages app. It can send properly now, so it does — but the manual
+  // link stays on each row as a fallback, because a carrier can still reject a
+  // single message and she shouldn't be stuck when it does.
+  const [sending, setSending] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
+
+  async function sendOne(row: Row, kind: "confirm" | "remind") {
+    const { data: sess } = await supabase.auth.getSession();
+    const res = await fetch("/api/sms/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+      },
+      body: JSON.stringify({
+        to: row.clients!.phone,
+        body: bodyFor(row, kind),
+        // Both ids, so the sent message lands in this client's conversation
+        // rather than floating loose in the inbox. Without client_id the
+        // confirmation wouldn't appear on her record at all.
+        clientId: row.client_id,
+        appointmentId: row.id,
+      }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      throw new Error(json.error || "Couldn't send that one.");
+    }
+    // Stamped only after a real send, so a failure leaves the row on the list
+    // to try again rather than quietly marking it done.
+    await mark(row, kind, true);
+  }
+
+  async function sendAll(list: Row[], kind: "confirm" | "remind") {
+    setError(null);
+    setProgress({ done: 0, total: list.length });
+    for (const [i, row] of list.entries()) {
+      try {
+        await sendOne(row, kind);
+      } catch (e) {
+        setError(
+          `${e instanceof Error ? e.message : "Send failed"} — stopped at ${
+            row.clients?.full_name ?? "unknown"
+          }. The rest are still on the list.`,
+        );
+        setProgress(null);
+        return;
+      }
+      setProgress({ done: i + 1, total: list.length });
+      // One at a time, with a breath between. Nothing here is urgent, and a
+      // burst of identical messages from a new number is what carrier spam
+      // filtering is built to catch.
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    setProgress(null);
+  }
 
   async function mark(row: Row, kind: "confirm" | "remind", sent: boolean) {
     const column =
@@ -148,8 +235,9 @@ export default function Texts() {
     <div>
       <h2 className="font-display text-2xl leading-none sm:text-3xl">Texts</h2>
       <p className="mt-2 text-sm text-muted">
-        Until the carrier registration clears, these go from your phone. Tap one
-        and Messages opens with it written — you just press send.
+        These send from the salon number. &ldquo;By hand&rdquo; still opens your
+        own Messages with the text written, if you&apos;d rather send one
+        yourself.
       </p>
 
       <div className="mt-4 flex gap-5 border-b border-foreground/15">
@@ -173,6 +261,38 @@ export default function Texts() {
           </button>
         ))}
       </div>
+
+      {/* The date floor, and the bulk send it protects. Both live above the
+          list, because she needs to see what the run covers before starting
+          one — a "Send all" whose scope isn't on screen is a trap. */}
+      {tab === "confirm" && (
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-3 rounded-xl border border-foreground/15 bg-white px-4 py-3">
+          <label className="block">
+            <span className="mb-1 block text-xs uppercase tracking-wider text-muted">
+              Appointments from
+            </span>
+            <input
+              type="date"
+              className="input w-44"
+              value={confirmFrom}
+              onChange={(e) => setConfirmFrom(e.target.value)}
+            />
+            <span className="mt-1 block text-xs text-muted">
+              September was done by hand — starts in October so nobody gets two.
+            </span>
+          </label>
+          {toConfirm.length > 0 && (
+            <Button
+              onClick={() => sendAll(toConfirm, "confirm")}
+              disabled={progress !== null}
+            >
+              {progress
+                ? `Sending ${progress.done}/${progress.total}…`
+                : `Send all ${toConfirm.length}`}
+            </Button>
+          )}
+        </div>
+      )}
 
       {error && <p className="mt-3 text-sm text-accent-dark">{error}</p>}
 
@@ -205,12 +325,32 @@ export default function Texts() {
                 </span>
 
                 <span className="ml-auto flex shrink-0 items-center gap-4 text-sm">
+                  <button
+                    disabled={sending === r.id || progress !== null}
+                    onClick={async () => {
+                      setSending(r.id);
+                      setError(null);
+                      try {
+                        await sendOne(r, tab);
+                      } catch (e) {
+                        setError(
+                          e instanceof Error ? e.message : "Send failed.",
+                        );
+                      }
+                      setSending(null);
+                    }}
+                    className="font-medium text-accent-dark underline decoration-accent underline-offset-4 disabled:opacity-50"
+                  >
+                    {sending === r.id ? "Sending…" : "Send"}
+                  </button>
+                  {/* The old path, kept. A carrier can reject one message and
+                      she shouldn't be stuck when it happens. */}
                   <a
                     href={smsHref(r.clients!.phone!, bodyFor(r, tab))}
                     onClick={() => mark(r, tab, true)}
-                    className="font-medium text-accent-dark underline decoration-accent underline-offset-4"
+                    className="text-xs text-muted transition hover:text-accent-dark"
                   >
-                    Text
+                    By hand
                   </a>
                   <button
                     onClick={() => mark(r, tab, true)}
