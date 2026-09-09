@@ -10,6 +10,8 @@ import {
   liveStatus,
   serviceEdge,
   serviceColors,
+  BLOCK_INK,
+  BLOCK_HATCH,
 } from "../../lib/format";
 import ApptDetailModal, { RebookForm } from "./ApptDetailModal";
 import { saveClient } from "./Clients";
@@ -112,6 +114,67 @@ function layoutLanes<T extends { starts_at: string; ends_at: string }>(
   return out;
 }
 
+// Time she's kept for herself — a dentist appointment, a school run, a holiday.
+// Same `time_off` rows the Time off tab writes and create_booking refuses to
+// book across. They have never been drawn anywhere until now, which meant she
+// could block Thursday afternoon and then look at Thursday and see it empty.
+type Block = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  reason: string | null;
+};
+
+// One block, clipped to one day.
+//
+// A time_off row is an arbitrary range and a holiday runs for a week, but a
+// calendar draws days. So each row becomes one span per day it touches, clipped
+// to that day's midnights — otherwise a week off is a single band starting on
+// Monday and running off the bottom of the column.
+type BlockSpan = {
+  /** Unique per day-segment; a multi-day block appears once per day. */
+  key: string;
+  reason: string | null;
+  startMin: number;
+  endMin: number;
+};
+
+const DAY_MIN = 24 * 60;
+
+function blockSpansByDay(
+  blocks: Block[],
+  days: string[],
+): Map<string, BlockSpan[]> {
+  const out = new Map<string, BlockSpan[]>();
+  for (const day of days) {
+    const dayStart = new Date(salonWallToISO(`${day}T00:00`)).getTime();
+    const dayEnd = new Date(salonWallToISO(`${addDays(day, 1)}T00:00`)).getTime();
+    const spans: BlockSpan[] = [];
+    for (const b of blocks) {
+      const from = Math.max(new Date(b.starts_at).getTime(), dayStart);
+      const to = Math.min(new Date(b.ends_at).getTime(), dayEnd);
+      if (to <= from) continue;
+      // Wall-clock minutes, read off the clock rather than counted from the
+      // day boundary. On the two DST days of the year a day is 23 or 25 hours
+      // long, and elapsed minutes would put the band an hour away from the
+      // hour lines the grid draws beside it.
+      spans.push({
+        key: `${b.id}:${day}`,
+        reason: b.reason,
+        startMin:
+          from === dayStart ? 0 : salonMinutes(new Date(from).toISOString()),
+        endMin:
+          to === dayEnd ? DAY_MIN : salonMinutes(new Date(to).toISOString()),
+      });
+    }
+    if (spans.length) {
+      spans.sort((a, z) => a.startMin - z.startMin);
+      out.set(day, spans);
+    }
+  }
+  return out;
+}
+
 type View = "month" | "week" | "day";
 
 const HOUR_START = 8; // 8 AM
@@ -168,6 +231,7 @@ export default function Calendar({
   const [view, setView] = useState<View>("month");
   const [anchor, setAnchor] = useState(todayKey);
   const [appts, setAppts] = useState<Appt[]>([]);
+  const [blocks, setBlocks] = useState<Block[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState(todayKey);
   const [selected, setSelected] = useState<Appt | null>(null);
@@ -200,6 +264,22 @@ export default function Calendar({
       .then(({ data, error }) => {
         if (error) setError(error.message);
         else setAppts((data ?? []) as unknown as Appt[]);
+      });
+
+    // Overlap, not containment: a block that started last week and runs through
+    // next is invisible to a "starts inside the window" filter, which is exactly
+    // the holiday she most needs to see on the month she's looking at.
+    supabase
+      .from("time_off")
+      .select("id,starts_at,ends_at,reason")
+      .lt("starts_at", toISO)
+      .gt("ends_at", fromISO)
+      .order("starts_at")
+      .then(({ data }) => {
+        // No setError. A calendar that refuses to draw appointments because
+        // time off failed to load is a worse calendar than one missing its
+        // blocks, and the appointments query above owns the error line.
+        setBlocks((data ?? []) as unknown as Block[]);
       });
   }, [range.start, range.days]);
 
@@ -241,6 +321,15 @@ export default function Calendar({
     }
     return m;
   }, [appts]);
+
+  const blocksByDay = useMemo(
+    () =>
+      blockSpansByDay(
+        blocks,
+        Array.from({ length: range.days }, (_, i) => addDays(range.start, i)),
+      ),
+    [blocks, range.start, range.days],
+  );
 
   function shift(dir: number) {
     setSelected(null);
@@ -356,6 +445,7 @@ export default function Calendar({
             anchor={anchor}
             todayKey={todayKey}
             byDay={byDay}
+            blocksByDay={blocksByDay}
             selectedDay={selectedDay}
             onSelectDay={(k) => {
               setSelectedDay(k);
@@ -370,6 +460,7 @@ export default function Calendar({
             days={Array.from({ length: 7 }, (_, i) => addDays(weekStart(anchor), i))}
             todayKey={todayKey}
             byDay={byDay}
+            blocksByDay={blocksByDay}
             onSelect={setSelected}
             onNewAt={(date, time) => {
               setSelected(null);
@@ -383,6 +474,7 @@ export default function Calendar({
             days={[anchor]}
             todayKey={todayKey}
             byDay={byDay}
+            blocksByDay={blocksByDay}
             onSelect={setSelected}
             onNewAt={(date, time) => {
               setSelected(null);
@@ -496,16 +588,43 @@ function ApptLine({ a }: { a: Appt }) {
   );
 }
 
+// A block in a month cell. Reads as an absence: hatched rather than filled, the
+// reason in place of a name, and no time when it's the whole day — "Dentist"
+// says more in a 45px cell than "12a Dentist" does.
+function BlockLine({ b, tiny }: { b: BlockSpan; tiny?: boolean }) {
+  const allDay = b.startMin <= 0 && b.endMin >= DAY_MIN - 1;
+  return (
+    <span
+      className={`flex min-w-0 items-baseline gap-1 py-px pl-1.5 leading-tight ${
+        tiny ? "text-[9px]" : "text-[11px]"
+      }`}
+      style={{
+        borderLeft: `2.5px solid ${BLOCK_INK}`,
+        backgroundImage: BLOCK_HATCH,
+      }}
+    >
+      {!allDay && (
+        <span className="shrink-0 tabular-nums text-muted">
+          {clockLabel(b.startMin)}
+        </span>
+      )}
+      <span className="truncate italic text-muted">{b.reason || "Blocked"}</span>
+    </span>
+  );
+}
+
 function MonthView({
   anchor,
   todayKey,
   byDay,
+  blocksByDay,
   selectedDay,
   onSelectDay,
 }: {
   anchor: string;
   todayKey: string;
   byDay: Map<string, Appt[]>;
+  blocksByDay: Map<string, BlockSpan[]>;
   selectedDay: string;
   onSelectDay: (k: string) => void;
 }) {
@@ -566,6 +685,9 @@ function MonthView({
                   a long name from pushing the column wide and bleeding into the
                   next day. */}
               <span className="flex min-w-0 flex-col gap-0.5 sm:hidden">
+                {(blocksByDay.get(k) ?? []).map((b) => (
+                  <BlockLine key={b.key} b={b} tiny />
+                ))}
                 {list.slice(0, 3).map((a) => {
                   const live = liveStatus(a.status, a.starts_at);
                   return (
@@ -591,7 +713,14 @@ function MonthView({
                 )}
               </span>
 
+              {/* Blocks first, and never truncated by the "+N more" cut. A day
+                  that's blocked is the single most important fact about it —
+                  losing that to a fourth appointment is how she'd book over
+                  her own dentist appointment. */}
               <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
+                {(blocksByDay.get(k) ?? []).map((b) => (
+                  <BlockLine key={b.key} b={b} />
+                ))}
                 {list.slice(0, 4).map((a) => (
                   <ApptLine key={a.id} a={a} />
                 ))}
@@ -648,6 +777,7 @@ function TimeGrid({
   days,
   todayKey,
   byDay,
+  blocksByDay,
   onSelect,
   onNewAt,
   onMove,
@@ -656,6 +786,7 @@ function TimeGrid({
   days: string[];
   todayKey: string;
   byDay: Map<string, Appt[]>;
+  blocksByDay: Map<string, BlockSpan[]>;
   onSelect: (a: Appt) => void;
   onNewAt?: (date: string, time: string) => void;
   onMove?: (a: Appt, day: string, startMin: number) => void;
@@ -727,6 +858,51 @@ function TimeGrid({
                   className="border-t border-foreground/10"
                 />
               ))}
+              {/* Under the appointments, deliberately. A block is the ground
+                  the day is drawn on, not an object sitting on it — and if an
+                  appointment does overlap one (she can still book over her own
+                  block from in here) the client must stay readable.
+
+                  pointer-events-none so the column underneath keeps its
+                  click-to-book and the drag gestures are untouched. Tapping a
+                  blocked slot still opens the new-appointment panel: it's her
+                  calendar, and she's allowed to decide the dentist can wait. */}
+              {(blocksByDay.get(k) ?? []).map((b) => {
+                const top = ((b.startMin - GRID_TOP_MIN) / 60) * HOUR_PX;
+                const bottom = ((b.endMin - GRID_TOP_MIN) / 60) * HOUR_PX;
+                const clipTop = Math.max(0, top);
+                const clipBottom = Math.min(GRID_HEIGHT, bottom);
+                // Entirely outside the drawn hours — a 6am block on an 8am-8pm
+                // grid. Nothing to draw rather than a zero-height sliver.
+                if (clipBottom <= clipTop) return null;
+                const height = clipBottom - clipTop;
+                return (
+                  <div
+                    key={b.key}
+                    className="pointer-events-none absolute inset-x-0 overflow-hidden"
+                    style={{
+                      top: clipTop,
+                      height,
+                      backgroundImage: BLOCK_HATCH,
+                      borderTop:
+                        top >= 0 ? `1px solid ${BLOCK_INK}` : undefined,
+                      borderBottom:
+                        bottom <= GRID_HEIGHT
+                          ? `1px solid ${BLOCK_INK}`
+                          : undefined,
+                      boxShadow: `inset 3px 0 0 ${BLOCK_INK}`,
+                    }}
+                  >
+                    {/* Only when there's room. A 20-minute band with text
+                        crammed into it is less legible than one without. */}
+                    {height >= 26 && (
+                      <span className="block truncate px-2 py-1 text-[11px] italic leading-tight text-muted">
+                        {b.reason || "Blocked"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
               {(() => {
                 const placed = layoutLanes(byDay.get(k) ?? []);
                 return placed.map(({ item: a, startMin, endMin, lane, laneCount }) => {

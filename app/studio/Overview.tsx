@@ -15,6 +15,8 @@ import {
   statusBlockColor,
   serviceEdge,
   money,
+  BLOCK_INK,
+  BLOCK_HATCH,
 } from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
 import OpeningCountdown from "../OpeningCountdown";
@@ -51,6 +53,16 @@ type DueTask = {
   recurrence: string | null;
   client_id: string | null;
   clients: { full_name: string } | null;
+};
+
+// Time she's kept for herself today. Same rows the Time off tab writes; they
+// belong in the run of the day, because a schedule that lists only clients
+// isn't a picture of the day, it's a picture of the money.
+type TodayBlock = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  reason: string | null;
 };
 
 // A booking that arrived without her — taken on the website while she was with
@@ -128,6 +140,7 @@ export default function Overview({
 }) {
   const [today, setToday] = useState<TodayAppt[]>([]);
   const [newBookings, setNewBookings] = useState<NewBooking[]>([]);
+  const [todayBlocks, setTodayBlocks] = useState<TodayBlock[]>([]);
   // The clock, sampled when the data was. Refreshed on the same tick as
   // everything else, so "Today" and "imminent" can be decided during render
   // without reading the clock there.
@@ -222,6 +235,14 @@ export default function Overview({
         .limit(25),
       // `*` so bookings_seen_at is tolerated before migration 0032 runs.
       supabase.from("salon_settings").select("*").maybeSingle(),
+      // Blocks touching today. Overlap rather than "starts today", so the
+      // middle day of a week off still shows as blocked.
+      supabase
+        .from("time_off")
+        .select("id,starts_at,ends_at,reason")
+        .lt("starts_at", dayEnd)
+        .gt("ends_at", dayStart)
+        .order("starts_at"),
     ]).then(([
       todayRes,
       upcomingRes,
@@ -230,8 +251,10 @@ export default function Overview({
       tasksRes,
       newRes,
       settingsRes,
+      blocksRes,
     ]) => {
       setLoading(false);
+      setTodayBlocks((blocksRes.data ?? []) as unknown as TodayBlock[]);
       setToday((todayRes.data ?? []) as unknown as TodayAppt[]);
       setUpcomingCount(upcomingRes.count ?? 0);
       setClientCount(clientsRes.count ?? 0);
@@ -457,12 +480,40 @@ export default function Overview({
       <h2 className="mt-8 font-display text-lg">Today&apos;s schedule</h2>
       {loading ? (
         <p className="mt-2 text-muted">Loading…</p>
-      ) : today.length === 0 ? (
+      ) : today.length === 0 && todayBlocks.length === 0 ? (
         <p className="mt-2 text-muted">
           Nothing booked today. Enjoy the breather.
         </p>
       ) : (
         <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white">
+          {/* Blocks sit in the run of the day rather than in a list of their
+              own, because that's the question this answers: what does today
+              look like. A 1pm dentist appointment between an 11am and a 3pm is
+              the reason the 3pm can't move earlier. */}
+          {todayBlocks.map((b, i) => (
+            <div
+              key={b.id}
+              className={`flex items-stretch text-left ${
+                i > 0 ? "border-t border-foreground/10" : ""
+              }`}
+              style={{
+                boxShadow: `inset 4px 0 0 ${BLOCK_INK}`,
+                backgroundImage: BLOCK_HATCH,
+              }}
+            >
+              <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-5 pr-4">
+                <span className="w-16 shrink-0 text-sm tabular-nums text-muted">
+                  {timeLabel(b.starts_at)}
+                </span>
+                <span className="truncate italic text-muted">
+                  {b.reason || "Blocked"}
+                </span>
+                <span className="ml-auto shrink-0 whitespace-nowrap pl-2 text-xs text-muted">
+                  until {timeLabel(b.ends_at)}
+                </span>
+              </span>
+            </div>
+          ))}
           {today.map((a, i) => {
             const eff = liveStatus(a.status, a.starts_at);
             const sc = statusBlockColor(eff);
@@ -478,7 +529,9 @@ export default function Overview({
                 key={a.id}
                 onClick={() => setOpenId(a.id)}
                 className={`flex w-full items-stretch text-left transition hover:bg-background/60 ${
-                  i > 0 ? "border-t border-foreground/10" : ""
+                  i > 0 || todayBlocks.length > 0
+                    ? "border-t border-foreground/10"
+                    : ""
                 }`}
                 style={{
                   // Status on the left edge, service on the right — the same

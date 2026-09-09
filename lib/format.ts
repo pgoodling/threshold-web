@@ -189,6 +189,22 @@ export function serviceColors(name: string | undefined): {
 // a hairline on the edge of a calendar row those pastels vanish into the white,
 // so the month view uses these instead: the same hues, taken down to something
 // that still reads at the width of a rule.
+// How blocked time looks, wherever it's drawn — the calendar's month cells and
+// hour grid, and Today's schedule on the Overview. One definition because the
+// three have to agree: a block that's ochre on one screen and grey on another
+// reads as two different things.
+//
+// The ochre is the colour the Time off tab already gives an upcoming block.
+// Deliberately not the late-client red (#8f3f4a) — red means something has gone
+// wrong, and time she set aside on purpose is the opposite of that.
+//
+// A hatch rather than a fill, for the same reason Rail hatches a client with no
+// history: it reads as absence, and it lets an appointment drawn on top of it
+// stay legible when the two overlap.
+export const BLOCK_INK = "#bd8f45";
+export const BLOCK_HATCH =
+  "repeating-linear-gradient(135deg, transparent 0 5px, rgba(189,143,69,.22) 5px 6px)";
+
 export function serviceEdge(name: string | undefined): string {
   const n = (name ?? "").toLowerCase();
   if (n.includes("highlight")) return "#d0a63a"; // gold

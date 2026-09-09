@@ -16,6 +16,11 @@ what was described, and a mismatch is a rejection.
 | ~6 Sep 2026 | Rejected — same privacy wording. The policy was never the problem: `/book` is a four-step wizard, so a reviewer landing there saw a price list, no checkbox and no fee disclosure. Fixed by publishing `/messaging`. |
 | 8 Sep 2026 | **Webform opt-in confirmed compliant.** Three things outstanding: the campaign describes only non-marketing messages while the form collects consent for both; no marketing samples; verbal script not compliant. |
 | 9 Sep 2026 | Error 30909 — message flow insufficient. "Verbal consent was selected as an opt-in method, but the script used by your agents was not provided." No privacy-policy error this cycle, so `/messaging` settled that. Verbal is a *second* opt-in method and needed its own flow and its own public link; only the web form had one. Script now published on `/messaging`. |
+| 9 Sep 2026 | **Approved.** Four cycles. What settled it, in order: publishing `/messaging` so the web-form opt-in could be seen (not the policy wording, which was never the problem); adding marketing samples 4 and 5 so the campaign described the consent the form actually collects; and publishing the verbal script at a stable public URL. |
+
+The campaign that cleared describes **samples 1–5**. Sample 6 below was written
+after submission and is not in it — see the note there before switching the
+alert on.
 
 Verbal stays in the campaign rather than being dropped to simplify approval.
 Evelyn takes phone bookings constantly, and once the campaign is live the
@@ -167,30 +172,35 @@ New booking — TODAY [Time]: [Name] (new client), [Service]. Booked just now at
 ```
 
 Built 9 Sep 2026 (`lib/smsTemplates.ts` → `ownerNewBookingText`, sent by
-`/api/sms/new-booking` when a booking lands inside the next 24 hours). Gated on
-`SMS_AUTOMATION_ENABLED` like everything else, so it sends nothing yet.
+`/api/sms/new-booking` when a booking lands inside the next 24 hours).
 
-**This needs a decision before the alert is switched on.** It is the one
-message the system sends that is not a consumer message: the recipient is the
-business owner, on the handset the campaign's own number belongs to, and it
-carries no STOP because she cannot opt out of her own business — and putting
-her number through the opt-out flow would file it alongside her clients'.
+**Written after the campaign was submitted, so the approval does not cover it.**
+The campaign that cleared describes samples 1–5, and all five are consumer
+messages that carry STOP. This one is not: the recipient is the business owner,
+on the handset the campaign's own number belongs to, and it carries no STOP
+because she cannot opt out of her own business — offering her the keyword would
+file her number in the opt-out list that governs her clients.
 
 It is still A2P traffic from a 10DLC number, which is why it is listed here
-rather than treated as out of scope. Two options, and the safe one is not
-obvious:
+rather than treated as out of scope. Two options:
 
-* **Describe it in the campaign** as an internal operational alert. Honest, and
+* **Add it to the campaign** as an internal operational alert. Honest, and
   removes any describe-one-thing-send-another risk — the exact failure mode
-  that has already cost three cycles. Costs a resubmission if the campaign is
-  mid-review.
+  that cost three of the four cycles. The cost is now much lower than it was
+  during review: the campaign is approved, so this is an amendment rather than
+  a resubmission that holds up every other message.
 * **Leave it undescribed** on the grounds that it never reaches a consumer.
-  Lower friction, but it is a message type in the traffic that the campaign
-  does not mention, and reviewers compare traffic against description.
+  Lower friction, but it puts a message type into the traffic that the
+  campaign doesn't mention, on a campaign that has just spent a fortnight
+  being rejected for exactly that class of mismatch.
 
-Whichever way it goes, do not switch on `SMS_AUTOMATION_ENABLED` while assuming
-this sample is covered by samples 1–5. It isn't; they all carry STOP and are
-addressed to clients.
+Given the history, adding it is the cheap insurance. Until that's decided, the
+safe configuration is `SMS_AUTOMATION_ENABLED=true` (turning on samples 1–5,
+which are approved) with `SALON_OWNER_PHONE` **unset** — `sendOwnerSms` returns
+`no_owner_phone` and sends nothing, while every client-facing message works
+normally. That's a deliberate property of the split between `sendOwnerSms` and
+`sendClientSms`: the owner alert can be held back without holding back anything
+a client receives.
 
 ## Geo permissions
 

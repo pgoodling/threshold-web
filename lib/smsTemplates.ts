@@ -161,10 +161,11 @@ export function confirmedText(opts: { startsAt: string }): string {
 // carries no STOP: she cannot opt out of her own business, and offering her the
 // keyword would put her number into the opt-out list that governs her clients.
 //
-// A2P: this is a message type the campaign does not currently describe. See
-// docs/A2P-CAMPAIGN.md — it needs adding to the submission before the alert is
-// switched on, or it's the same describe-one-thing-send-another mismatch that
-// has caused rejections already.
+// A2P: the campaign cleared on 9 Sep 2026 describing samples 1–5, all of them
+// consumer messages carrying STOP. This one was written after submission and
+// isn't in it. See docs/A2P-CAMPAIGN.md — until it's added, leaving
+// SALON_OWNER_PHONE unset holds this message back on its own, without holding
+// back anything a client receives.
 //
 // Written to be readable from a lock screen without opening it, so the useful
 // part comes first: when, then who, then what. "TODAY 2:00 PM" rather than a
