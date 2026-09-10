@@ -69,6 +69,9 @@ STRUCTURAL="
 0032_booking_alerts|appointments|source
 0032_booking_alerts|appointments|owner_notified_at
 0032_booking_alerts|salon_settings|bookings_seen_at
+0033_settings|salon_settings|digest_hour
+0033_settings|salon_settings|min_booking_notice_minutes
+0033_settings|appointments|cancel_notice_hours
 "
 
 # Opaque migrations already settled by hand. Recorded so the question is asked
@@ -85,6 +88,7 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
+0034_digest_pg_cron|schedules the hourly digest job|select jobname, schedule, active from cron.job where jobname = 'threshold-digest';  -- one row, 0 * * * *, active = applied
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
