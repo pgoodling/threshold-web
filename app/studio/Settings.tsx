@@ -23,6 +23,17 @@ import {
 // Working hours sit at the top because they're what she'll open this page for
 // most. Time off deliberately stays where it is for now; blocking a Thursday
 // afternoon belongs on the calendar she's looking at, not behind Settings.
+//
+// NOT HERE, ON PURPOSE: an on/off switch for the late-arrival text. It's the
+// obvious thing to add once a settings page exists, and it was considered and
+// declined on 10 Sep 2026. The reason that feature was removed (see migration
+// 0032_stop_late_arrival_texts) wasn't that she was unsure — it's that an
+// automatic "are you on your way?" at ten past assumes a stylist who can't see
+// the door, and in a one-chair studio she can. That's a fact about her room,
+// not a preference. Restoring it as a switch would mean carrying a route, a
+// five-minutely cron job, a message template and an A2P campaign sample
+// permanently for something switched off. A conditional want is a setting;
+// "that's not how my room works" isn't. It's in git history if she ever asks.
 
 type Draft = SalonSettings;
 
