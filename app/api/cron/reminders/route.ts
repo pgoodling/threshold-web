@@ -9,10 +9,17 @@ import { reminderText } from "../../../../lib/smsTemplates";
 // talks to clients -- so this sends one text and nothing else, and the email
 // plumbing stays in place unused rather than being ripped out.
 //
-// Vercel's free plan allows one cron run per day, which suits a salon fine: it
-// fires each morning and reminds everyone due in the next 36 hours. The window
+// Fires each morning and reminds everyone due in the next 36 hours. The window
 // overlaps deliberately -- a client booked at 4pm for 10am tomorrow is only 18
 // hours out and still gets caught by the next morning's run.
+//
+// 13:00 UTC is 9am Eastern, and it must not move earlier: lib/sms.ts refuses to
+// send automated texts before 9am local, so a run at 8 would skip every client
+// as quiet_hours and silently remind nobody.
+//
+// (This comment used to say the free plan allowed one cron run per day. That's
+// per JOB -- Hobby allows 100 of them, each daily -- which is what let the 7am
+// schedule digest be added alongside this.)
 //
 // reminder_sms_sent_at is the idempotency key, so the overlapping window can
 // never text twice. It's stamped only after a successful send, so a transient

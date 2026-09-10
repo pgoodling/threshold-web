@@ -68,6 +68,185 @@ export async function sendEmail(opts: {
   }
 }
 
+const timeOnly = (iso: string) =>
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+
+const dayLong = (iso: string) =>
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date(iso));
+
+const spanLabel = (min: number) => {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+};
+
+export type DigestRow =
+  | {
+      kind: "appt";
+      startsAt: string;
+      endsAt: string;
+      who: string;
+      service: string;
+      phone: string | null;
+      isNew: boolean;
+    }
+  | { kind: "block"; startsAt: string; endsAt: string; reason: string | null };
+
+// Her schedule, emailed to her at 7am for the day ahead.
+//
+// One rule decides everything about this email: THE SCHEDULE IS IN THE BODY,
+// never behind a link. It exists for the morning the site is down, and a link
+// is worth nothing that morning. Same reason the phone numbers are at the
+// bottom — if she can't reach the studio and needs to move someone, she needs
+// the number, and "log in to see it" is exactly what has failed.
+//
+// A known limit of sending it at 7am for that same day: the email is generated
+// by the thing it's insurance against. If the site is down at 7am, no email
+// goes out at all. Sending it the previous evening would survive that, at the
+// cost of arriving twelve hours before it's useful. Morning was chosen
+// deliberately — a brief for the day you're about to start beats a brief for a
+// day you haven't slept through yet — so the outage this covers is the one
+// that begins after 7am, which is most of them.
+//
+// `label` rather than a hardcoded "Today" so that trade can be revisited by
+// changing the cron and one argument, not by rewriting the copy.
+//
+// Blocks appear in the run of the day rather than in a list of their own,
+// because the question this answers is what the day looks like — and a 1pm
+// dentist appointment between an 11am and a 3pm is the reason the 3pm can't
+// move earlier.
+export function scheduleDigestEmail(opts: {
+  /** Any instant inside the day being reported, used only for its date. */
+  dayISO: string;
+  /** How the day is named in the subject line: "Today" or "Tomorrow". */
+  label: "Today" | "Tomorrow";
+  rows: DigestRow[];
+  apptCount: number;
+  chairMinutes: number;
+  expectedCents: number;
+  firstIn: string | null;
+  lastOut: string | null;
+}) {
+  const { rows, apptCount, chairMinutes, expectedCents, firstIn, lastOut } = opts;
+  const day = dayLong(opts.dayISO);
+
+  const subject =
+    apptCount === 0
+      ? `${opts.label} at Threshold — nothing booked`
+      : `${opts.label} at Threshold — ${apptCount} appointment${
+          apptCount === 1 ? "" : "s"
+        }${firstIn ? `, first in at ${timeOnly(firstIn)}` : ""}`;
+
+  const summaryBits = [
+    `${apptCount} appointment${apptCount === 1 ? "" : "s"}`,
+    chairMinutes > 0 ? `${spanLabel(chairMinutes)} in the chair` : null,
+    expectedCents > 0 ? `$${Math.round(expectedCents / 100)} expected` : null,
+    firstIn && lastOut
+      ? `${timeOnly(firstIn)} – ${timeOnly(lastOut)}`
+      : null,
+  ].filter(Boolean) as string[];
+
+  const phones = rows
+    .filter(
+      (r): r is Extract<DigestRow, { kind: "appt" }> =>
+        r.kind === "appt" && Boolean(r.phone),
+    )
+    .map((r) => `${r.who} — ${r.phone}`);
+
+  // --- text ---
+  const textRows = rows.map((r) =>
+    r.kind === "block"
+      ? `${timeOnly(r.startsAt)}  BLOCKED — ${r.reason || "personal"} (until ${timeOnly(r.endsAt)})`
+      : `${timeOnly(r.startsAt)}  ${r.who} — ${r.service}${r.isNew ? " (new client)" : ""}`,
+  );
+
+  const text = `${day}
+
+${summaryBits.join(" · ")}
+
+${rows.length ? textRows.join("\n") : "Nothing booked."}
+${phones.length ? `\nNumbers, in case you need them:\n${phones.join("\n")}\n` : ""}
+— Threshold`;
+
+  // --- html ---
+  const rowsHtml = rows.length
+    ? rows
+        .map((r) => {
+          const time = `<td style="padding:7px 10px 7px 0;white-space:nowrap;color:#6b5d56;font-variant-numeric:tabular-nums;vertical-align:top;">${esc(
+            timeOnly(r.startsAt),
+          )}</td>`;
+          if (r.kind === "block") {
+            return `<tr style="border-top:1px solid #eee5e0;">
+              ${time}
+              <td style="padding:7px 0;color:#6b5d56;font-style:italic;">
+                <span style="color:#8f3f4a;font-weight:600;font-style:normal;">Blocked</span>
+                &nbsp;${esc(r.reason || "personal")}
+              </td>
+              <td style="padding:7px 0 7px 10px;text-align:right;white-space:nowrap;color:#8a7d76;font-size:13px;vertical-align:top;">until ${esc(
+                timeOnly(r.endsAt),
+              )}</td>
+            </tr>`;
+          }
+          const mins = Math.round(
+            (new Date(r.endsAt).getTime() - new Date(r.startsAt).getTime()) /
+              60000,
+          );
+          return `<tr style="border-top:1px solid #eee5e0;">
+            ${time}
+            <td style="padding:7px 0;">
+              <span style="font-weight:600;">${esc(r.who)}</span>
+              <span style="color:#6b5d56;"> — ${esc(r.service)}</span>
+              ${r.isNew ? `<span style="color:${ACCENT};font-size:12px;"> new client</span>` : ""}
+            </td>
+            <td style="padding:7px 0 7px 10px;text-align:right;white-space:nowrap;color:#8a7d76;font-size:13px;vertical-align:top;">${esc(
+              spanLabel(mins),
+            )}</td>
+          </tr>`;
+        })
+        .join("")
+    : `<tr><td colspan="3" style="padding:14px 0;color:#6b5d56;">Nothing booked. A clear day.</td></tr>`;
+
+  const html = shell(`
+    <p style="margin:0 0 4px 0;font-weight:600;font-size:17px;">${esc(day)}</p>
+    <p style="margin:0 0 16px 0;color:#6b5d56;font-size:13px;">${esc(
+      summaryBits.join(" · "),
+    )}</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="font-size:14px;">
+      ${rowsHtml}
+    </table>
+    ${
+      phones.length
+        ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:22px;border-top:1px solid #e6ddd6;">
+      <tr><td style="padding:16px 0 0 0;">
+        <p style="margin:0 0 8px 0;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#8a7d76;">
+          Numbers, in case you need them
+        </p>
+        ${phones
+          .map(
+            (p) =>
+              `<div style="font-size:13px;color:#3b2f2a;padding:2px 0;">${esc(p)}</div>`,
+          )
+          .join("")}
+      </td></tr>
+    </table>`
+        : ""
+    }
+  `);
+
+  return { subject, html, text };
+}
+
 export const longWhen = (iso: string) =>
   new Intl.DateTimeFormat("en-US", {
     timeZone: TZ,
