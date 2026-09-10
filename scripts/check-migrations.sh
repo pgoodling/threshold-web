@@ -88,7 +88,7 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
-0034_digest_pg_cron|schedules the hourly digest job|select jobname, schedule, active from cron.job where jobname = 'threshold-digest';  -- one row, 0 * * * *, active = applied
+0034+0035_digest_cron|schedules the hourly digest job (0035 supersedes 0034 - vault, not ALTER DATABASE)|select status_code, content from net._http_response order by created desc limit 3;  -- 401 = secret mismatch, 200 not_the_hour = working
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
