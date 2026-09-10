@@ -71,11 +71,16 @@ STRUCTURAL="
 0032_booking_alerts|salon_settings|bookings_seen_at
 "
 
+# Opaque migrations already settled by hand. Recorded so the question is asked
+# once. Date them — a result is only true of the database as it was that day.
+SETTLED="
+0032_stop_late_arrival_texts|10 Sep 2026|cron.job count for 'threshold-late-arrivals' returned 0 — job is gone
+0025_late_arrival_cron|10 Sep 2026|moot: whatever it scheduled, 0032_stop_late_arrival_texts removed it and the route is deleted
+"
+
 # migration | what it changed | the query that proves it
 OPAQUE="
-0025_late_arrival_cron|scheduled a pg_cron job|select jobname, schedule, active from cron.job where jobname = 'threshold-late-arrivals';
-0030_intake_server_writes|replaced functions and policies|select prosecdef from pg_proc where proname = 'save_intake';
-0032_stop_late_arrival_texts|unscheduled that cron job|select count(*) from cron.job where jobname = 'threshold-late-arrivals';  -- 0 = applied
+0030_intake_server_writes|dropped anon write policies on appointment_intake, and made client_formulas.formula nullable|select (select count(*) from pg_policies where tablename = 'appointment_intake' and policyname in ('intake_anon_write','intake_anon_update')) as anon_policies_left, (select attnotnull from pg_attribute where attrelid = 'public.client_formulas'::regclass and attname = 'formula') as formula_still_notnull;  -- applied = 0, false
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
@@ -123,11 +128,26 @@ printf '%s\n' "$STRUCTURAL" | grep . | {
   [ -n "$current" ] && printf '  %-8s %s%s\n' "$verdict" "$current" "$detail"
 }
 
-echo
-echo "Opaque migrations (no structure to probe — run these in the SQL editor)"
-echo
-printf '%s\n' "$OPAQUE" | grep . | while IFS='|' read -r mig what sql; do
-  printf '  CHECK BY HAND  %s\n' "$mig"
-  printf '                 %s\n' "$what"
-  printf '                 %s\n\n' "$sql"
-done
+if printf '%s\n' "$SETTLED" | grep -q .; then
+  echo
+  echo "Settled by hand (no structure to probe; checked on the date shown)"
+  echo
+  printf '%s\n' "$SETTLED" | grep . | while IFS='|' read -r mig on what; do
+    printf '  APPLIED  %s  (%s)\n' "$mig" "$on"
+    printf '           %s\n' "$what"
+  done
+fi
+
+if printf '%s\n' "$OPAQUE" | grep -q .; then
+  echo
+  echo "Still open (no structure to probe — paste into the SQL editor)"
+  echo
+  printf '%s\n' "$OPAQUE" | grep . | while IFS='|' read -r mig what sql; do
+    printf '  CHECK BY HAND  %s\n' "$mig"
+    printf '                 %s\n' "$what"
+    printf '                 %s\n\n' "$sql"
+  done
+else
+  echo
+  echo "Nothing left to check by hand."
+fi
