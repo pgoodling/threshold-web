@@ -79,6 +79,7 @@ STRUCTURAL="
 SETTLED="
 0030_intake_server_writes|10 Sep 2026|anon_policies_left = 0 and formula_still_notnull = false — anon can no longer write intake rows, and a note without a formula is allowed
 0032_stop_late_arrival_texts|10 Sep 2026|cron.job count for 'threshold-late-arrivals' returned 0 — job is gone
+0035_digest_cron_vault|10 Sep 2026|rescheduled as jobid 4, and vault secret 'cron_secret' exists (created 18 Aug). Supersedes 0034, whose ALTER DATABASE approach Supabase refuses
 0025_late_arrival_cron|10 Sep 2026|moot: whatever it scheduled, 0032_stop_late_arrival_texts removed it and the route is deleted
 "
 
@@ -88,7 +89,7 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
-0034+0035_digest_cron|schedules the hourly digest job (0035 supersedes 0034 - vault, not ALTER DATABASE)|select status_code, content from net._http_response order by created desc limit 3;  -- 401 = secret mismatch, 200 not_the_hour = working
+0034+0035_digest_cron|whether the armed job actually gets through|select status_code, content from net._http_response order by created desc limit 3;  -- 401 = secret mismatch, 200 not_the_hour = working
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
