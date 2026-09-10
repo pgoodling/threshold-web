@@ -1,21 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { pepLine } from "../lib/pep";
 // 9am on 7 September 2026, Eastern — the salon's timezone, hardcoded rather than
 // the visitor's, because opening day is a fact about Kettering and not about
 // wherever they happen to be reading this.
 import { OPENING } from "../lib/opening";
 
-// The countdown to opening day, on the hero.
+// The countdown to opening day, on the public hero.
 //
-// It replaces a flat "Coming soon", which says nothing a visitor can act on. A
+// It replaced a flat "Coming soon", which says nothing a visitor can act on. A
 // date they can put in their calendar, and a number that visibly moves, is the
 // difference between a page that says it's coming and a page that feels like
-// it's about to happen.
-
-// How far out the studio progress bar starts filling from.
-const RUN_UP_DAYS = 30;
+// it's about to happen. Opening day has now passed, so in practice this renders
+// "Now open" and the counting is history — kept because the component is what
+// makes that transition happen on its own.
+//
+// There used to be a `compact` variant for the studio dashboard: the same
+// countdown plus a daily line for Evelyn. It's gone. Once she opened, it was
+// showing her "-1 days until you open" above a full progress bar every morning
+// — the arithmetic assumed a date that had stopped being in the future. The
+// daily line was the half of it worth keeping, so that moved to
+// app/studio/DailyLine.tsx and stands on its own.
 
 const UNITS = [
   { key: "days", label: "days", ms: 86400000 },
@@ -33,12 +38,7 @@ function split(remaining: number) {
   });
 }
 
-export default function OpeningCountdown({
-  compact = false,
-}: {
-  /** The studio band: days left, a filling bar, and a line meant for her. */
-  compact?: boolean;
-}) {
+export default function OpeningCountdown() {
   // Null until mounted: the server has no idea what time it is where the
   // visitor is, and rendering a number that immediately changes would flash a
   // wrong value on first paint.
@@ -61,59 +61,12 @@ export default function OpeningCountdown({
   const openedAlready = now !== null && remaining <= 0;
   const parts = split(remaining);
 
-  // Once she's open the public hero says so and stops counting; the studio band
-  // keeps going, because the daily line is the point and it outlasts the
-  // countdown.
-  if (openedAlready && !compact) {
+  // Open now, so say so and stop counting.
+  if (openedAlready) {
     return (
       <p className="mb-6 text-sm uppercase tracking-[0.25em] text-accent">
         Now open
       </p>
-    );
-  }
-
-  // In the studio it's the first thing she sees each morning, so it does two
-  // jobs: the number, and a line meant for her. Seconds are left off — she
-  // doesn't need a clock ticking at her while she works.
-  if (compact) {
-    const days = now === null ? null : openedAlready ? -1 : parts[0].value;
-    // Same key all day, so the line doesn't change while she's looking at it.
-    const dayKey = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/New_York",
-    }).format(now === null ? OPENING : new Date(now));
-
-    // How far through the run-up she is, from a month out. A number alone gives
-    // no sense of movement; a bar that's visibly filling does.
-    const progress =
-      days === null ? 0 : Math.max(0, Math.min(1, (RUN_UP_DAYS - days) / RUN_UP_DAYS));
-
-    return (
-      <div className="mt-5 overflow-hidden rounded-xl border border-accent/30 bg-gradient-to-br from-accent/10 to-accent/[0.03]">
-        <div className="flex items-end gap-4 px-5 pt-5">
-          <span className="font-display text-5xl leading-none tabular-nums text-accent-dark sm:text-6xl">
-            {days === null ? "—" : days}
-          </span>
-          <span className="pb-1">
-            <span className="block text-sm font-medium text-accent-dark">
-              {days === 1 ? "day" : "days"} until you open
-            </span>
-            <span className="block text-xs text-muted">Monday 7 September</span>
-          </span>
-        </div>
-
-        <div className="mx-5 mt-4 h-1 overflow-hidden rounded-full bg-accent/15">
-          <div
-            className="h-full rounded-full bg-accent transition-[width] duration-1000"
-            style={{ width: `${Math.round(progress * 100)}%` }}
-          />
-        </div>
-
-        {/* Held back until the clock has been read — otherwise it flashes the
-            opening-day line for a frame before settling on today's. */}
-        <p className="px-5 pb-5 pt-3 font-display text-base italic text-foreground/80">
-          {days === null ? " " : pepLine(days, dayKey)}
-        </p>
-      </div>
     );
   }
 

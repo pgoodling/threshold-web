@@ -19,7 +19,7 @@ import {
   BLOCK_HATCH,
 } from "../../lib/format";
 import ApptDetailModal from "./ApptDetailModal";
-import OpeningCountdown from "../OpeningCountdown";
+import DailyLine from "./DailyLine";
 import { completeTask } from "../../lib/tasks";
 
 type TodayAppt = {
@@ -336,7 +336,7 @@ export default function Overview({
         <span className="text-sm text-muted">{dateLabel}</span>
       </div>
 
-      <OpeningCountdown compact />
+      <DailyLine dayKey={todayKey} />
 
       {hasAttention && (
         <div className="mt-5">
