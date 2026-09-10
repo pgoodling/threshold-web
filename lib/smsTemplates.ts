@@ -161,11 +161,10 @@ export function confirmedText(opts: { startsAt: string }): string {
 // carries no STOP: she cannot opt out of her own business, and offering her the
 // keyword would put her number into the opt-out list that governs her clients.
 //
-// A2P: the campaign cleared on 9 Sep 2026 describing samples 1–5, all of them
-// consumer messages carrying STOP. This one was written after submission and
-// isn't in it. See docs/A2P-CAMPAIGN.md — until it's added, leaving
-// SALON_OWNER_PHONE unset holds this message back on its own, without holding
-// back anything a client receives.
+// A2P: fine as it stands, and no amendment is needed — samples illustrate a
+// use case rather than whitelisting strings, this is transactional messaging
+// about an appointment, and the recipient is the account owner. See
+// docs/A2P-CAMPAIGN.md for why an earlier note here claimed otherwise.
 //
 // Written to be readable from a lock screen without opening it, so the useful
 // part comes first: when, then who, then what. "TODAY 2:00 PM" rather than a

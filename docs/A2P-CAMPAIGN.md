@@ -174,33 +174,29 @@ New booking — TODAY [Time]: [Name] (new client), [Service]. Booked just now at
 Built 9 Sep 2026 (`lib/smsTemplates.ts` → `ownerNewBookingText`, sent by
 `/api/sms/new-booking` when a booking lands inside the next 24 hours).
 
-**Written after the campaign was submitted, so the approval does not cover it.**
-The campaign that cleared describes samples 1–5, and all five are consumer
-messages that carry STOP. This one is not: the recipient is the business owner,
-on the handset the campaign's own number belongs to, and it carries no STOP
-because she cannot opt out of her own business — offering her the keyword would
-file her number in the opt-out list that governs her clients.
+Written after the campaign was submitted, and listed here for completeness
+rather than as a problem. **No amendment is needed.**
 
-It is still A2P traffic from a 10DLC number, which is why it is listed here
-rather than treated as out of scope. Two options:
+An earlier version of this note said otherwise, and it was wrong in a specific
+way worth recording so nobody re-derives the same worry. It conflated
+registration review — which happened once, on this packet, and passed — with
+what carriers do afterwards. Samples illustrate the declared use case; they are
+not a whitelist of permitted strings, and nothing compares each outgoing
+message against samples 1–5. Post-approval filtering is driven by complaint
+rate, opt-out rate, volume anomalies, and use-case-level mismatch, the kind
+where a campaign registered for two-factor codes starts sending marketing.
 
-* **Add it to the campaign** as an internal operational alert. Honest, and
-  removes any describe-one-thing-send-another risk — the exact failure mode
-  that cost three of the four cycles. The cost is now much lower than it was
-  during review: the campaign is approved, so this is an amendment rather than
-  a resubmission that holds up every other message.
-* **Leave it undescribed** on the grounds that it never reaches a consumer.
-  Lower friction, but it puts a message type into the traffic that the
-  campaign doesn't mention, on a campaign that has just spent a fortnight
-  being rejected for exactly that class of mismatch.
+By that standard this is unremarkable. It is transactional messaging about an
+appointment, which is the declared use case; it is a handful of messages a
+week; and the recipient is the account owner, so there is no consumer to
+protect and structurally nobody who can complain.
 
-Given the history, adding it is the cheap insurance. Until that's decided, the
-safe configuration is `SMS_AUTOMATION_ENABLED=true` (turning on samples 1–5,
-which are approved) with `SALON_OWNER_PHONE` **unset** — `sendOwnerSms` returns
-`no_owner_phone` and sends nothing, while every client-facing message works
-normally. That's a deliberate property of the split between `sendOwnerSms` and
-`sendClientSms`: the owner alert can be held back without holding back anything
-a client receives.
+It carries no STOP, correctly — she cannot opt out of her own business, and
+offering her the keyword would file her number in the opt-out list that governs
+her clients. One consequence worth knowing, and it is an operational one rather
+than a compliance one: if she ever thumbs STOP at the alert out of habit, the
+messaging service opts her number out and the alerts stop silently. START
+undoes it.
 
 ## Geo permissions
 
