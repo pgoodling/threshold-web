@@ -6,15 +6,16 @@ import {
   emailConfigured,
   type DigestRow,
 } from "../../../../lib/email";
+import { readSettings } from "../../../../lib/settings";
 
-// Evelyn's schedule for the day, emailed at 7am.
+// Evelyn's schedule for the day, emailed at the hour she picks in Settings.
 //
 // The one thing she had no way to see without the app. If the studio is down,
 // or her phone can't reach it, or she's simply not going to open it before her
 // first client — the day is in her inbox either way, in the body of the mail
 // rather than behind a link.
 //
-// Sent for TODAY, not tomorrow, because it arrives at 7am and the useful
+// Sent for TODAY, not tomorrow, because it arrives in the morning and the useful
 // question at 7am is what the next twelve hours look like.
 //
 // Silent on her days off. There's no value in an email every Wednesday saying
@@ -22,21 +23,13 @@ import {
 // and no blocks sends nothing at all. A day she's open with an empty book does
 // send — that's information, and Outreach exists to act on it.
 
-// SCHEDULE: "0 11 * * *" in vercel.json.
+// SCHEDULE: hourly, from pg_cron (migration 0034), not vercel.json.
 //
-// 11:00 UTC is 7am Eastern while the clocks are forward, and 6am once they go
-// back — Vercel Cron takes no timezone and knows nothing about DST, so the
-// choice is which half of the year to be right in. Forward was picked because
-// that's now; an email arriving an hour early in January is harmless.
-//
-// Hobby fires anywhere inside the named hour, so in practice this lands
-// between 7:00 and 7:59. Fine for a schedule, and the reason the short-notice
-// booking alert is triggered by the booking rather than by a clock.
-//
-// Two cron jobs is well within the plan: Hobby allows 100, each limited to one
-// run per day. (A comment in the reminders job used to say the limit was one
-// run per day across the whole account. It isn't, and believing it would have
-// ruled this job out.)
+// Every hour it wakes up and asks whether this is the hour she chose. That
+// indirection is the whole point: a Vercel schedule is fixed at deploy, so the
+// time picker in Settings would have been a control that did nothing. It also
+// makes daylight saving a non-issue -- the check is against the salon's local
+// clock, so 7am stays 7am in January without anyone editing a cron expression.
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -107,7 +100,7 @@ function dayBounds(dayKey: string) {
   };
 }
 
-async function run() {
+async function run(force = false) {
   const admin = getAdminClient();
   if (!admin) {
     return NextResponse.json({ error: "Server not configured." }, { status: 503 });
@@ -116,6 +109,33 @@ async function run() {
   if (!to) return NextResponse.json({ sent: false, reason: "no_owner_email" });
   if (!emailConfigured()) {
     return NextResponse.json({ sent: false, reason: "email_unconfigured" });
+  }
+
+  const settings = await readSettings(admin);
+  if (!settings.digestEnabled) {
+    return NextResponse.json({ sent: false, reason: "digest_off" });
+  }
+
+  // The job runs hourly; this decides whether THIS hour is her hour.
+  //
+  // That's the whole reason it's scheduled in pg_cron rather than vercel.json:
+  // a Vercel schedule is fixed at deploy, so a time picker in the studio would
+  // have been a control that did nothing. Here she changes a number and the
+  // next run obeys it.
+  const nowHour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: TZ,
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date()),
+  );
+  if (!force && nowHour !== settings.digestHour) {
+    return NextResponse.json({
+      sent: false,
+      reason: "not_the_hour",
+      hour: nowHour,
+      wanted: settings.digestHour,
+    });
   }
 
   const { key: dayKey, weekday } = salonToday();
@@ -218,7 +238,7 @@ async function run() {
     rows,
     apptCount: appts.length,
     chairMinutes,
-    expectedCents,
+    expectedCents: settings.digestIncludeMoney ? expectedCents : 0,
     firstIn,
     lastOut,
   });
@@ -252,7 +272,8 @@ export async function GET(req: Request) {
   return run();
 }
 
-// Same job, for sending one by hand to check it.
+// Same job, for sending one by hand to check it. force = true so a test send
+// works at any hour rather than only during her chosen one.
 export async function POST(req: Request) {
   if (!authorized(req)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });

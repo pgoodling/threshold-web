@@ -3,6 +3,10 @@ import { getAdminClient } from "../../../lib/supabaseAdmin";
 import CancelPanel from "./CancelPanel";
 import { CANCEL_NOTICE_HOURS } from "../../../lib/policy";
 
+// The window this client was promised when they booked. Stamped on the row by
+// the trigger in 0033; null for anything booked before it, which was quoted
+// the constant.
+
 // /appointment/<id> — the one link a client gets.
 //
 // It carries everything they might want: what and when, the hair-notes form if
@@ -42,7 +46,7 @@ export default async function AppointmentPage({
 
   const { data: appt } = await supabase
     .from("appointments")
-    .select("id, starts_at, status, clients(full_name), services(name)")
+    .select("*, clients(full_name), services(name)")
     .eq("id", id)
     .maybeSingle();
 
@@ -63,6 +67,9 @@ export default async function AppointmentPage({
   }).format(new Date(appt.starts_at as string));
 
   // Whether it's still a live booking is a fact about the row. Whether it's
+  const noticeHours =
+    (appt.cancel_notice_hours as number | null) ?? CANCEL_NOTICE_HOURS;
+
   // inside the notice period is a fact about the clock, so CancelPanel works
   // that out on mount — and the route enforces it regardless of what either of
   // them concluded.
@@ -146,11 +153,12 @@ export default async function AppointmentPage({
             appointmentId={id}
             startsAt={appt.starts_at as string}
             live={live}
+            noticeHours={noticeHours}
           />
         </div>
 
         <p className="mt-6 text-xs text-muted">
-          Cancellations are free with {CANCEL_NOTICE_HOURS} hours&apos; notice.
+          Cancellations are free with {noticeHours} hours&apos; notice.
           Inside that, or for a no-show, Evelyn may charge up to the full price
           of the service.
         </p>

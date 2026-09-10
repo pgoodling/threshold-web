@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { automationEnabled, sendClientSms } from "../../../../lib/sms";
 import { reminderText } from "../../../../lib/smsTemplates";
+import { readSettings } from "../../../../lib/settings";
 
 // The day-before reminder text. Run by Vercel Cron (see vercel.json).
 //
@@ -28,7 +29,7 @@ import { reminderText } from "../../../../lib/smsTemplates";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const LOOKAHEAD_HOURS = 36;
+// Lookahead now comes from salon_settings (0033); this constant is gone.
 
 function one<T>(v: T | T[] | null | undefined): T | null {
   if (Array.isArray(v)) return v[0] ?? null;
@@ -44,8 +45,17 @@ async function run() {
     return NextResponse.json({ sent: 0, reason: "automation_off" });
   }
 
+  // One read for the whole run, handed to every send so forty reminders don't
+  // fetch the same row forty times.
+  const settings = await readSettings(admin);
+  if (!settings.remindersEnabled) {
+    return NextResponse.json({ sent: 0, reason: "reminders_off" });
+  }
+
   const now = new Date();
-  const until = new Date(now.getTime() + LOOKAHEAD_HOURS * 3600 * 1000);
+  const until = new Date(
+    now.getTime() + settings.reminderLookaheadHours * 3600 * 1000,
+  );
 
   // Fetch everything due in the window and decide per appointment below.
   const { data: appts, error } = await admin
@@ -94,6 +104,7 @@ async function run() {
       const res = await sendClientSms(admin, {
         clientId: appt.client_id as string,
         appointmentId: appt.id as string,
+        settings,
         body: reminderText({
           clientName: client?.full_name ?? null,
           service: serviceName,
@@ -118,7 +129,7 @@ async function run() {
     texted,
     considered: appts?.length ?? 0,
     skipped_sms: skippedSms,
-    window_hours: LOOKAHEAD_HOURS,
+    window_hours: settings.reminderLookaheadHours,
   });
 }
 

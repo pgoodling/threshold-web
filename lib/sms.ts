@@ -2,6 +2,11 @@ import twilio from "twilio";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toE164 } from "./phone";
 import { TZ } from "./format";
+import {
+  readSettings,
+  SETTINGS_DEFAULTS,
+  type SalonSettings,
+} from "./settings";
 
 // Every automated text goes through here.
 //
@@ -35,13 +40,18 @@ export function smsConfigured(): boolean {
 }
 
 // Quiet hours, in salon-local time. The TCPA's own rule is 8am–9pm local, and
-// carriers treat texting outside it as a complaint risk; this is deliberately
-// tighter, because a salon texting at 8:59pm reads as a business with no
-// manners even when it's legal.
-const QUIET_START_HOUR = 9; // first hour an automated text may go out
-const QUIET_END_HOUR = 20; // last hour (i.e. nothing from 20:00 onward)
-
-export function withinQuietHours(now = new Date()): boolean {
+// carriers treat texting outside it as a complaint risk; the default here is
+// deliberately tighter, because a salon texting at 8:59pm reads as a business
+// with no manners even when it's legal.
+//
+// Evelyn owns the numbers now (salon_settings), but the defaults are the values
+// that used to be constants — so a settings read that fails behaves exactly as
+// this did before rather than opening the window to all hours.
+export function withinQuietHours(
+  now = new Date(),
+  startHour = SETTINGS_DEFAULTS.quietStartHour,
+  endHour = SETTINGS_DEFAULTS.quietEndHour,
+): boolean {
   const hour = Number(
     new Intl.DateTimeFormat("en-US", {
       timeZone: TZ,
@@ -49,7 +59,7 @@ export function withinQuietHours(now = new Date()): boolean {
       hour12: false,
     }).format(now),
   );
-  return hour < QUIET_START_HOUR || hour >= QUIET_END_HOUR;
+  return hour < startHour || hour >= endHour;
 }
 
 // Text Evelyn, on her own handset, about her own business.
@@ -114,11 +124,26 @@ export async function sendClientSms(
     /** Skip the quiet-hours check for something genuinely time-critical, like
      *  "you're due now, are you on your way?" — useless an hour later. */
     ignoreQuietHours?: boolean;
+    /** Pass the already-read settings so a loop over forty reminders doesn't
+     *  fetch the same row forty times. Read here when omitted. */
+    settings?: SalonSettings;
   },
 ): Promise<SendResult> {
+  // Two switches, and BOTH must be on. The env var is an operator kill switch
+  // that survives anything done in the UI; the setting is Evelyn's. Collapsing
+  // them would mean either she can't turn her own texting off, or a UI mistake
+  // can start it — neither is acceptable.
   if (!automationEnabled()) return { ok: false, reason: "automation_off" };
   if (!smsConfigured()) return { ok: false, reason: "sms_unconfigured" };
-  if (!opts.ignoreQuietHours && withinQuietHours()) {
+
+  const settings = opts.settings ?? (await readSettings(admin));
+  if (!settings.smsAutomationEnabled) {
+    return { ok: false, reason: "automation_off_setting" };
+  }
+  if (
+    !opts.ignoreQuietHours &&
+    withinQuietHours(new Date(), settings.quietStartHour, settings.quietEndHour)
+  ) {
     return { ok: false, reason: "quiet_hours" };
   }
 

@@ -35,7 +35,9 @@ export async function POST(req: Request) {
 
   const { data: appt } = await admin
     .from("appointments")
-    .select("id, client_id, starts_at, status, clients(full_name)")
+    // `*` so cancel_notice_hours is tolerated before migration 0033 runs —
+    // naming it would make the whole select fail on a deploy that lands first.
+    .select("*, clients(full_name)")
     .eq("id", appointmentId)
     .maybeSingle();
 
@@ -52,7 +54,11 @@ export async function POST(req: Request) {
 
   const hoursAway =
     (new Date(appt.starts_at as string).getTime() - Date.now()) / 3_600_000;
-  if (hoursAway < CANCEL_NOTICE_HOURS) {
+  // The window this client was actually quoted, not today's setting. Null
+  // means booked before 0033, which had no stamp — fall back to the constant
+  // they were shown at the time, which is the same number.
+  const window = (appt.cancel_notice_hours as number | null) ?? CANCEL_NOTICE_HOURS;
+  if (hoursAway < window) {
     return NextResponse.json({ error: "too_late" }, { status: 409 });
   }
 

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { toE164 } from "../../../../lib/phone";
 import { appointmentUrl } from "../../../../lib/policy";
+import { readSettings } from "../../../../lib/settings";
 
 // Sends a booking-confirmation text. Called by the public booking page right
 // after a booking succeeds, so it CANNOT require a login — which is exactly why
@@ -63,6 +64,13 @@ export async function POST(req: Request) {
     .single();
 
   if (!appt) return skip("not_found");
+
+  // Her switch, from Settings. Checked before the per-client rules so the
+  // reason reported is the true one — "she turned confirmations off" rather
+  // than whatever the client's consent happens to be.
+  const settings = await readSettings(admin);
+  if (!settings.smsAutomationEnabled) return skip("automation_off_setting");
+  if (!settings.confirmationsEnabled) return skip("confirmations_off");
 
   // Only fresh bookings. Bounds replay of an id that leaks later.
   const ageMs = Date.now() - new Date(appt.created_at as string).getTime();

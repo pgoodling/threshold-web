@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { sendOwnerSms } from "../../../../lib/sms";
 import { ownerNewBookingText } from "../../../../lib/smsTemplates";
+import { readSettings } from "../../../../lib/settings";
 
 // Tells Evelyn a booking just landed inside her next 24 hours.
 //
@@ -31,8 +32,7 @@ import { ownerNewBookingText } from "../../../../lib/smsTemplates";
 
 export const dynamic = "force-dynamic";
 
-// Bookings further out than this don't interrupt her.
-const SHORT_NOTICE_HOURS = 24;
+// How short "short notice" is now comes from salon_settings (0033).
 
 // How long after booking an alert may still go out. Bounds replay of an id
 // that leaks later.
@@ -78,10 +78,13 @@ export async function POST(req: Request) {
   if (ageMs > FRESH_WINDOW_MINUTES * 60 * 1000) return skip("expired");
   if (appt.owner_notified_at) return skip("already_sent");
 
+  const settings = await readSettings(admin);
+  if (!settings.bookingAlertEnabled) return skip("alert_off");
+
   const startsAt = appt.starts_at as string;
   const hoursOut =
     (new Date(startsAt).getTime() - Date.now()) / (60 * 60 * 1000);
-  if (hoursOut > SHORT_NOTICE_HOURS) return skip("not_short_notice");
+  if (hoursOut > settings.bookingAlertHours) return skip("not_short_notice");
 
   type ClientRow = { full_name: string | null; created_at: string | null };
   type ServiceRow = { name: string };

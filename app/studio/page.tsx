@@ -13,6 +13,7 @@ import Reports from "./Reports";
 import Messages from "./Messages";
 import Outreach from "./Outreach";
 import Texts from "./Texts";
+import SettingsPanel from "./Settings";
 import ApptDetailModal from "./ApptDetailModal";
 import {
   LayoutDashboard,
@@ -25,6 +26,7 @@ import {
   BarChart3,
   Clock,
   Send,
+  Settings as SettingsIcon,
   CalendarOff,
   Menu,
   X,
@@ -180,7 +182,8 @@ type Tab =
   | "outreach"
   | "texts"
   | "hours"
-  | "timeoff";
+  | "timeoff"
+  | "settings";
 
 const TABS: [Tab, string, LucideIcon][] = [
   ["overview", "Overview", LayoutDashboard],
@@ -195,7 +198,15 @@ const TABS: [Tab, string, LucideIcon][] = [
   ["texts", "Texts", MessageSquare],
   ["hours", "Hours", Clock],
   ["timeoff", "Time off", CalendarOff],
+  ["settings", "Settings", SettingsIcon],
 ];
+
+// Reachable by URL and from inside Settings, but not given a place in the
+// sidebar -- Hours is a setting that had become a tab, and thirteen items is a
+// list nobody reads. Kept in TABS so #hours still resolves rather than bouncing
+// her to Overview.
+const HIDDEN_FROM_NAV: Tab[] = ["hours"];
+const NAV_TABS = TABS.filter(([k]) => !HIDDEN_FROM_NAV.includes(k));
 
 // Which view she's on, read from and written to the URL fragment.
 //
@@ -305,7 +316,7 @@ function Dashboard() {
           />
         </a>
         <nav className="flex flex-col gap-0.5">
-          {TABS.map(([key, label, Icon]) => (
+          {NAV_TABS.map(([key, label, Icon]) => (
             <button
               key={key}
               onClick={() => select(key)}
@@ -364,7 +375,7 @@ function Dashboard() {
               onClick={() => setMenuOpen(false)}
             />
             <div className="absolute left-0 right-0 z-20 overflow-hidden border-b border-foreground/10 bg-white shadow-lg">
-              {TABS.map(([key, label, Icon]) => (
+              {NAV_TABS.map(([key, label, Icon]) => (
                 <button
                   key={key}
                   onClick={() => select(key)}
@@ -434,6 +445,7 @@ function Dashboard() {
           {tab === "texts" && <Texts />}
           {tab === "hours" && <Hours />}
           {tab === "timeoff" && <TimeOff />}
+          {tab === "settings" && <SettingsPanel onGoto={(t) => select(t as Tab)} />}
         </div>
       </main>
     </div>
