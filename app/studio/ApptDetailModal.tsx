@@ -29,6 +29,7 @@ import Rail from "./Rail";
 import ActionStrip, { type Action } from "./ActionStrip";
 import { appointmentUrl } from "../../lib/policy";
 import { insertStudioAppointment } from "../../lib/appointments";
+import SlotStatus from "./SlotStatus";
 
 // One appointment detail, shown as a centered modal, used everywhere an
 // appointment is clicked (calendar, list, overview, client history).
@@ -47,6 +48,7 @@ const fullWhen = (iso: string) =>
 type Detail = {
   id: string;
   client_id: string;
+  service_id: string;
   starts_at: string;
   ends_at: string;
   status: string;
@@ -621,6 +623,17 @@ export default function ApptDetailModal({
                 >
                   Cancel
                 </button>
+                {/* Ignores this appointment, which can't clash with where it
+                    already is. Judged on the service's standard timing — a
+                    per-appointment timing override isn't reflected, and the
+                    database still has the final say on Save. */}
+                <div className="basis-full">
+                  <SlotStatus
+                    serviceId={appt.service_id}
+                    local={when}
+                    ignoreAppointmentId={appt.id}
+                  />
+                </div>
               </div>
             ) : mode === "rebook" ? (
               <RebookForm
@@ -1120,6 +1133,7 @@ export function RebookForm({
           />
         </label>
       </div>
+      <SlotStatus serviceId={serviceId} local={when} />
       {error && <p className="text-sm text-accent-dark">{error}</p>}
       <div className="flex gap-2">
         <button

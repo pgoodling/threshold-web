@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import { onMessagesChanged } from "../../lib/messagesChanged";
@@ -39,6 +39,7 @@ import {
   dateLabel,
   timeLabel,
   serviceEdge,
+  salonDateTimeLocal,
 } from "../../lib/format";
 
 const TZ = "America/New_York";
@@ -790,7 +791,42 @@ function TimeOff() {
     endsISO: string;
     clashes: Clash[];
   } | null>(null);
+  // The block being changed, when she's editing rather than adding. There was
+  // no edit at all before — changing a time meant deleting the block and
+  // typing it in again, which is also a window where the slot is bookable.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const multiDay = Boolean(toDate && toDate > fromDate);
+
+  function resetForm() {
+    setEditingId(null);
+    setPending(null);
+    setFromDate("");
+    setToDate("");
+    setStart("09:00");
+    setEnd("17:00");
+    setAllDay(true);
+    setReason("");
+  }
+
+  // Put an existing block back into the form, in the same shape she'd have
+  // typed it. Read in salon time — the browser's clock is irrelevant here.
+  function startEdit(b: Block) {
+    const [sDate, sTime] = salonDateTimeLocal(b.starts_at).split("T");
+    const [eDate, eTime] = salonDateTimeLocal(b.ends_at).split("T");
+    setError(null);
+    setPending(null);
+    setEditingId(b.id);
+    setFromDate(sDate);
+    setToDate(eDate !== sDate ? eDate : "");
+    // The form writes a whole day as 00:00–23:59, so that's what one reads as.
+    const whole = sTime === "00:00" && eTime === "23:59";
+    setAllDay(whole);
+    setStart(whole ? "09:00" : sTime);
+    setEnd(whole ? "17:00" : eTime);
+    setReason(b.reason ?? "");
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   const load = useCallback(() => {
     setLoading(true);
@@ -833,17 +869,19 @@ function TimeOff() {
   }
 
   async function write(startsISO: string, endsISO: string) {
-    const { error } = await supabase.from("time_off").insert({
+    const row = {
       starts_at: startsISO,
       ends_at: endsISO,
       reason: reason.trim() || null,
-    });
+    };
+    // An update in place, not delete-and-recreate: the block never stops
+    // existing, so there's no moment where the slot is open to a client.
+    const { error } = editingId
+      ? await supabase.from("time_off").update(row).eq("id", editingId)
+      : await supabase.from("time_off").insert(row);
     if (error) setError(error.message);
     else {
-      setPending(null);
-      setFromDate("");
-      setToDate("");
-      setReason("");
+      resetForm();
       load();
     }
   }
@@ -866,9 +904,17 @@ function TimeOff() {
       </p>
 
       <form
+        ref={formRef}
         onSubmit={add}
-        className="mt-5 flex flex-wrap items-end gap-3 rounded-xl border border-foreground/15 bg-white p-5"
+        className={`mt-5 flex flex-wrap items-end gap-3 rounded-xl border bg-white p-5 ${
+          editingId ? "border-accent/50 ring-2 ring-accent/15" : "border-foreground/15"
+        }`}
       >
+        {editingId && (
+          <p className="basis-full text-xs uppercase tracking-[0.12em] text-accent-dark">
+            Editing a block
+          </p>
+        )}
         <label className="block">
           <span className="mb-1 block text-sm">From</span>
           <input
@@ -933,8 +979,17 @@ function TimeOff() {
           type="submit"
           className="rounded-md bg-accent px-6 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark"
         >
-          Add
+          {editingId ? "Save changes" : "Add"}
         </button>
+        {editingId && (
+          <button
+            type="button"
+            onClick={resetForm}
+            className="px-2 py-2.5 text-sm text-muted transition hover:text-foreground"
+          >
+            Cancel
+          </button>
+        )}
       </form>
 
       {error && <ErrorNote>{error}</ErrorNote>}
@@ -1026,12 +1081,28 @@ function TimeOff() {
                   <span className="ml-2 text-muted">{b.reason}</span>
                 )}
               </span>
-              <button
-                onClick={() => remove(b.id)}
-                className="shrink-0 text-sm text-muted transition hover:text-accent-dark"
-              >
-                Remove
-              </button>
+              <span className="flex shrink-0 items-center gap-4">
+                {/* Past blocks are a record of what she took. Nothing to edit. */}
+                {!over && (
+                  <button
+                    onClick={() => startEdit(b)}
+                    className={`text-sm transition hover:text-accent-dark ${
+                      editingId === b.id ? "font-medium text-accent-dark" : "text-muted"
+                    }`}
+                  >
+                    {editingId === b.id ? "Editing" : "Edit"}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    if (editingId === b.id) resetForm();
+                    remove(b.id);
+                  }}
+                  className="text-sm text-muted transition hover:text-accent-dark"
+                >
+                  Remove
+                </button>
+              </span>
             </div>
           );
         })}

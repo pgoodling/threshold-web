@@ -29,6 +29,7 @@ import {
 } from "../../lib/clientState";
 import { formulaName } from "../../lib/hair";
 import { insertStudioAppointment } from "../../lib/appointments";
+import SlotStatus from "./SlotStatus";
 import ApptDetailModal from "./ApptDetailModal";
 import ClientMessages from "./ClientMessages";
 import HairNotes from "./HairNotes";
@@ -1146,6 +1147,7 @@ function NewAppointment({
           required
         />
       </label>
+      <SlotStatus serviceId={serviceId} local={when} />
       {error && <ErrorNote>{error}</ErrorNote>}
       <div>
         <Button type="submit" disabled={busy}>
