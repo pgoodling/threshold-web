@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Upload, FileText, CircleAlert, Check } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import MoneyReview from "./MoneyReview";
 
 // Bringing a Relay export in.
 //
@@ -39,6 +40,10 @@ export default function Money() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  // Remount the queue after an import, so newly-added rows appear without a
+  // page reload. A key change is the cheapest correct way to refetch here.
+  const [queueKey, setQueueKey] = useState(0);
+  const noop = useCallback(() => {}, []);
 
   async function send(csv: string, name: string, allowGaps: boolean) {
     setBusy(true);
@@ -71,6 +76,7 @@ export default function Money() {
       }
       setPending(null);
       setResult(json as ImportResult);
+      setQueueKey((k) => k + 1);
     } catch {
       setError("Couldn't reach the server. Try again.");
     } finally {
@@ -224,6 +230,10 @@ export default function Money() {
           </p>
         </div>
       )}
+
+      <div className="mt-10 border-t border-foreground/15 pt-8">
+        <MoneyReview key={queueKey} onCount={noop} />
+      </div>
     </div>
   );
 }
