@@ -90,6 +90,8 @@ SETTLED="
 0035_digest_cron_vault|10 Sep 2026|rescheduled as jobid 4, and vault secret 'cron_secret' exists (created 18 Aug). Supersedes 0034, whose ALTER DATABASE approach Supabase refuses
 0025_late_arrival_cron|10 Sep 2026|moot: whatever it scheduled, 0032_stop_late_arrival_texts removed it and the route is deleted
 0034+0035_digest_cron|23 Sep 2026|net._http_response shows 200 on the hour, every hour — the job dispatches and the vault secret matches Vercel's CRON_SECRET. The 401 we were braced for never happened
+0038_nail_care_rule|23 Sep 2026|run as one paste with 0040 and 0039, in that order. salon_settings.opened_on exists, and that statement was LAST — so everything before it committed, including 0040's unique index and both 0038 inserts. The index also makes a duplicate NAIL SPA rule impossible rather than merely unlikely
+0040_rules_are_unique|23 Sep 2026|same paste, same reasoning — and if its create-unique-index had found duplicates the block would have failed there, leaving 0039's column absent. The column is present
 "
 
 # migration | what it changed | the query that proves it
@@ -98,7 +100,6 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
-0038_nail_care_rule|adds a rule and a category, no structure — and RLS hides the rows from this probe|select count(*) as applied from public.category_rules where pattern = 'NAIL SPA';  -- 1 = applied
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
