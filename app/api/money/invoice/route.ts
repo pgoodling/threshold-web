@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { PDFParse } from "pdf-parse";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { parseSupplierInvoice, guessUse } from "../../../../lib/supplierInvoice";
 
@@ -24,6 +23,48 @@ export const runtime = "nodejs"; // pdf parsing, and node:crypto beneath it
 export const maxDuration = 60;
 
 const MAX_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Pull the text layer out of a PDF.
+ *
+ * Two things here look like superstition and are not.
+ *
+ * The import is LAZY. Imported at module scope, a failure inside pdfjs takes
+ * the whole route down before any of it runs — which is what happened: GET
+ * returned 500 instead of 405, and an unauthenticated POST returned 500
+ * instead of 401. A parsing library should not be able to break the door.
+ *
+ * The globals are STUBBED. pdfjs reaches for DOMMatrix, ImageData and Path2D
+ * while initialising, and Node has never had them, so it threw
+ * `ReferenceError: DOMMatrix is not defined` even from its own legacy build
+ * with the package left external. Extracting text never touches any of them —
+ * they exist for rendering to a canvas, which this does not do — so empty
+ * shells are enough to get past the constructor. If a future version really
+ * uses them, it will fail loudly here rather than silently produce nonsense.
+ */
+async function extractText(data: Buffer): Promise<string> {
+  const g = globalThis as unknown as Record<string, unknown>;
+  if (typeof g.DOMMatrix === "undefined") {
+    g.DOMMatrix = class DOMMatrixStub {
+      a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+      constructor(init?: number[]) {
+        if (Array.isArray(init) && init.length >= 6) {
+          [this.a, this.b, this.c, this.d, this.e, this.f] = init;
+        }
+      }
+    };
+  }
+  if (typeof g.ImageData === "undefined") g.ImageData = class ImageDataStub {};
+  if (typeof g.Path2D === "undefined") g.Path2D = class Path2DStub {};
+
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data });
+  try {
+    return (await parser.getText()).text;
+  } finally {
+    await parser.destroy();
+  }
+}
 
 export async function POST(req: Request) {
   const admin = getAdminClient();
@@ -55,12 +96,13 @@ export async function POST(req: Request) {
   // ---- Read it ------------------------------------------------------------
   let text: string;
   try {
-    const parser = new PDFParse({ data: Buffer.from(await file.arrayBuffer()) });
-    text = (await parser.getText()).text;
-    await parser.destroy();
-  } catch {
+    text = await extractText(Buffer.from(await file.arrayBuffer()));
+  } catch (e) {
     return NextResponse.json(
-      { error: "Couldn't read that PDF. Is it a supplier order?" },
+      {
+        error: "Couldn't read that PDF. Is it a supplier order?",
+        detail: e instanceof Error ? e.message : String(e),
+      },
       { status: 400 },
     );
   }
