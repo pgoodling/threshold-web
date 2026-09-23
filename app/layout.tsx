@@ -15,7 +15,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Threshold — Studio by Evelyn",
   description:
-    "Threshold, Studio by Evelyn — expert cuts, color, and styling in Kettering, OH. Coming soon to Salon Lofts on E. Stroop Rd.",
+    // What Google shows under the link. It said "Coming soon" until 23 Sep
+    // 2026 — sixteen days after she opened.
+    "Threshold, Studio by Evelyn — expert cuts, color, and styling in Kettering, OH. Now open at Salon Lofts on E. Stroop Rd. Book online.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
