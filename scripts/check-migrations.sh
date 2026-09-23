@@ -79,6 +79,7 @@ STRUCTURAL="
 0036_money|tax_rates|checked_on
 0037_money_real_data|bank_transactions|pending
 0037_money_real_data|bank_transactions|balance_after_cents
+0039_opening_date|salon_settings|opened_on
 "
 
 # Opaque migrations already settled by hand. Recorded so the question is asked
