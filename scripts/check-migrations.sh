@@ -72,6 +72,11 @@ STRUCTURAL="
 0033_settings|salon_settings|digest_hour
 0033_settings|salon_settings|min_booking_notice_minutes
 0033_settings|appointments|cancel_notice_hours
+0036_money|bank_accounts|
+0036_money|bank_transactions|is_business
+0036_money|expense_categories|schedule_c_line
+0036_money|category_rules|
+0036_money|tax_rates|checked_on
 "
 
 # Opaque migrations already settled by hand. Recorded so the question is asked
@@ -81,6 +86,7 @@ SETTLED="
 0032_stop_late_arrival_texts|10 Sep 2026|cron.job count for 'threshold-late-arrivals' returned 0 — job is gone
 0035_digest_cron_vault|10 Sep 2026|rescheduled as jobid 4, and vault secret 'cron_secret' exists (created 18 Aug). Supersedes 0034, whose ALTER DATABASE approach Supabase refuses
 0025_late_arrival_cron|10 Sep 2026|moot: whatever it scheduled, 0032_stop_late_arrival_texts removed it and the route is deleted
+0034+0035_digest_cron|23 Sep 2026|net._http_response shows 200 on the hour, every hour — the job dispatches and the vault secret matches Vercel's CRON_SECRET. The 401 we were braced for never happened
 "
 
 # migration | what it changed | the query that proves it
@@ -89,7 +95,6 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
-0034+0035_digest_cron|whether the armed job actually gets through|select status_code, content from net._http_response order by created desc limit 3;  -- 401 = secret mismatch, 200 not_the_hour = working
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
@@ -100,7 +105,11 @@ probe() { # table, column -> prints PRESENT / MISSING / ERROR
     -H "apikey: $KEY" -H "Authorization: Bearer $KEY")
   if [ "$code" = "200" ]; then
     echo "PRESENT"
-  elif grep -q '"42703"\|"42P01"' "$body" 2>/dev/null; then
+  elif grep -q '"42703"\|"42P01"\|"PGRST205"' "$body" 2>/dev/null; then
+    # 42703 is a missing column. A missing TABLE never reaches Postgres at all:
+    # PostgREST answers from its schema cache with 404 PGRST205, so the
+    # SQLSTATE codes alone miss the case where a whole migration hasn't run —
+    # which is the common case, and used to report as UNKNOWN.
     echo "MISSING"
   else
     # Anything else — a network failure, a revoked key, a 401 — is not
@@ -114,6 +123,11 @@ probe() { # table, column -> prints PRESENT / MISSING / ERROR
 # meaningless and every result below is too. Better to refuse than to reassure.
 if [ "$(probe appointments __no_such_column__)" != "MISSING" ]; then
   echo "Probe self-test failed: a nonexistent column did not report MISSING." >&2
+  echo "Refusing to report — the results would not mean anything." >&2
+  exit 2
+fi
+if [ "$(probe __no_such_table__ '*')" != "MISSING" ]; then
+  echo "Probe self-test failed: a nonexistent table did not report MISSING." >&2
   echo "Refusing to report — the results would not mean anything." >&2
   exit 2
 fi
