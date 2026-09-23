@@ -41,6 +41,17 @@ section, this section is right.
   9 Sep 2026.
 - Her schedule emailed each morning at the hour she picks — the whole day in the
   body, phone numbers included, so it works when the site doesn't.
+- **Email is live (23 Sep 2026).** Resend verified on `threshold.salon`;
+  `RESEND_API_KEY` + `EMAIL_FROM` set in Vercel. Until this afternoon
+  `emailConfigured()` was false, so *nothing* the app ever tried to email had
+  sent — not the digest, not a single booking confirmation since she opened.
+  - Resend now verifies with **DKIM TXT + two SPF CNAMEs** (`send`, `rsend`) and
+    **no MX record**, which is what made this safe on Namecheap: their own docs
+    still describe the older MX pattern, and adding an MX there means switching
+    Mail Settings to Custom MX, which would have killed the free forwarding that
+    `evelyn@threshold.salon` depends on. Keep **Enable Receiving off** in Resend
+    — turning it on reintroduces the MX and the collision.
+  - Consequence: the Cloudflare DNS migration is still optional, not forced.
 - `scripts/check-migrations.sh` — asks the database which migrations actually ran.
 
 ---
@@ -76,7 +87,8 @@ section, this section is right.
 | 15 | Waitlist / cancellation fill | Go/no-go; depends on notifications |
 | 16 | Reviews & light marketing | Google Business link; go/no-go |
 | 17 | Google Calendar sync for Evelyn | Go/no-go (needs Google sign-in setup) |
-| 18 | **Retail + inventory + cost-of-goods** (the salon-shaped gap QuickBooks handles poorly) | Go/no-go. Sell retail at checkout, track product/color stock + low-stock nudges, rough product cost per service → true margins. Keep general bookkeeping/expenses/taxes in QuickBooks. Own mini-project; needs a migration. |
+| 18 | **Retail + inventory + cost-of-goods** (the salon-shaped gap QuickBooks handles poorly) | Go/no-go. Sell retail at checkout, track product/color stock + low-stock nudges, rough product cost per service → true margins. Own mini-project; needs a migration. ⚠️ This item used to say "keep general bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**, see [MONEY.md](MONEY.md). Evelyn wants to do her own taxes, so expenses and tax now live in the app and this item is the retail half of the same schema. |
+| 19 | **Money: bank feed, costs, tax** — expenses in via Teller (free tier) or statement upload, business/personal review, break-even, margin per service, and the set-aside rate across four jurisdictions | Design agreed 2026-09-23; see [MONEY.md](MONEY.md) for the build order and the five open questions. |
 
 ## 🔧 Small / no info needed (I just build)
 - Top-level "New appointment" in Appointments (manual booking is per-client only today)

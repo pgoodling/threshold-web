@@ -101,5 +101,6 @@ compare traffic against what was registered.
 |---|---|
 | `docs/A2P-CAMPAIGN.md` | Current. The carrier submission and its history. |
 | `docs/BACKLOG.md` | What's built, what's next, what's still needed from Paul. |
+| `docs/MONEY.md` | Current. Bank feed, cost allocation and the four tax jurisdictions. Read before touching a rate — they carry a source and a checked-on date for a reason. |
 | `docs/BUILD-PLAN.md` | Historical. The July 2026 decision record for building this instead of buying GlossGenius. Kept as rationale, not as a plan to follow. |
 | `AGENTS.md` | Read this first if you're an agent. |
