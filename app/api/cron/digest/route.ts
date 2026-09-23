@@ -274,9 +274,14 @@ export async function GET(req: Request) {
 
 // Same job, for sending one by hand to check it. force = true so a test send
 // works at any hour rather than only during her chosen one.
+//
+// The force argument was documented here from the start and never actually
+// passed, so POST behaved exactly like GET: a hand-run test returned
+// not_the_hour for twenty-three hours out of twenty-four, which reads as a
+// broken digest rather than a working one being tested at the wrong moment.
 export async function POST(req: Request) {
   if (!authorized(req)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   }
-  return run();
+  return run(true);
 }
