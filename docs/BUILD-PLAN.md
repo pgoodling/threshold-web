@@ -4,6 +4,17 @@ _Research + architecture decision + phased plan for turning threshold.salon from
 
 Prepared July 2026.
 
+> **This is a historical record, not a plan to follow.** It captures why we
+> built rather than bought, and the architecture we chose — all of which held
+> up. What it says about *sequence* is spent: Phase 1 shipped, the salon opened
+> on 7 September 2026, and Phases 2–4 have been partly built and partly
+> overtaken. Two specifics have since gone the other way: Stripe's server code
+> runs in Next.js route handlers on Vercel, not Supabase Edge Functions; and
+> SMS is not a "fast-follow" but live, with the A2P campaign cleared on
+> 9 September.
+>
+> For what actually exists, read [BACKLOG.md](BACKLOG.md) and the README.
+
 ---
 
 ## TL;DR — the decisions

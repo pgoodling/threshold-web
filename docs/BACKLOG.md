@@ -1,16 +1,47 @@
 # Threshold — Product Backlog
 
-_Living list of what's built, what's next, and what we need to build it. Updated 2026-07-08._
+_Living list of what's built, what's next, and what we need to build it. Updated 2026-09-23._
 
-Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
+Related: [BUILD-PLAN.md](BUILD-PLAN.md) (the July decision record) and
+[A2P-CAMPAIGN.md](A2P-CAMPAIGN.md) (carrier submission — read before touching a
+message template).
+
+**The salon opened 7 September 2026.** Sections further down this file are dated
+session notes and are kept as history; where they disagree with this top
+section, this section is right.
 
 ---
 
 ## ✅ Shipped (live on threshold.salon)
-- Public online booking: service → month calendar → time → confirm.
-- No-double-booking, availability driven by Evelyn's hours + time off.
-- `/studio` admin: login, **Overview**, **Appointments** (confirm / reschedule / complete / no-show / cancel), **Clients** CRM (directory, profiles, history, add, book-for-client), **Services** management, **Reports** (client & service metrics), **Hours**, **Time off**.
-- Hosted on Vercel, custom domain + HTTPS, Supabase backend.
+
+**Public**
+- Online booking: service → month calendar → time → confirm. No double-booking;
+  availability driven by her hours and time off.
+- Confirmation by email **and** text; day-before reminder texts.
+- `/appointment/[id]` — details, hair-notes form, self-service cancel inside the
+  window the client was quoted.
+- `/products` — the brands she uses and why (Keune, Maria Nila).
+- `/messaging`, `/privacy`, `/terms` — carrier compliance.
+
+**Studio**
+- Overview, to-do, messages, calendar (month/week/day, drag to move), appointments,
+  clients CRM, services, reports, outreach, texts, time off, **settings**.
+- Calendar shows her time off, and warns when she blocks over a booked client.
+- "Booked while you were away" strip; short-notice booking alert texted to her.
+- Booking forms say whether a time is free, taken, blocked or outside her hours
+  *before* she books — judged against `appointment_busy`, so a cut that fits in a
+  colour client's processing gap reads as free.
+- **Settings**: her morning email (on/off, hour, include takings), booking alert
+  window, minimum booking notice, cancellation window, how far ahead clients can
+  book, automated-text switches, quiet hours, reminder lookahead, monthly target.
+
+**Behind it**
+- Stripe live; card on file, deposits, no-show fees.
+- Twilio: two-way texting, voicemail, missed calls, click-to-call. A2P approved
+  9 Sep 2026.
+- Her schedule emailed each morning at the hour she picks — the whole day in the
+  body, phone numbers included, so it works when the site doesn't.
+- `scripts/check-migrations.sh` — asks the database which migrations actually ran.
 
 ---
 
@@ -18,20 +49,20 @@ Related: [BUILD-PLAN.md](BUILD-PLAN.md) (architecture + rationale).
 
 | # | Feature | What it does | What we need from you |
 |---|---|---|---|
-| 1 | **Confirmation + reminder emails** | "You're booked" + 24h reminder to client; Evelyn notified | **Resend** account; the "from" address; reminder timing. I draft the copy. |
-| 2 | **Real contact info** | Replace placeholder phone/email on the site | Real **phone + email** |
-| 3 | **Booking rules** | Min notice (e.g. no booking within 2h), buffer between appts, max advance | Your **numbers** |
+| 1 | ~~**Confirmation + reminder emails**~~ ✅ **SHIPPED** | Email via Resend, plus text confirmations and day-before reminders via Twilio | — |
+| 2 | ~~**Real contact info**~~ ✅ **SHIPPED** | (937) 936-2138 and info@threshold.salon, live on the site | — |
+| 3 | ~~**Booking rules**~~ ✅ **SHIPPED** | Minimum notice (default 2h), max advance (default 12 weeks), cancellation window — all editable by Evelyn in Settings | — |
 | 4 | ~~**Cancellation policy**~~ ✅ **SHIPPED** | "Reserving your time" note at booking: 24h notice; late cancels / no-shows may be charged up to full service price (Evelyn's discretion) | — |
 | 5 | ~~**Client & service metrics**~~ ✅ **SHIPPED** | Reports tab: revenue, completed, avg ticket, no-show rate; by-service + top-clients tables; range selector | — (populates as appts are marked completed) |
-| 6 | **Card on file + per-service deposits** (Stripe) | Save a card at booking; collect a deposit on *some* services; charge no-show fees at Evelyn's discretion | **Evelyn's Stripe account** (the blocker); which services get a deposit + amount (set in the Services tab — field already exists); no-show fee + cutoff |
+| 6 | ~~**Card on file + per-service deposits** (Stripe)~~ ✅ **SHIPPED** | Card saved at booking, per-service deposits, no-show fees at her discretion | — (Stripe live) |
 
 ## 📸 Tier 2 — client experience
 
 | # | Feature | What it does | What we need from you |
 |---|---|---|---|
 | 7 | ~~**Photo upload at booking**~~ ✅ **SHIPPED** (run migration `0003` to activate) | Up to 3 optional photos at booking; Evelyn views them per-appointment in `/studio` | **Run `supabase/migrations/0003_booking_photos.sql`** in the SQL editor |
-| 8 | **Client self-service** | Cancel/reschedule from the email link | Cancel cutoff window; depends on #1 |
-| 9 | **SMS text reminders** | Texts alongside/instead of email | **Twilio** account + carrier registration |
+| 8 | ~~**Client self-service**~~ ✅ **SHIPPED (cancel)** | Cancel from the link in the confirmation. Reschedule is still "text or call" on purpose — handing a client the calendar risks colliding their old slot with their new one | — |
+| 9 | ~~**SMS text reminders**~~ ✅ **SHIPPED** | Confirmations + day-before reminders; A2P cleared 9 Sep 2026 | — |
 | 10 | **Intake / consultation forms** | New-client allergies, patch test, hair history, goals | The questions; needs a migration |
 | 11 | **Before/after photos** | Attach result photos to a client's visit history | Confirm; needs Storage + migration |
 
@@ -299,14 +330,21 @@ Optional uploads during the public booking flow: a photo of the client's hair to
 - **In-person service payments → Intuit / Salon Lofts (2.3%).** Our app doesn't touch these.
 - **Online → Stripe:** save a **card on file** at booking (wanted for all), and collect a **deposit on select services only** (per-service `deposit_cents` — the field already exists in the Services tab, so Evelyn can set which services and how much). No-show/late-cancel fees charged against the card on file at Evelyn's discretion.
 
-**Blocker to build:** Evelyn's Stripe account (business + bank for payouts). **Tech note:** Stripe's secret key must run server-side — plan is Supabase Edge Functions (keeps the current static site as-is); deploying those needs the Supabase MCP pointed at the salon project or Paul deploying via CLI/dashboard.
+**Blocker to build:** Evelyn's Stripe account (business + bank for payouts). ✅ Resolved; Stripe is live.
+
+**Tech note (superseded).** This said the Stripe secret key would run in Supabase Edge Functions, to keep the site a static export. That's not what happened: the app moved to Vercel, so the secret runs in ordinary Next.js route handlers under `app/api/`. No Edge Functions exist in this project.
 
 ---
 
 ## ❓ Open questions
 1. ~~Online deposits vs in-person only~~ — **DECIDED:** card-on-file for all + per-service deposits, via Stripe; in-person via Intuit.
-2. Which **services get a deposit**, and how much? (Evelyn can set these in the Services tab now.)
-3. Real **phone + email** for the site?
+2. Which **services get a deposit**, and how much? (Evelyn can set these in the Services tab. Still unset — no booking currently asks for one.)
+3. ~~Real **phone + email**~~ — **DONE:** (937) 936-2138, info@threshold.salon.
 4. ~~No-show/cancellation policy~~ — **DECIDED:** 24h notice; late cancels / no-shows may be charged up to full service price, at Evelyn's discretion.
-5. Booking **min-notice, buffer, and max-advance** numbers?
-6. Reminder timing — 24h, 48h, or both?
+5. ~~Booking min-notice, buffer, max-advance~~ — **DONE:** minimum notice and max advance are hers to set in Settings (defaults 2 hours / 12 weeks). **Buffer between appointments is still not built** — processing time covers the colour case, but there's no gap-after-every-appointment setting.
+6. ~~Reminder timing~~ — **DONE:** one morning sweep, lookahead editable in Settings (default 36 hours, which catches tomorrow plus tonight's late bookings).
+
+## ❓ Open, as of 2026-09-23
+1. **Salon Lofts bookings** arrive by email and text and are logged by hand. Automating the email side needs a sample of what Salon Lofts actually sends — forwarded email + screenshot of a text. Texts reach her personal phone, so the app can't see them unless Salon Lofts can send to the salon number.
+2. **Blocking time from the calendar** rather than the Time off tab — agreed as the right home, not built.
+3. **Buffer between appointments** — see #5 above.
