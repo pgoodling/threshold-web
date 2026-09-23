@@ -34,25 +34,48 @@ appointment book and the bank feed in the same place.
 
 ## Where the data comes from
 
-**Teller**, free tier — 100 live connections, we need one. Fallback and dev
-path is a statement file (OFX/QFX/CSV) through the same ingestion code, so the
-bank connection is swappable and nothing above it knows which one ran.
+**She banks with Relay** (confirmed 2026-09-23), which settles this.
 
-Two constraints that shape the code, not footnotes:
+**Teller is out.** Relay is not among Teller's 7,008 institutions — checked
+directly against `https://api.teller.io/institutions`, which is public and
+needs no auth. The earlier plan to lead with Teller is dead.
 
-- **Teller requires mutual TLS on every production call.** Client certificate
-  and private key live in Vercel env vars; the routes build an `https.Agent`
-  from them. This forces those routes onto the **Node runtime** — they cannot
-  be Edge. An access token alone is useless without the certificate.
-- **The free tier is described as being for "independent developers and teams
-  prototyping ideas."** Transactions are $0.30/enrollment/month if we ever need
-  to be on the paid tier, which for one account is not a decision worth
-  agonising over. Budget for paying it.
+> **Trap, for whoever looks next.** Teller *does* list **Thread Bank**, which
+> is Relay's partner bank, so the list appears to contain a match. It does not.
+> Relay customers authenticate at `relayfi.com` and have no Thread
+> online-banking credentials; picking that entry produces a login failure with
+> nothing explaining why. Same trap applies to any aggregator: match on Relay,
+> never on Thread.
 
-Bank credentials never touch our code. Teller Connect is hosted; we receive an
-access token. We do not screen-scrape and we do not store a banking password —
-if that ever looks like the only way to support her bank, the answer is the
-file importer, not stored credentials.
+**The decision: OFX import first.** Relay exports statements as **CSV, PDF and
+OFX** from Accounts → Statements → Export.
+
+OFX rather than CSV, for one concrete reason: OFX carries a **`<FITID>`** per
+transaction — a stable unique id assigned by the bank. That populates
+`bank_transactions.external_id` and makes dedupe exact. CSV has no such field,
+which is why the schema also has `import_hash` (account + date + amount +
+description) as the weaker fallback. Prefer the path that uses the real id.
+
+*To verify with a real file:* that Relay's OFX actually includes FITID. It is
+standard in the format, but "standard" and "present in this bank's export" are
+different claims and only a downloaded file settles it.
+
+**Plaid is the upgrade path, not the starting point.** Plaid does support Relay
+(institution `ins_117228`), so daily automatic sync is available when it's
+worth the friction — production-access application, and Transactions billed as
+a monthly per-item subscription. Nothing above the ingestion layer changes when
+it's swapped in; that was the point of making the importer source-agnostic.
+
+**Worth a look before building Plaid:** Relay can **email statements on a
+recurring schedule** (the feature exists for Hubdoc/Dext). Pointed at an
+address the app can read, that is most of the way to automatic with no
+aggregator, no credentials and no monthly fee — at monthly granularity rather
+than daily. Cheaper than Plaid in every sense if monthly is enough, which for
+tax and cost questions it probably is.
+
+Bank credentials never touch our code, on any of these paths. We do not
+screen-scrape and we do not store a banking password — if that ever looks like
+the only way, the answer is the file importer, not stored credentials.
 
 ## Business and personal are not the same money
 
@@ -154,10 +177,12 @@ Confirm both before the app tells her a due date.
 
 ## Open questions
 
-1. **Which bank?** Teller's coverage is good but not universal, and this
-   decides whether the connection path or the file importer is the real one.
+1. ~~**Which bank?**~~ **Answered 2026-09-23: Relay.** See above — Teller is
+   out, OFX import is the path, Plaid is the later upgrade.
 2. **Is the salon account separate from personal?** Changes how aggressive the
-   business/personal review step needs to be.
+   business/personal review step needs to be. Relay's whole pitch is multiple
+   named accounts for one business, so she may already have the split — which
+   would make the review step much lighter than assumed.
 3. **Kettering and Oakwood estimated-payment thresholds and due dates** — two
    phone calls, above.
 4. **Does she have other income** (W-2, a spouse's, prior employment this year)?
@@ -170,12 +195,13 @@ Confirm both before the app tells her a due date.
 ## Build order
 
 1. **Schema + ingestion** — accounts, transactions, categories, rules, tax
-   rates. Source-agnostic, with the file importer first because it needs no
-   vendor.
+   rates. ✅ Schema shipped as `0036_money.sql` (applied 2026-09-23). Next is
+   the **OFX parser**, since that's now the real path rather than the fallback.
 2. **Review screen** — business/personal, category, bulk-by-merchant.
 3. **Where the money went** — categorised spend by month.
 4. **Break-even** — fixed costs against average ticket.
 5. **Set-aside rate + quarterly estimates** — the four jurisdictions, one number.
 6. **Margin per service** — allocated product cost against revenue by service.
-7. **Teller connection** — replaces manual import, changes nothing above it.
+7. **Automatic sync** — Relay's scheduled statement email if monthly is enough,
+   Plaid if it isn't. Replaces the manual step, changes nothing above it.
 8. **Schedule C export** — the year-end summary with transactions behind each line.

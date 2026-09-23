@@ -88,7 +88,7 @@ section, this section is right.
 | 16 | Reviews & light marketing | Google Business link; go/no-go |
 | 17 | Google Calendar sync for Evelyn | Go/no-go (needs Google sign-in setup) |
 | 18 | **Retail + inventory + cost-of-goods** (the salon-shaped gap QuickBooks handles poorly) | Go/no-go. Sell retail at checkout, track product/color stock + low-stock nudges, rough product cost per service → true margins. Own mini-project; needs a migration. ⚠️ This item used to say "keep general bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**, see [MONEY.md](MONEY.md). Evelyn wants to do her own taxes, so expenses and tax now live in the app and this item is the retail half of the same schema. |
-| 19 | **Money: bank feed, costs, tax** — expenses in via Teller (free tier) or statement upload, business/personal review, break-even, margin per service, and the set-aside rate across four jurisdictions | Design agreed 2026-09-23; see [MONEY.md](MONEY.md) for the build order and the five open questions. |
+| 19 | **Money: bank feed, costs, tax** — expenses in by OFX statement import, business/personal review, break-even, margin per service, and the set-aside rate across four jurisdictions | Design agreed 2026-09-23; schema `0036_money.sql` applied. She banks with **Relay**, which Teller does not cover — OFX import is the path, Plaid (`ins_117228`) the later upgrade. See [MONEY.md](MONEY.md). |
 
 ## 🔧 Small / no info needed (I just build)
 - Top-level "New appointment" in Appointments (manual booking is per-client only today)
