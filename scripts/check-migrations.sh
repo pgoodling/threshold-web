@@ -80,6 +80,8 @@ STRUCTURAL="
 0037_money_real_data|bank_transactions|pending
 0037_money_real_data|bank_transactions|balance_after_cents
 0039_opening_date|salon_settings|opened_on
+0042_inventory|products|sells_retail
+0042_inventory|inventory_movements|
 "
 
 # 0041_capital_purchases seeds rows and widens a check constraint — no new
