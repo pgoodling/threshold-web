@@ -47,31 +47,51 @@ needs no auth. The earlier plan to lead with Teller is dead.
 > nothing explaining why. Same trap applies to any aggregator: match on Relay,
 > never on Thread.
 
-**The decision: OFX import first.** Relay exports statements as **CSV, PDF and
-OFX** from Accounts → Statements → Export.
+**The decision: Plaid for the live feed, CSV import for backfill.** Both, and
+neither is a fallback for the other — they cover different ground.
 
-OFX rather than CSV, for one concrete reason: OFX carries a **`<FITID>`** per
-transaction — a stable unique id assigned by the bank. That populates
-`bank_transactions.external_id` and makes dedupe exact. CSV has no such field,
-which is why the schema also has `import_hash` (account + date + amount +
-description) as the weaker fallback. Prefer the path that uses the real id.
+**Plaid, because live was the requirement** (Paul, 2026-09-23: "I want this
+data live all the time"). That rules out the monthly options, which is all of
+the others:
 
-*To verify with a real file:* that Relay's OFX actually includes FITID. It is
-standard in the format, but "standard" and "present in this bank's export" are
-different claims and only a downloaded file settles it.
+- Relay's own **Other service → "OXF transactions"** integration tile (their
+  typo for OFX) emails exports **monthly**, tied to the statement cycle. Same
+  for the Hubdoc/Dext tiles. Monthly is the ceiling on every push Relay offers.
+- Manual download is monthly by the same constraint — Relay has no transaction
+  export separate from a statement period.
 
-**Plaid is the upgrade path, not the starting point.** Plaid does support Relay
-(institution `ins_117228`), so daily automatic sync is available when it's
-worth the friction — production-access application, and Transactions billed as
-a monthly per-item subscription. Nothing above the ingestion layer changes when
-it's swapped in; that was the point of making the importer source-agnostic.
+Plaid supports Relay (institution `ins_117228`). Set expectations honestly:
+"live" means Plaid refreshes a few times a day, not instantly — and it reports
+**pending** transactions whose amounts can still change. `/transactions/sync`
+gives added, modified and removed, so pending-then-settled is an update rather
+than a duplicate. That is the correct handling of a problem the per-transaction
+alert emails could not solve at all, and it is why `bank_transactions.pending`
+exists (0037).
 
-**Worth a look before building Plaid:** Relay can **email statements on a
-recurring schedule** (the feature exists for Hubdoc/Dext). Pointed at an
-address the app can read, that is most of the way to automatic with no
-aggregator, no credentials and no monthly fee — at monthly granularity rather
-than daily. Cheaper than Plaid in every sense if monthly is enough, which for
-tax and cost questions it probably is.
+Cost and friction: production-access application (reviewed, takes days), then
+Transactions billed as a monthly per-item subscription. For one or two accounts
+this is a few dollars a month.
+
+**CSV import is not the fallback — it is the backfill**, and it is needed on
+its own merits:
+
+- Plaid's first pull is a limited window. **August is where the startup
+  spending is** — $3,300 of owner capital, Premier Beauty Supply, Sherwin-
+  Williams, HomeGoods — and those are real deductible or capitalisable startup
+  costs that must not be lost because a connector started in October.
+- It works today. Plaid access takes days to approve; categorisation, review
+  and reporting can all be built and used against the two statements already in
+  hand rather than waiting.
+
+**CSV is a better format than expected**, and better than OFX here:
+
+- **No stable transaction id** in Relay's CSV, so `import_hash` is the path —
+  the OFX `FITID` advantage is moot because OFX isn't offered in Relay's export
+  dialog anyway, whatever the help docs say.
+- **But every row carries a running `Balance`, and the chain links across
+  statement files** — August closes at 2470.36, September's amounts sum to
+  +1892.95, September closes at 4363.31, exactly. So the importer can *prove*
+  it has every transaction. That was assumed to require OFX. It doesn't.
 
 Bank credentials never touch our code, on any of these paths. We do not
 screen-scrape and we do not store a banking password — if that ever looks like
@@ -195,13 +215,16 @@ Confirm both before the app tells her a due date.
 ## Build order
 
 1. **Schema + ingestion** — accounts, transactions, categories, rules, tax
-   rates. ✅ Schema shipped as `0036_money.sql` (applied 2026-09-23). Next is
-   the **OFX parser**, since that's now the real path rather than the fallback.
+   rates. ✅ `0036_money.sql` (applied 2026-09-23), corrected by
+   `0037_money_real_data.sql` after reading two real statements. Next is the
+   **Relay CSV parser**, which unblocks everything downstream while Plaid
+   access is pending.
 2. **Review screen** — business/personal, category, bulk-by-merchant.
 3. **Where the money went** — categorised spend by month.
 4. **Break-even** — fixed costs against average ticket.
 5. **Set-aside rate + quarterly estimates** — the four jurisdictions, one number.
 6. **Margin per service** — allocated product cost against revenue by service.
-7. **Automatic sync** — Relay's scheduled statement email if monthly is enough,
-   Plaid if it isn't. Replaces the manual step, changes nothing above it.
+7. **Plaid live sync** — `/transactions/sync` plus the webhook, replacing the
+   manual step and changing nothing above it. Start the production-access
+   application early; it gates nothing else, but it takes days.
 8. **Schedule C export** — the year-end summary with transactions behind each line.

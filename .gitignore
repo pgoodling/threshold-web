@@ -33,6 +33,21 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# bank statements and exports
+#
+# This repository is PUBLIC. A Relay export carries every transaction, the
+# running balance, and the last four of her cards — one `git add .` away from
+# being on the open internet permanently, where a force-push does not remove
+# it. Ignored by extension rather than by folder, so a file dropped anywhere in
+# the tree is still caught.
+#
+# A parser fixture is the one legitimate exception: anonymise the amounts and
+# payees first, then `git add -f` it deliberately.
+*.csv
+*.ofx
+*.qfx
+*.qbo
+
 # vercel
 .vercel
 
