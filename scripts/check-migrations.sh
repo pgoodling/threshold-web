@@ -84,6 +84,9 @@ STRUCTURAL="
 0042_inventory|inventory_movements|
 "
 
+# 0043 recreates a view with security_invoker — no new structure, and the
+# probe sees the view either way. Confirmed by behaviour instead; see OPAQUE.
+
 # 0041_capital_purchases seeds rows and widens a check constraint — no new
 # structure to probe. Confirmed by hand; see SETTLED below.
 
@@ -106,6 +109,7 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
+0043_stock_view_respects_rls|whether product_stock still answers anonymous callers — the probe sees the view either way, so only behaviour tells|select count(*) as leaks from pg_views v join pg_class c on c.relname = v.viewname where v.viewname = 'product_stock' and not (coalesce(c.reloptions::text, '') like '%security_invoker=true%');  -- 0 = fixed, 1 = still leaking
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR

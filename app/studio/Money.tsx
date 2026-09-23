@@ -7,6 +7,7 @@ import MoneyReview from "./MoneyReview";
 import MoneyManual from "./MoneyManual";
 import MoneyColourCost from "./MoneyColourCost";
 import MoneyInvoice from "./MoneyInvoice";
+import MoneyCatalogue from "./MoneyCatalogue";
 
 // Bringing a Relay export in.
 //
@@ -248,6 +249,11 @@ export default function Money() {
       </div>
 
       <MoneyInvoice onImported={() => setQueueKey((k) => k + 1)} />
+
+      <div className="mt-10 border-t border-foreground/15 pt-8">
+        <h3 className="font-display text-lg">What she stocks</h3>
+        <MoneyCatalogue key={`cat-${queueKey}`} />
+      </div>
 
       <MoneyColourCost key={`cc-${queueKey}`} />
     </div>
