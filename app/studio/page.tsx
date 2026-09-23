@@ -10,6 +10,7 @@ import Calendar from "./Calendar";
 import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
+import Money from "./Money";
 import Messages from "./Messages";
 import Outreach from "./Outreach";
 import Texts from "./Texts";
@@ -24,6 +25,7 @@ import {
   Users,
   Scissors,
   BarChart3,
+  Wallet,
   Clock,
   Send,
   Settings as SettingsIcon,
@@ -180,6 +182,7 @@ type Tab =
   | "clients"
   | "services"
   | "reports"
+  | "money"
   | "outreach"
   | "texts"
   | "hours"
@@ -195,6 +198,7 @@ const TABS: [Tab, string, LucideIcon][] = [
   ["clients", "Clients", Users],
   ["services", "Services", Scissors],
   ["reports", "Reports", BarChart3],
+  ["money", "Money", Wallet],
   ["outreach", "Outreach", Send],
   ["texts", "Texts", MessageSquare],
   ["hours", "Hours", Clock],
@@ -442,6 +446,7 @@ function Dashboard() {
           )}
           {tab === "services" && <Services />}
           {tab === "reports" && <Reports />}
+          {tab === "money" && <Money />}
           {tab === "outreach" && <Outreach />}
           {tab === "texts" && <Texts />}
           {tab === "hours" && <Hours />}
