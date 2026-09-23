@@ -68,9 +68,33 @@ than a duplicate. That is the correct handling of a problem the per-transaction
 alert emails could not solve at all, and it is why `bank_transactions.pending`
 exists (0037).
 
-Cost and friction: production-access application (reviewed, takes days), then
-Transactions billed as a monthly per-item subscription. For one or two accounts
-this is a few dollars a month.
+**Cost: none, for her.** Paul opened a Plaid account on 2026-09-23 and it
+landed on the **Trial plan** — available to US/Canada teams created on or after
+15 April 2026.
+
+- **Not time-limited.** It persists indefinitely; the only constraint is a cap
+  of **10 Production Items**. She needs one, maybe two with the savings
+  account.
+- **Transactions is bundled into it**, along with Auth, Balance, Identity and
+  the rest. The product this feature depends on costs nothing at this size.
+- Trial reaches most OAuth institutions without full Production approval.
+
+> **Spend the Items carefully.** Removing an Item **does not give the quota
+> back** — the cap counts Items ever created, not Items currently live. Ten
+> connect-disconnect cycles while testing and the allowance is gone for good,
+> with no way to reset it. Develop against **Sandbox**; only create a Production
+> Item when connecting an account for real.
+
+If it ever does need a paid plan, Pay-as-you-go has no minimum and no
+commitment. One trap on that path: after upgrading, you keep Production access
+only to products **explicitly listed on the Production request form**, so
+Transactions must be named on it even though Trial bundled it for free.
+
+Plaid publishes no per-item figure for Transactions on any tier — the pricing
+page marks it "Included" across all three and shows rates only after the
+production-access application. The commonly cited ~$0.30/item/month is a
+community number, not a quote. Moot at this size, but worth not repeating as
+fact.
 
 **CSV import is not the fallback — it is the backfill**, and it is needed on
 its own merits:
