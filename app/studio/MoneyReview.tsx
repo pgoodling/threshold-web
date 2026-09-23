@@ -53,6 +53,8 @@ export default function MoneyReview({ onCount }: { onCount?: (n: number) => void
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ id: string; label: string } | null>(null);
+  // Said out loud, because "Always" used to change nothing she was looking at.
+  const [flash, setFlash] = useState<string | null>(null);
 
   // Bumped to refetch — after an undo, when the row has to come back.
   const [reloadKey, setReloadKey] = useState(0);
@@ -109,6 +111,7 @@ export default function MoneyReview({ onCount }: { onCount?: (n: number) => void
   async function decide(row: Txn, isBusiness: boolean) {
     setBusyId(row.id);
     setError(null);
+    setFlash(null);
     const { error: e } = await supabase
       .from("bank_transactions")
       .update({ is_business: isBusiness, reviewed_at: new Date().toISOString() })
@@ -140,18 +143,35 @@ export default function MoneyReview({ onCount }: { onCount?: (n: number) => void
     reload();
   }
 
-  /** Rule for next time, plus the siblings already sitting in the queue. */
+  /**
+   * Rule for next time, the siblings already queued, and this row filed.
+   *
+   * That last part matters. "Always file Walgreens as back bar" plainly means
+   * this one too, and leaving the row she just pressed sitting in the queue
+   * made the button look broken — the only thing that changed was another
+   * row's stripe, several rows away.
+   */
   async function always(row: Txn) {
     const merchant = row.merchant?.trim();
-    if (!merchant || !row.category_id) return;
+    const categoryId = row.category_id;
+    if (!merchant || !categoryId) return;
     setBusyId(row.id);
+    setError(null);
 
-    await supabase.from("category_rules").insert({
+    // 0040 put a unique index on lower(pattern), so pressing this twice is a
+    // 23505 rather than a second rule. That is the desired end state — the
+    // rule exists — so treat it as success and carry on.
+    const { error: ruleErr } = await supabase.from("category_rules").insert({
       pattern: merchant,
-      category_id: row.category_id,
+      category_id: categoryId,
       is_business: true,
       priority: 100,
     });
+    if (ruleErr && ruleErr.code !== "23505") {
+      setError(`Couldn't save that rule: ${ruleErr.message}`);
+      setBusyId(null);
+      return;
+    }
 
     const siblings = rows.filter(
       (x) => x.id !== row.id && x.merchant?.trim() === merchant && !x.category_id,
@@ -159,36 +179,80 @@ export default function MoneyReview({ onCount }: { onCount?: (n: number) => void
     if (siblings.length > 0) {
       await supabase
         .from("bank_transactions")
-        .update({ category_id: row.category_id, category_source: "rule" })
+        .update({ category_id: categoryId, category_source: "rule" })
         .in(
           "id",
           siblings.map((s) => s.id),
         );
-      setRows((r) =>
-        r.map((x) =>
-          siblings.some((s) => s.id === x.id)
-            ? { ...x, category_id: row.category_id, category_source: "rule" }
-            : x,
-        ),
-      );
     }
+
+    // File the row she pressed it on, the same way Business would.
+    const { error: fileErr } = await supabase
+      .from("bank_transactions")
+      .update({ is_business: true, reviewed_at: new Date().toISOString() })
+      .eq("id", row.id);
+    if (fileErr) {
+      setError(fileErr.message);
+      setBusyId(null);
+      return;
+    }
+
+    const catName = cats.find((c) => c.id === categoryId)?.name ?? "that category";
+    setRows((r) => {
+      const next = r
+        .filter((x) => x.id !== row.id)
+        .map((x) =>
+          siblings.some((s) => s.id === x.id)
+            ? { ...x, category_id: categoryId, category_source: "rule" }
+            : x,
+        );
+      onCount?.(next.length);
+      return next;
+    });
+    setUndo({ id: row.id, label: `${merchant} — business` });
+    setFlash(
+      `${merchant} will file as ${catName} from now on` +
+        (siblings.length > 0
+          ? ` — ${siblings.length} other row${siblings.length === 1 ? "" : "s"} filled in`
+          : ""),
+    );
     setBusyId(null);
   }
+
+  // Rendered in both the list and the empty state: pressing "Always" on the
+  // last queued row empties the queue, and that is exactly when she most needs
+  // telling what just happened.
+  const flashLine = flash && (
+    <div className="mt-6 flex max-w-prose items-center gap-2.5 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-sm">
+      <Wand2 size={15} className="shrink-0 text-accent" />
+      <p className="flex-1">{flash}</p>
+      <button
+        onClick={() => setFlash(null)}
+        className="text-xs text-muted transition hover:text-foreground"
+      >
+        Dismiss
+      </button>
+    </div>
+  );
 
   if (loading) return <p className="mt-6 text-sm text-muted">Loading…</p>;
 
   if (rows.length === 0) {
     return (
-      <div className="mt-6 flex max-w-prose items-center gap-3 rounded-xl border border-foreground/15 bg-white p-4 text-sm shadow-sm">
-        <Check size={16} className="text-accent" />
-        <p>Nothing waiting. Every transaction has been looked at.</p>
-      </div>
+      <>
+        {flashLine}
+        <div className="mt-4 flex max-w-prose items-center gap-3 rounded-xl border border-foreground/15 bg-white p-4 text-sm shadow-sm">
+          <Check size={16} className="text-accent" />
+          <p>Nothing waiting. Every transaction has been looked at.</p>
+        </div>
+      </>
     );
   }
 
   return (
     <div className="mt-6">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      {flashLine}
+      <div className="mb-3 mt-4 flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-display text-lg">
           Needs you{" "}
           <span className="ml-1 text-sm font-normal text-muted">
@@ -280,9 +344,9 @@ export default function MoneyReview({ onCount }: { onCount?: (n: number) => void
                     <button
                       onClick={() => always(row)}
                       disabled={busyId === row.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-muted transition hover:text-foreground disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/5 px-3 py-1.5 text-sm font-medium text-accent transition hover:bg-accent/10 disabled:opacity-40"
                     >
-                      <Wand2 size={13} />
+                      <Wand2 size={14} />
                       Always, for {row.merchant}
                     </button>
                   )}
@@ -299,8 +363,10 @@ export default function MoneyReview({ onCount }: { onCount?: (n: number) => void
 
       <p className="mt-3 max-w-prose text-xs text-muted">
         Personal doesn&rsquo;t need a category — it&rsquo;s leaving the books either way.
-        &ldquo;Always&rdquo; writes a rule for future imports and fills in anything else
-        from that merchant still waiting here, as a suggestion rather than a decision.
+        &ldquo;Always&rdquo; files this one as business, writes a rule so future imports
+        skip it, and fills in anything else from that merchant still waiting here —
+        as a suggestion rather than a decision, since one Walgreens trip being back-bar
+        supplies doesn&rsquo;t make the next one so.
       </p>
     </div>
   );
