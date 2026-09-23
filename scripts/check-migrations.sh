@@ -101,6 +101,7 @@ SETTLED="
 0038_nail_care_rule|23 Sep 2026|run as one paste with 0040 and 0039, in that order. salon_settings.opened_on exists, and that statement was LAST — so everything before it committed, including 0040's unique index and both 0038 inserts. The index also makes a duplicate NAIL SPA rule impossible rather than merely unlikely
 0040_rules_are_unique|23 Sep 2026|same paste, same reasoning — and if its create-unique-index had found duplicates the block would have failed there, leaving 0039's column absent. The column is present
 0041_capital_purchases|23 Sep 2026|Paul reported running it. Weaker evidence than the others here — his word, not a query — but it is self-verifying in use: 0041 is one transaction, so either the three capital categories exist or none of it applied, and they appear in the category dropdown on the Money screen the moment anyone categorises anything
+0043_stock_view_respects_rls|23 Sep 2026|Paul reported running it. Not confirmable when written: with no products yet, an anon query against product_stock returns [] whether RLS applies or not. Becomes a real test the moment one product exists — anon asking for product_stock must still get [], and rows would mean this never ran. Worth actually doing after the first invoice upload
 "
 
 # migration | what it changed | the query that proves it
@@ -109,7 +110,6 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
-0043_stock_view_respects_rls|whether product_stock still answers anonymous callers — the probe sees the view either way, so only behaviour tells|select count(*) as leaks from pg_views v join pg_class c on c.relname = v.viewname where v.viewname = 'product_stock' and not (coalesce(c.reloptions::text, '') like '%security_invoker=true%');  -- 0 = fixed, 1 = still leaking
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
