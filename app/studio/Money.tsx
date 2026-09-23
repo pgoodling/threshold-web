@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 import MoneyReview from "./MoneyReview";
 import MoneyManual from "./MoneyManual";
 import MoneyColourCost from "./MoneyColourCost";
+import MoneyInvoice from "./MoneyInvoice";
 
 // Bringing a Relay export in.
 //
@@ -245,6 +246,8 @@ export default function Money() {
       <div className="mt-10 border-t border-foreground/15 pt-8">
         <MoneyReview key={queueKey} onCount={noop} />
       </div>
+
+      <MoneyInvoice onImported={() => setQueueKey((k) => k + 1)} />
 
       <MoneyColourCost key={`cc-${queueKey}`} />
     </div>
