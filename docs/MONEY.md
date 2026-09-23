@@ -47,7 +47,24 @@ needs no auth. The earlier plan to lead with Teller is dead.
 > nothing explaining why. Same trap applies to any aggregator: match on Relay,
 > never on Thread.
 
-**The decision: Plaid for the live feed, CSV import for backfill.** Both, and
+> **DECIDED 2026-09-23, later the same day: no Plaid.** Evelyn uploads the CSV
+> from her phone once a month. The section below is kept because the reasoning
+> and the numbers are still the right starting point if this is ever revisited
+> — but the live feed is not being built.
+>
+> What settled it wasn't cost, in the end. Plaid's real prices turned out to be
+> $0.30/item/month for Transactions, $0.12 per Refresh call, $0.10 per Balance
+> call — and the free Trial plan covered her use entirely, indefinitely. It was
+> that a monthly upload is enough for questions that are inherently
+> retrospective. Tax and cost-per-service don't get better answers from
+> knowing about a purchase four hours sooner.
+>
+> The practical consequence, which the build has to honour: **the import screen
+> is a phone screen.** She exports from the Relay app on her phone, so the
+> upload has to work from iOS Files, and the review queue has to be usable with
+> a thumb. That is not a nice-to-have — it is now the only way data gets in.
+
+**Superseded: Plaid for the live feed, CSV import for backfill.** Both, and
 neither is a fallback for the other — they cover different ground.
 
 **Plaid, because live was the requirement** (Paul, 2026-09-23: "I want this

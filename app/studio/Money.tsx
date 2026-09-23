@@ -99,17 +99,24 @@ export default function Money() {
     <div>
       <h2 className="mb-4 font-display text-2xl leading-none sm:text-3xl">Money</h2>
       <p className="max-w-prose text-sm text-muted">
-        Export a statement from Relay — <span className="text-foreground">Accounts →
-        Statements</span>, pick the month, <span className="text-foreground">Export →
-        Download statements</span>, choose CSV — then drop it here. Importing the same
-        file twice is safe; anything already here is left alone.
+        In the Relay app: open the account, tap the{" "}
+        <span className="text-foreground">⋯</span> menu,{" "}
+        <span className="text-foreground">Download statements</span>, pick the month and
+        choose <span className="text-foreground">CSV</span>. Then come back here and
+        upload it. Importing the same file twice is safe — anything already here is left
+        alone, so there&rsquo;s no harm in re-uploading if you lose track.
       </p>
 
       <div className="mt-5">
         <input
           ref={fileRef}
           type="file"
-          accept=".csv,text/csv"
+          // Broad on purpose. She uploads from her phone, and iOS reports a
+          // CSV variously as text/csv, text/comma-separated-values, or
+          // text/plain depending on where it came from — a narrow accept list
+          // greys the file out in the Files picker with no explanation, which
+          // looks like the app refusing to work.
+          accept=".csv,text/csv,text/comma-separated-values,application/csv,text/plain"
           onChange={onPick}
           className="hidden"
           id="relay-csv"

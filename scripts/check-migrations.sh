@@ -82,6 +82,9 @@ STRUCTURAL="
 0039_opening_date|salon_settings|opened_on
 "
 
+# 0041_capital_purchases seeds rows and widens a check constraint — no new
+# structure to probe. Confirmed by hand; see SETTLED below.
+
 # Opaque migrations already settled by hand. Recorded so the question is asked
 # once. Date them — a result is only true of the database as it was that day.
 SETTLED="
@@ -100,6 +103,7 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
+0041_capital_purchases|widens the kind check constraint and seeds three categories — no structure the anon probe can see|select count(*) as applied from public.expense_categories where kind = 'capital';  -- 3 = applied
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
