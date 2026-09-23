@@ -79,6 +79,20 @@ landed on the **Trial plan** — available to US/Canada teams created on or afte
   the rest. The product this feature depends on costs nothing at this size.
 - Trial reaches most OAuth institutions without full Production approval.
 
+**Products requested on the Production form** (2026-09-23): **Transactions**,
+**Transactions Refresh** and **Balance**. Refresh is what makes "live" mean
+on-demand rather than whenever Plaid last synced — but it bills per request on
+paid plans, so it belongs behind a deliberate refresh action, never on page
+load. Balance gives the live figure to check the app's own totals against,
+carrying over the completeness check the CSV's running balance provides.
+
+Deliberately not requested: Auth and Identity (payments and ownership
+verification — the app never moves money), Assets and Income (lending),
+Statements (PDFs), Enrich (redundant, Transactions already returns enriched
+merchants), and Recurring Transactions — which looks aimed at break-even but
+isn't needed, because categorising Salon Lofts once as a fixed cost already
+tells the app that $250 lands every week.
+
 > **Spend the Items carefully.** Removing an Item **does not give the quota
 > back** — the cap counts Items ever created, not Items currently live. Ten
 > connect-disconnect cycles while testing and the allowance is gone for good,
@@ -96,16 +110,22 @@ production-access application. The commonly cited ~$0.30/item/month is a
 community number, not a quote. Moot at this size, but worth not repeating as
 fact.
 
-**CSV import is not the fallback — it is the backfill**, and it is needed on
-its own merits:
+**CSV import stands on its own, but not for the reason first given.** An
+earlier draft of this file argued Plaid's first pull was a short window and
+that August's startup spending — $3,300 of owner capital, Premier Beauty
+Supply, Sherwin-Williams, HomeGoods — would be lost to a connector starting in
+October. That was wrong: Plaid's Transactions product returns **24 months** of
+history, so it reaches back past her opening date comfortably.
 
-- Plaid's first pull is a limited window. **August is where the startup
-  spending is** — $3,300 of owner capital, Premier Beauty Supply, Sherwin-
-  Williams, HomeGoods — and those are real deductible or capitalisable startup
-  costs that must not be lost because a connector started in October.
-- It works today. Plaid access takes days to approve; categorisation, review
-  and reporting can all be built and used against the two statements already in
-  hand rather than waiting.
+The real reasons to have it, which survive:
+
+- **It works today.** Plaid needs a production-access review and a build. The
+  importer already runs against the statements in hand, so categorisation,
+  review and reporting are unblocked rather than waiting on a vendor.
+- **It owes nothing to anyone.** If the connection breaks, the institution
+  changes hands, or the Item quota runs out, a CSV export still works. A
+  finance feature with exactly one way to get data in is a feature with a
+  single point of failure.
 
 **CSV is a better format than expected**, and better than OFX here:
 
