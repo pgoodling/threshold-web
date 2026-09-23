@@ -97,6 +97,7 @@ SETTLED="
 # entries go here when a migration changes only policies, functions, cron jobs
 # or comments — anything the anon probe can't see.
 OPAQUE="
+0038_nail_care_rule|adds a rule and a category, no structure — and RLS hides the rows from this probe|select count(*) as applied from public.category_rules where pattern = 'NAIL SPA';  -- 1 = applied
 "
 
 probe() { # table, column -> prints PRESENT / MISSING / ERROR
