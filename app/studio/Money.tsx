@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { Upload, FileText, CircleAlert, Check } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import MoneyReview from "./MoneyReview";
+import MoneyManual from "./MoneyManual";
 
 // Bringing a Relay export in.
 //
@@ -237,6 +238,8 @@ export default function Money() {
           </p>
         </div>
       )}
+
+      <MoneyManual onAdded={() => setQueueKey((k) => k + 1)} />
 
       <div className="mt-10 border-t border-foreground/15 pt-8">
         <MoneyReview key={queueKey} onCount={noop} />

@@ -175,6 +175,32 @@ keyboard-first — rather than trying to make it disappear.
 
 ## What a service actually costs
 
+> **Revisit this.** A supplier invoice (2026-09-23) put real unit costs on the
+> table and a bill of materials is now plausible for colour, which allocation
+> was chosen to avoid:
+>
+> - Keune Tinta, 2 fl oz tube: **$9.35**. Tinta Developer, 1 litre: **$11.90**
+>   (≈$0.35/oz). So a single-process colour is roughly **$10 of product**.
+> - Keune Tinta SKUs *are* shade codes — `26093` is Tinta 9.3, Very Light
+>   Golden Blonde — and `clients.hair_formula` already stores level-and-tone
+>   from the regrowth work. Appointment → formula → SKU → actual cost, with
+>   both ends already built.
+>
+> The objection to a BoM was that it needs data she'd have to maintain. That
+> objection weakens when the formula is already on the client card and the
+> price is already on an invoice. It does not vanish — quantities still vary
+> per head — but this is worth costing properly rather than dismissing.
+>
+> Also: **per-merchant rules can't split a mixed order.** SalonCentric supplies
+> bleach, developer, foils *and* tools; a bank row saying `SALONCENTRIC $88.12`
+> cannot be divided across categories. Only line items can. So invoice
+> ingestion isn't a refinement on top of the bank feed — it's the only route to
+> an accurate cost side.
+>
+> Suppliers, per Paul (2026-09-23): **Premier Beauty Supply** — colour,
+> developer, shampoo, conditioner. **SalonCentric** — bleach, developer, foils,
+> some tools.
+
 **Period allocation, not a bill of materials.** Total product spend in a period
 divided across the appointments in that period, weighted by service type: she
 spends $340 on colour supplies in March and did 41 colour services, so a colour
@@ -189,6 +215,35 @@ it should not be built first.
 Allocation is an estimate and the UI says so. "About $8.30" is honest. "$8.27"
 is not.
 
+## Purchases the bank feed will never show
+
+Confirmed 2026-09-23 by a supplier invoice: order #891488, Keune and maria
+nila, **$2,043.38**, dated 24 August, paid "CardOnFile". It appears nowhere in
+either Relay statement — her single largest purchase, entirely invisible, and
+more than the **$1,801.40** of pre-opening spend the statements *do* show. Her
+real startup costs are more than double what the bank feed implies, which
+matters for the §195 figure.
+
+Paul reports several more like it, records not yet to hand. Two possible
+causes, needing different fixes:
+
+- **Pre-Relay.** A one-time backfill with an end.
+- **A card that isn't in Relay.** A hole that reopens every month.
+
+Unresolved, and worth resolving: the Relay account was already live on 24
+August (the statement opens at $0.00 on 5 August, and Premier Beauty Supply was
+paid from it on the 11th), so this order falls *inside* the Relay window. Either
+it was ordered before the supplier's "Received" date, or another card paid it.
+
+**Where they go:** `bank_transactions`, against an account named "Paid outside
+Relay" with `source='manual'` — not a table of their own. One pipeline, one
+review queue, one Schedule C rollup. A parallel table would need its own copy
+of categories, allocation and reporting, and the first report to forget it
+existed would be quietly wrong.
+
+Typing a purchase in *is* the review, so manual entries land reviewed and
+business. Nobody hand-enters an expense while unsure whether it was one.
+
 ## The number that matters most
 
 Not cost-per-service. **Break-even**: fixed costs (Salon Lofts rent,
@@ -196,6 +251,12 @@ insurance, phone, software, this app's own bills) divided by her average
 ticket, shown as *appointments per week before you're earning*. It falls out of
 the same data and it is the one figure a solo stylist can actually steer by
 between clients.
+
+**Salon Lofts is $250 a week** — confirmed as rent (Paul, 2026-09-23), not
+repayment of supplier orders, which the "RECEIVABLE" label on the statement had
+left genuinely ambiguous. That's **$13,000 a year**, and it is the numerator.
+Weekly is also the natural unit for the answer, so nothing needs converting in
+either direction.
 
 ## Tax
 
