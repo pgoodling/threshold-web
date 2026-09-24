@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PackageOpen, Plus, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { parsePastedList, type KitLine as Line } from "../../lib/kitList";
 
 // Breaking a kit into what was actually in it.
 //
@@ -20,7 +21,6 @@ import { supabase } from "../../lib/supabase";
 // the box is retired — so the money lands on things that exist instead of on a
 // carton that was thrown away weeks ago.
 
-type Line = { name: string; qty: string };
 
 export default function MoneyKitBreakout({
   productId,
@@ -40,6 +40,8 @@ export default function MoneyKitBreakout({
   const [lines, setLines] = useState<Line[]>([{ name: "", qty: "1" }]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paste, setPaste] = useState("");
+  const [showPaste, setShowPaste] = useState(true);
 
   const totalUnits = lines.reduce((t, l) => t + (Number(l.qty) || 0), 0);
   const perUnit =
@@ -149,6 +151,45 @@ export default function MoneyKitBreakout({
         .
       </p>
 
+      {showPaste ? (
+        <div className="mt-3">
+          <textarea
+            value={paste}
+            onChange={(e) => setPaste(e.target.value)}
+            rows={6}
+            placeholder={
+              "Paste the contents, one per line:\n" +
+              "3 Color Brillianz Anti-fade Shampoo 10.1 oz.\n" +
+              "2 Long & Strong Super Serum 3.4 oz.\n" +
+              "1 Care Studio Plus Merchandising Kit"
+            }
+            className="w-full rounded-lg border border-foreground/15 px-2 py-2 text-sm"
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                const parsed = parsePastedList(paste);
+                if (parsed.length === 0) {
+                  setError("Couldn't read any lines. Each one needs a number, then a name.");
+                  return;
+                }
+                setError(null);
+                setLines(parsed);
+                setShowPaste(false);
+              }}
+              className="rounded-lg border border-foreground/15 px-3 py-1.5 text-sm font-medium transition hover:border-foreground/30"
+            >
+              Read the list
+            </button>
+            <button
+              onClick={() => setShowPaste(false)}
+              className="rounded-lg px-3 py-1.5 text-sm text-muted transition hover:text-foreground"
+            >
+              Type them instead
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="mt-3 space-y-2">
         {lines.map((l, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -176,14 +217,25 @@ export default function MoneyKitBreakout({
           </div>
         ))}
       </div>
+      )}
 
-      <button
-        onClick={() => setLines((ls) => [...ls, { name: "", qty: "1" }])}
-        className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted transition hover:text-foreground"
-      >
-        <Plus size={13} />
-        Another
-      </button>
+      {!showPaste && (
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setLines((ls) => [...ls, { name: "", qty: "1" }])}
+            className="inline-flex items-center gap-1.5 text-xs text-muted transition hover:text-foreground"
+          >
+            <Plus size={13} />
+            Another
+          </button>
+          <button
+            onClick={() => setShowPaste(true)}
+            className="text-xs text-muted transition hover:text-foreground"
+          >
+            Paste a list instead
+          </button>
+        </div>
+      )}
 
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
