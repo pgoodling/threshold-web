@@ -195,6 +195,66 @@ export function parseSupplierInvoice(text: string): SupplierInvoice {
 }
 
 /**
+ * Spread an intro kit's price across the items that came in it.
+ *
+ * Suppliers bill a kit as one priced line and then list its contents as
+ * separate lines at $0.00. On order #891488:
+ *
+ *   890326040  GLOSS LARGE INTRO 70 pc.        1 @ $438.00
+ *   240030     GLOSS COLLECTION 3.0N 2 Fl.Oz.  2 @ $0.00
+ *   240050     GLOSS COLLECTION 5.0N 2 Fl.Oz.  2 @ $0.00
+ *   ... 30 such lines, 60 units in total
+ *
+ * Taken literally that gives 60 tubes worth nothing and one $438 box that
+ * cannot be sold, counted or put on a head — so her colour costs come out
+ * $438 short and the shelf never matches the ledger.
+ *
+ * Allocating instead gives $438 / 60 = $7.30 a tube. The same order bills
+ * gloss she bought outright at $7.00, which is the confirmation that this
+ * reading is right rather than merely tidy.
+ *
+ * Matched within a brand, because a maria nila kit contains maria nila. A kit
+ * whose contents aren't itemised — Keune's "Care Studio Plus Intro 68 pc." on
+ * the same order — has nothing to spread across, so it is left exactly as the
+ * supplier billed it rather than guessed at.
+ */
+export function allocateKitContents(lines: InvoiceLine[]): {
+  lines: InvoiceLine[];
+  allocated: { kit: string; cents: number; across: number }[];
+} {
+  const isKit = (l: InvoiceLine) =>
+    l.unitCostCents > 0 && /\bintro\b|\b\d+\s*pc\b/i.test(l.description);
+
+  const kits = lines.filter(isKit);
+  if (kits.length === 0) return { lines, allocated: [] };
+
+  const out = [...lines];
+  const allocated: { kit: string; cents: number; across: number }[] = [];
+
+  for (const kit of kits) {
+    const brand = (kit.brand ?? "").toLowerCase();
+    const contents = out.filter(
+      (l) => l !== kit && l.unitCostCents === 0 && (l.brand ?? "").toLowerCase() === brand,
+    );
+    const units = contents.reduce((t, l) => t + l.quantity, 0);
+    if (contents.length === 0 || units <= 0) continue; // nothing to spread onto
+
+    const perUnit = Math.round(kit.totalCents / units);
+    for (const l of contents) {
+      l.unitCostCents = perUnit;
+      l.totalCents = perUnit * l.quantity;
+    }
+
+    allocated.push({ kit: kit.description, cents: kit.totalCents, across: units });
+    // The kit line is a container, not stock. Its value now lives in what came
+    // inside it, and keeping it would double-count both the money and the box.
+    out.splice(out.indexOf(kit), 1);
+  }
+
+  return { lines: out, allocated };
+}
+
+/**
  * Does this line put colour on a head, or go on a shelf?
  *
  * A first guess only — it seeds the product record, and she can correct it

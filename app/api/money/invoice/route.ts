@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
-import { parseSupplierInvoice, guessUse } from "../../../../lib/supplierInvoice";
+import {
+  parseSupplierInvoice,
+  allocateKitContents,
+  guessUse,
+} from "../../../../lib/supplierInvoice";
 
 // Turn a supplier order PDF into catalogue entries and stock.
 //
@@ -102,6 +106,9 @@ export async function POST(req: Request) {
   }
   const supplier = String(form.get("supplier") ?? "Premier Beauty Supply").trim();
   const allowNoOrderRef = String(form.get("allowNoOrderRef") ?? "") === "true";
+  // Re-read an order already loaded — for when the importer has learned
+  // something since, as it did about intro kits.
+  const replace = String(form.get("replace") ?? "") === "true";
 
   // ---- Read it ------------------------------------------------------------
   let text: string;
@@ -157,14 +164,31 @@ export async function POST(req: Request) {
       .select("id", { count: "exact", head: true })
       .eq("invoice_ref", inv.orderRef);
     if ((count ?? 0) > 0) {
-      return NextResponse.json({
-        ok: true,
-        alreadyImported: true,
-        orderRef: inv.orderRef,
-        lines: inv.lines.length,
-        movements: 0,
-        productsCreated: 0,
-      });
+      if (!replace) {
+        return NextResponse.json({
+          ok: true,
+          alreadyImported: true,
+          canReplace: true,
+          orderRef: inv.orderRef,
+          lines: inv.lines.length,
+          movements: 0,
+          productsCreated: 0,
+        });
+      }
+      // Clear this order's stock so it can be booked again. Only the
+      // 'received' rows from THIS invoice go — anything sold or used since is
+      // a separate fact about what happened and must survive.
+      const { error: delErr } = await admin
+        .from("inventory_movements")
+        .delete()
+        .eq("invoice_ref", inv.orderRef)
+        .eq("kind", "received");
+      if (delErr) {
+        return NextResponse.json(
+          { error: "Couldn't clear the old copy of that order.", detail: delErr.message },
+          { status: 500 },
+        );
+      }
     }
   } else if (!allowNoOrderRef) {
     // No order number means no way to recognise this order again, so a second
@@ -185,8 +209,15 @@ export async function POST(req: Request) {
     );
   }
 
+  // ---- Spread intro kits across what came in them -------------------------
+  //
+  // Done before anything touches the database, so the kit box never becomes a
+  // product and its contents never land at zero. Value is conserved: the
+  // allocated lines still sum to the order's subtotal.
+  const { lines: invLines, allocated } = allocateKitContents(inv.lines);
+
   // ---- Match or create each product --------------------------------------
-  const skus = inv.lines.map((l) => l.sku);
+  const skus = invLines.map((l) => l.sku);
   const { data: known } = await admin
     .from("products")
     .select("id,sku")
@@ -196,7 +227,7 @@ export async function POST(req: Request) {
   const bySku = new Map<string, string>();
   for (const p of known ?? []) bySku.set(String(p.sku).toLowerCase(), String(p.id));
 
-  const toCreate = inv.lines.filter((l) => !bySku.has(l.sku.toLowerCase()));
+  const toCreate = invLines.filter((l) => !bySku.has(l.sku.toLowerCase()));
 
   // Collapse duplicate SKUs within one order — #891488 lists 240840 twice, at
   // different prices, which is a real thing suppliers do. One product, two
@@ -238,7 +269,7 @@ export async function POST(req: Request) {
   // anything that groups by date, including the pre-opening startup bucket.
   const occurredOn = inv.receivedOn ?? new Date().toISOString().slice(0, 10);
 
-  const movements = inv.lines
+  const movements = invLines
     .map((l) => {
       const productId = bySku.get(l.sku.toLowerCase());
       if (!productId) return null;
@@ -265,7 +296,7 @@ export async function POST(req: Request) {
   // Refresh the catalogue cost from this order, since it is newer than
   // whatever was there. History is safe — every movement carries the cost it
   // happened at.
-  for (const l of inv.lines) {
+  for (const l of invLines) {
     const id = bySku.get(l.sku.toLowerCase());
     if (id) {
       await admin
@@ -275,7 +306,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const backBarCents = inv.lines
+  const backBarCents = invLines
     .filter((l) => guessUse(l).usedAtBackbar && !guessUse(l).sellsRetail)
     .reduce((t, l) => t + l.totalCents, 0);
 
@@ -284,8 +315,12 @@ export async function POST(req: Request) {
     orderRef: inv.orderRef,
     receivedOn: inv.receivedOn,
     lines: inv.lines.length,
+    stockedLines: invLines.length,
     productsCreated,
-    productsMatched: inv.lines.length - productsCreated,
+    productsMatched: invLines.length - productsCreated,
+    // Named so the screen can say what happened to the kits rather than
+    // leaving her to wonder why the line count changed.
+    allocated,
     movements: movements.length,
     subtotalCents: inv.subtotalCents,
     shippingCents: inv.shippingCents,

@@ -13,6 +13,7 @@ import { supabase } from "../../lib/supabase";
 
 type Result = {
   alreadyImported?: boolean;
+  canReplace?: boolean;
   orderRef: string | null;
   receivedOn?: string | null;
   lines: number;
@@ -21,6 +22,7 @@ type Result = {
   movements: number;
   totalCents?: number | null;
   backBarCents?: number;
+  allocated?: { kit: string; cents: number; across: number }[];
 };
 
 const money = (c: number) =>
@@ -32,8 +34,11 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
   const [res, setRes] = useState<Result | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pending, setPending] = useState<{ file: File; lines: number } | null>(null);
+  // Kept so "Read it again" can resend without her finding the file twice.
+  const [lastFile, setLastFile] = useState<File | null>(null);
 
-  async function send(file: File, allowNoOrderRef: boolean) {
+  async function send(file: File, allowNoOrderRef: boolean, replace = false) {
+    setLastFile(file);
     setBusy(true);
     setErr(null);
     setRes(null);
@@ -42,6 +47,7 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
       const body = new FormData();
       body.append("file", file);
       if (allowNoOrderRef) body.append("allowNoOrderRef", "true");
+      if (replace) body.append("replace", "true");
       const r = await fetch("/api/money/invoice", {
         method: "POST",
         headers: { Authorization: `Bearer ${sess.session?.access_token ?? ""}` },
@@ -160,6 +166,35 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
                 : `Order ${res.orderRef ?? ""} added.`}
             </p>
           </div>
+
+          {res.alreadyImported && res.canReplace && lastFile && (
+            <div className="border-t border-foreground/10 px-4 py-3">
+              <p className="text-xs text-muted">
+                Read it again if the importer has learned something since — it replaces
+                this order&rsquo;s stock and leaves anything sold or used alone.
+              </p>
+              <button
+                onClick={() => send(lastFile, false, true)}
+                disabled={busy}
+                className="mt-2 rounded-lg border border-foreground/15 px-3 py-1.5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
+              >
+                Read it again
+              </button>
+            </div>
+          )}
+
+          {res.allocated && res.allocated.length > 0 && (
+            <div className="border-t border-foreground/10 px-4 py-3 text-xs text-muted">
+              {res.allocated.map((a) => (
+                <p key={a.kit}>
+                  <span className="text-foreground">{a.kit}</span> — {money(a.cents)} spread
+                  across the {a.across} items that came in it, at{" "}
+                  {money(Math.round(a.cents / a.across))} each. The box itself
+                  isn&rsquo;t stock.
+                </p>
+              ))}
+            </div>
+          )}
           {!res.alreadyImported && (
             <dl>
               <Row label="Lines on the order" value={String(res.lines)} />
