@@ -31,10 +31,9 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<Result | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [pending, setPending] = useState<{ file: File; lines: number } | null>(null);
 
-  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function send(file: File, allowNoOrderRef: boolean) {
     setBusy(true);
     setErr(null);
     setRes(null);
@@ -42,12 +41,20 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
       const { data: sess } = await supabase.auth.getSession();
       const body = new FormData();
       body.append("file", file);
+      if (allowNoOrderRef) body.append("allowNoOrderRef", "true");
       const r = await fetch("/api/money/invoice", {
         method: "POST",
         headers: { Authorization: `Bearer ${sess.session?.access_token ?? ""}` },
         body,
       });
       const json = await r.json();
+
+      // No order number: it parsed fine, it just can't be recognised again.
+      // Her call, not ours.
+      if (r.status === 409 && json.noOrderRef) {
+        setPending({ file, lines: json.lines as number });
+        return;
+      }
       if (!r.ok) {
         // The detail matters. Hiding it behind a friendly sentence is how the
         // first production failure of this cost a round trip to diagnose.
@@ -65,8 +72,16 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
       setErr("Couldn't reach the server. Try again.");
     } finally {
       setBusy(false);
-      if (ref.current) ref.current.value = "";
     }
+  }
+
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPending(null);
+    await send(file, false);
+    // Let her pick the same file again after a refusal.
+    if (ref.current) ref.current.value = "";
   }
 
   return (
@@ -101,6 +116,37 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
           <span className="-my-4 -ml-4 mr-1 w-1 shrink-0 rounded-l-xl bg-red-500" />
           <CircleAlert size={16} className="mt-0.5 shrink-0 text-red-600" />
           <p>{err}</p>
+        </div>
+      )}
+
+      {pending && (
+        <div className="mt-4 max-w-prose rounded-xl border border-foreground/15 bg-white p-4 shadow-sm">
+          <div className="flex gap-3">
+            <span className="-my-4 -ml-4 mr-1 w-1 shrink-0 rounded-l-xl bg-amber-500" />
+            <div className="text-sm">
+              <p className="font-medium">This order has no order number.</p>
+              <p className="mt-1 text-muted">
+                It read fine — {pending.lines} lines — but without a number there&rsquo;s
+                nothing to recognise it by, so uploading it again later would add all the
+                stock a second time and nothing would notice.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => send(pending.file, true)}
+                  disabled={busy}
+                  className="rounded-lg border border-foreground/15 px-3 py-1.5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
+                >
+                  Add it anyway
+                </button>
+                <button
+                  onClick={() => setPending(null)}
+                  className="rounded-lg px-3 py-1.5 text-sm text-muted transition hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

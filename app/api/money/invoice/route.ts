@@ -101,6 +101,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That PDF is too big." }, { status: 413 });
   }
   const supplier = String(form.get("supplier") ?? "Premier Beauty Supply").trim();
+  const allowNoOrderRef = String(form.get("allowNoOrderRef") ?? "") === "true";
 
   // ---- Read it ------------------------------------------------------------
   let text: string;
@@ -147,6 +148,9 @@ export async function POST(req: Request) {
   }
 
   // ---- Already here? ------------------------------------------------------
+  //
+  // Deduped on the supplier's order number rather than on the file, so the
+  // same order downloaded twice under different names is still recognised.
   if (inv.orderRef) {
     const { count } = await admin
       .from("inventory_movements")
@@ -162,6 +166,23 @@ export async function POST(req: Request) {
         productsCreated: 0,
       });
     }
+  } else if (!allowNoOrderRef) {
+    // No order number means no way to recognise this order again, so a second
+    // upload would double the stock with nothing to notice it. Both Premier
+    // orders carry one; another supplier's layout might not, and silently
+    // accepting it is how stock quietly becomes fiction.
+    return NextResponse.json(
+      {
+        error:
+          "This order has no order number, so re-uploading it later would add " +
+          "the stock twice and nothing would catch it.",
+        noOrderRef: true,
+        needsConfirmation: true,
+        lines: inv.lines.length,
+        totalCents: inv.totalCents,
+      },
+      { status: 409 },
+    );
   }
 
   // ---- Match or create each product --------------------------------------
