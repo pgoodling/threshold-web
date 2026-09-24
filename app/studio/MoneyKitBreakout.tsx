@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { PackageOpen, Plus, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { parsePastedList, type KitLine as Line } from "../../lib/kitList";
+import {
+  parsePastedList,
+  normaliseProductName,
+  type KitLine as Line,
+} from "../../lib/kitList";
 
 // Breaking a kit into what was actually in it.
 //
@@ -35,7 +39,7 @@ export default function MoneyKitBreakout({
   brand: string | null;
   supplier: string | null;
   unitCostCents: number | null;
-  onDone: () => void;
+  onDone: (matched?: number, created?: number) => void;
 }) {
   const [lines, setLines] = useState<Line[]>([{ name: "", qty: "1" }]);
   const [busy, setBusy] = useState(false);
@@ -70,33 +74,58 @@ export default function MoneyKitBreakout({
     const units = useful.reduce((t, l) => t + l.qty, 0);
     const each = Math.round(unitCostCents / units);
 
-    // Create the contents as products in their own right.
-    const { data: made, error: e1 } = await supabase
+    // Match what she already stocks before creating anything.
+    //
+    // A kit's packing list names a bottle slightly differently from the
+    // invoice that sold her the same bottle outright — "6.8 oz." against "6.8
+    // Fl. Oz." — so taken literally the kit's units would land on a brand new
+    // near-duplicate and never join the stock she has. The catalogue grows a
+    // twin nobody notices until a count disagrees with itself.
+    const { data: existing } = await supabase
       .from("products")
-      .insert(
-        useful.map((l) => ({
-          name: l.name,
-          brand,
-          supplier,
-          unit_cost_cents: each,
-          sells_retail: true,
-          used_at_backbar: true,
-        })),
-      )
-      .select("id,name");
+      .select("id,name")
+      .eq("active", true);
 
-    if (e1 || !made) {
-      setError(e1?.message ?? "Couldn't add those.");
-      setBusy(false);
-      return;
+    const byNorm = new Map<string, string>();
+    for (const p of existing ?? []) {
+      byNorm.set(normaliseProductName(String(p.name)), String(p.id));
     }
 
-    // Receive them, dated today — the kit's own arrival is already recorded
-    // against the invoice, and this is when we learned what was inside.
-    const byName = new Map(made.map((p) => [String(p.name), String(p.id)]));
+    const matched = useful.filter((l) => byNorm.has(normaliseProductName(l.name)));
+    const fresh = useful.filter((l) => !byNorm.has(normaliseProductName(l.name)));
+
+    if (fresh.length > 0) {
+      const { data: made, error: e1 } = await supabase
+        .from("products")
+        .insert(
+          fresh.map((l) => ({
+            name: l.name,
+            brand,
+            supplier,
+            unit_cost_cents: each,
+            sells_retail: true,
+            used_at_backbar: true,
+          })),
+        )
+        .select("id,name");
+
+      if (e1 || !made) {
+        setError(e1?.message ?? "Couldn't add those.");
+        setBusy(false);
+        return;
+      }
+      for (const p of made) {
+        byNorm.set(normaliseProductName(String(p.name)), String(p.id));
+      }
+    }
+
+    // Matched products keep their own catalogue cost. The one she bought
+    // outright cost $15; these came in at the kit's allocated rate. Both are
+    // true, and the movement is where a cost belongs — the catalogue figure
+    // should stay the price of buying another one.
     const { error: e2 } = await supabase.from("inventory_movements").insert(
       useful.map((l) => ({
-        product_id: byName.get(l.name)!,
+        product_id: byNorm.get(normaliseProductName(l.name))!,
         kind: "received" as const,
         quantity: l.qty,
         unit_cost_cents: each,
@@ -128,7 +157,7 @@ export default function MoneyKitBreakout({
     await supabase.from("products").update({ active: false }).eq("id", productId);
 
     setBusy(false);
-    onDone();
+    onDone(matched.length, fresh.length);
   }
 
   return (
@@ -248,7 +277,7 @@ export default function MoneyKitBreakout({
           {busy ? "Splitting…" : "Split it"}
         </button>
         <button
-          onClick={onDone}
+          onClick={() => onDone()}
           className="rounded-lg px-3 py-1.5 text-sm text-muted transition hover:text-foreground"
         >
           Cancel

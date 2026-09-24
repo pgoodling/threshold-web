@@ -69,6 +69,9 @@ export default function MoneyCatalogue() {
   const [reloadKey, setReloadKey] = useState(0);
   // Which kit she is opening up, if any.
   const [opening, setOpening] = useState<string | null>(null);
+  // Said out loud after a split, because matching an existing product is the
+  // part she'd otherwise have no way of knowing happened.
+  const [splitNote, setSplitNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -179,6 +182,19 @@ export default function MoneyCatalogue() {
       </div>
 
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+
+      {splitNote && (
+        <div className="mt-3 flex max-w-prose items-start gap-2.5 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-sm">
+          <PackageOpen size={15} className="mt-0.5 shrink-0 text-accent" />
+          <p className="flex-1">{splitNote}</p>
+          <button
+            onClick={() => setSplitNote(null)}
+            className="text-xs text-muted transition hover:text-foreground"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {shown.length === 0 ? (
         <p className="mt-4 text-sm text-muted">
@@ -297,9 +313,17 @@ export default function MoneyCatalogue() {
                     brand={r.brand}
                     supplier={null}
                     unitCostCents={r.unit_cost_cents}
-                    onDone={() => {
+                    onDone={(matched, created) => {
                       setOpening(null);
                       setReloadKey((k) => k + 1);
+                      if (matched !== undefined && created !== undefined) {
+                        setSplitNote(
+                          `Split into ${created} new product${created === 1 ? "" : "s"}` +
+                            (matched > 0
+                              ? `, and ${matched} that matched something she already stocks — those joined the existing shelf rather than becoming duplicates.`
+                              : "."),
+                        );
+                      }
                     }}
                   />
                 )}

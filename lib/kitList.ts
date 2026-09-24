@@ -41,3 +41,31 @@ export function parsePastedList(text: string): KitLine[] {
 export function totalUnits(lines: KitLine[]): number {
   return lines.reduce((t, l) => t + (Number(l.qty) || 0), 0);
 }
+
+/**
+ * A product name reduced to something two sources can agree on.
+ *
+ * A kit's packing list and an invoice line describe the same bottle
+ * differently: "Radiant Gloss Illuminating Hair Gloss 6.8 oz." on one, "…6.8
+ * Fl. Oz." on the other. Matched literally they become two products, the kit's
+ * three units never join the stock she already has, and the catalogue grows a
+ * near-duplicate nobody notices until a count disagrees.
+ *
+ * Sizes are kept deliberately. Stripping the numbers would collapse "Nourishing
+ * Shampoo 10.1 oz." into "Nourishing Shampoo Liter", which are genuinely
+ * different things at genuinely different prices — a far worse error than the
+ * duplicate this is meant to prevent.
+ */
+export function normaliseProductName(name: string): string {
+  return name
+    .toLowerCase()
+    // Before punctuation is stripped, or "Long & Strong" and "Long and
+    // Strong" become different products. Both her sources happen to write
+    // "&" today; that is luck, not a guarantee.
+    .replace(/&/g, " and ")
+    .replace(/\bfl\.?\s*oz\.?/g, "oz")
+    .replace(/[^a-z0-9. ]/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\.$/, "")
+    .trim();
+}
