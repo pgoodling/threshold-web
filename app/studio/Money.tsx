@@ -8,6 +8,7 @@ import MoneyManual from "./MoneyManual";
 import MoneyColourCost from "./MoneyColourCost";
 import MoneyInvoice from "./MoneyInvoice";
 import MoneyCatalogue from "./MoneyCatalogue";
+import MoneyDaily from "./MoneyDaily";
 
 // Bringing a Relay export in.
 //
@@ -102,7 +103,16 @@ export default function Money() {
   return (
     <div>
       <h2 className="mb-4 font-display text-2xl leading-none sm:text-3xl">Money</h2>
-      <p className="max-w-prose text-sm text-muted">
+
+      {/* First, because it's the only part of this screen she touches daily.
+          The imports below are a monthly job and can wait their turn. */}
+      <h3 className="font-display text-lg">Today</h3>
+      <MoneyDaily key={`daily-${queueKey}`} />
+
+      <div className="mt-10 border-t border-foreground/15 pt-8">
+        <h3 className="font-display text-lg">Bring in a statement</h3>
+      </div>
+      <p className="mt-1 max-w-prose text-sm text-muted">
         In the Relay app: open the account, tap the{" "}
         <span className="text-foreground">⋯</span> menu,{" "}
         <span className="text-foreground">Download statements</span>, pick the month and
