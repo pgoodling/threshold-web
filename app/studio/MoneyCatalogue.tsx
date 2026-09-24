@@ -72,6 +72,10 @@ export default function MoneyCatalogue() {
   // Said out loud after a split, because matching an existing product is the
   // part she'd otherwise have no way of knowing happened.
   const [splitNote, setSplitNote] = useState<string | null>(null);
+  // Splitting one kit put 26 products in the queue at once, each needing the
+  // same two decisions. One at a time is forty-five rows of clicking.
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulkPrice, setBulkPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,6 +83,10 @@ export default function MoneyCatalogue() {
     supabase
       .from("product_stock")
       .select("*")
+      // Retired products stay in the database because their movements are
+      // history, but a split kit showing "0 on hand" with editable checkboxes
+      // is a ghost she'd have to learn to ignore.
+      .eq("active", true)
       .order("name", { ascending: true })
       .then(({ data, error: e }) => {
         if (!alive) return;
@@ -102,6 +110,19 @@ export default function MoneyCatalogue() {
     if (e) {
       setError(e.message);
       setReloadKey((k) => k + 1); // put it back to what the database thinks
+    }
+  }
+
+  /** Apply one change to everything ticked, then clear the selection. */
+  async function bulk(change: Partial<Row>) {
+    const ids = [...picked];
+    if (ids.length === 0) return;
+    setRows((rs) => rs.map((r) => (picked.has(r.product_id) ? { ...r, ...change } : r)));
+    setPicked(new Set());
+    const { error: e } = await supabase.from("products").update(change).in("id", ids);
+    if (e) {
+      setError(e.message);
+      setReloadKey((k) => k + 1);
     }
   }
 
@@ -196,6 +217,65 @@ export default function MoneyCatalogue() {
         </div>
       )}
 
+      {/* Select-all for whatever the filter and search have narrowed it to,
+          which is the natural unit: she searches "Care Studio", ticks the lot,
+          and says they sell. */}
+      {shown.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={picked.size > 0 && shown.every((r) => picked.has(r.product_id))}
+              onChange={(e) =>
+                setPicked(
+                  e.target.checked ? new Set(shown.map((r) => r.product_id)) : new Set(),
+                )
+              }
+            />
+            {picked.size > 0 ? `${picked.size} ticked` : `Tick all ${shown.length}`}
+          </label>
+
+          {picked.size > 0 && (
+            <>
+              <button
+                onClick={() => bulk({ sells_retail: true, used_at_backbar: false })}
+                className="rounded-lg border border-foreground/15 bg-white px-2.5 py-1 text-sm transition hover:border-foreground/30"
+              >
+                Sells only
+              </button>
+              <button
+                onClick={() => bulk({ sells_retail: false, used_at_backbar: true })}
+                className="rounded-lg border border-foreground/15 bg-white px-2.5 py-1 text-sm transition hover:border-foreground/30"
+              >
+                Back bar only
+              </button>
+              <span className="flex items-center gap-1.5 text-muted">
+                Sells for
+                <input
+                  inputMode="decimal"
+                  value={bulkPrice}
+                  onChange={(e) => setBulkPrice(e.target.value)}
+                  placeholder="0.00"
+                  className="w-20 rounded-lg border border-foreground/15 px-2 py-1 text-sm text-foreground tabular-nums"
+                />
+                <button
+                  onClick={() => {
+                    const raw = bulkPrice.replace(/[$,\s]/g, "");
+                    const cents = raw === "" ? null : Math.round(Number(raw) * 100);
+                    if (cents === null || !Number.isFinite(cents)) return;
+                    void bulk({ retail_price_cents: cents });
+                    setBulkPrice("");
+                  }}
+                  className="rounded-lg border border-foreground/15 bg-white px-2.5 py-1 text-sm transition hover:border-foreground/30"
+                >
+                  Apply
+                </button>
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
       {shown.length === 0 ? (
         <p className="mt-4 text-sm text-muted">
           {filter === "attention"
@@ -220,13 +300,29 @@ export default function MoneyCatalogue() {
 
               <div className="min-w-0 flex-1 py-3 pr-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{r.name}</p>
-                    <p className="truncate text-xs text-muted">
-                      {[r.brand, r.size, r.sku ? `#${r.sku}` : null]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
+                  <div className="flex min-w-0 items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={picked.has(r.product_id)}
+                      onChange={(e) =>
+                        setPicked((s) => {
+                          const next = new Set(s);
+                          if (e.target.checked) next.add(r.product_id);
+                          else next.delete(r.product_id);
+                          return next;
+                        })
+                      }
+                      className="mt-1 shrink-0"
+                      aria-label={`Select ${r.name}`}
+                    />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{r.name}</p>
+                      <p className="truncate text-xs text-muted">
+                        {[r.brand, r.size, r.sku ? `#${r.sku}` : null]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
                   </div>
                   <p className="shrink-0 text-xs text-muted tabular-nums">
                     {r.on_hand} on hand · costs {money(r.unit_cost_cents)}
