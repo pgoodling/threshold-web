@@ -42,7 +42,7 @@ const MAX_BYTES = 8 * 1024 * 1024;
  * shells are enough to get past the constructor. If a future version really
  * uses them, it will fail loudly here rather than silently produce nonsense.
  */
-async function extractText(data: Buffer): Promise<string> {
+async function extractText(data: Uint8Array): Promise<string> {
   const g = globalThis as unknown as Record<string, unknown>;
   if (typeof g.DOMMatrix === "undefined") {
     g.DOMMatrix = class DOMMatrixStub {
@@ -62,7 +62,16 @@ async function extractText(data: Buffer): Promise<string> {
   try {
     return (await parser.getText()).text;
   } finally {
-    await parser.destroy();
+    // Never let cleanup speak over the real failure. A `finally` that throws
+    // REPLACES the exception on its way out, so a parser that failed to
+    // initialise would report whatever destroy() disliked about that — which
+    // is how the first attempt at this produced an unhelpful message and no
+    // log line.
+    try {
+      await parser.destroy();
+    } catch {
+      /* the original error matters more */
+    }
   }
 }
 
@@ -96,12 +105,18 @@ export async function POST(req: Request) {
   // ---- Read it ------------------------------------------------------------
   let text: string;
   try {
-    text = await extractText(Buffer.from(await file.arrayBuffer()));
+    // Uint8Array rather than Buffer: pdfjs wants typed-array data, and a
+    // Buffer only happens to be one. Bundling can break that coincidence.
+    text = await extractText(new Uint8Array(await file.arrayBuffer()));
   } catch (e) {
+    // Logged as well as returned. The first failure of this route in
+    // production showed only a canvas warning, because the reason was sitting
+    // in a JSON body nobody was reading.
+    console.error("[money/invoice] PDF extraction failed:", e);
     return NextResponse.json(
       {
         error: "Couldn't read that PDF. Is it a supplier order?",
-        detail: e instanceof Error ? e.message : String(e),
+        detail: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
       },
       { status: 400 },
     );

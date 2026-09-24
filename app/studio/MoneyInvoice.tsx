@@ -49,7 +49,14 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
       });
       const json = await r.json();
       if (!r.ok) {
-        setErr((json.error as string) ?? "That didn't work.");
+        // The detail matters. Hiding it behind a friendly sentence is how the
+        // first production failure of this cost a round trip to diagnose.
+        const detail = json.detail as string | undefined;
+        setErr(
+          [(json.error as string) ?? "That didn't work.", detail]
+            .filter(Boolean)
+            .join(" — "),
+        );
       } else {
         setRes(json as Result);
         onImported?.();

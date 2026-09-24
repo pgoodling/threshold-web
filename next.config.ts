@@ -17,6 +17,21 @@ const nextConfig: NextConfig = {
   // warns harmlessly about canvas instead of crashing. Text extraction never
   // needed canvas.
   serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
+
+  // ...and the worker has to be shipped with it.
+  //
+  // pdfjs loads its worker by building a path at runtime, so Next's file
+  // tracing never sees a reference to it and leaves it out of the deployment.
+  // The library arrives, its worker doesn't, and parsing dies with:
+  //
+  //   Setting up fake worker failed: Cannot find module
+  //   '/var/task/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+  //
+  // which is only visible from production — the file is right there in local
+  // node_modules, so it cannot reproduce on a dev machine.
+  outputFileTracingIncludes: {
+    "/api/money/invoice": ["./node_modules/pdfjs-dist/legacy/build/**/*"],
+  },
 };
 
 export default nextConfig;
