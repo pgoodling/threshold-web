@@ -101,7 +101,7 @@ SETTLED="
 0038_nail_care_rule|23 Sep 2026|run as one paste with 0040 and 0039, in that order. salon_settings.opened_on exists, and that statement was LAST — so everything before it committed, including 0040's unique index and both 0038 inserts. The index also makes a duplicate NAIL SPA rule impossible rather than merely unlikely
 0040_rules_are_unique|23 Sep 2026|same paste, same reasoning — and if its create-unique-index had found duplicates the block would have failed there, leaving 0039's column absent. The column is present
 0041_capital_purchases|23 Sep 2026|Paul reported running it. Weaker evidence than the others here — his word, not a query — but it is self-verifying in use: 0041 is one transaction, so either the three capital categories exist or none of it applied, and they appear in the category dropdown on the Money screen the moment anyone categorises anything
-0043_stock_view_respects_rls|23 Sep 2026|Paul reported running it. Not confirmable when written: with no products yet, an anon query against product_stock returns [] whether RLS applies or not. Becomes a real test the moment one product exists — anon asking for product_stock must still get [], and rows would mean this never ran. Worth actually doing after the first invoice upload
+0043_stock_view_respects_rls|24 Sep 2026|CONFIRMED, not just reported. Two invoices are loaded, so products, inventory_movements and the product_stock view all hold real rows — and all three answer [] to the anon key. Empty now means RLS applied, where before it only meant the table was empty. Her costs, prices and stock are not public
 "
 
 # migration | what it changed | the query that proves it
