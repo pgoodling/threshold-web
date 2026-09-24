@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Package } from "lucide-react";
+import { Search, Package, PackageOpen } from "lucide-react";
+import MoneyKitBreakout from "./MoneyKitBreakout";
 import { supabase } from "../../lib/supabase";
 
 // The catalogue: what she stocks, what it costs, what it sells for.
@@ -43,6 +44,17 @@ const money = (c: number | null) =>
  * Two cases. Something marked for sale with no price can't be sold, and
  * something flagged as both is the importer admitting it couldn't tell.
  */
+/**
+ * Is this a box of things rather than a thing?
+ *
+ * An intro kit whose contents the supplier itemised was already split on
+ * import. One still sitting here as a single unit is one nobody could split
+ * automatically, because nothing on the order said what was inside.
+ */
+function looksLikeKit(r: Row): boolean {
+  return r.on_hand > 0 && /\bintro\b|\b\d+\s*pc\b/i.test(r.name);
+}
+
 function needsAttention(r: Row): boolean {
   if (r.sells_retail && r.retail_price_cents === null) return true;
   if (r.sells_retail && r.used_at_backbar) return true;
@@ -55,6 +67,8 @@ export default function MoneyCatalogue() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("attention");
   const [reloadKey, setReloadKey] = useState(0);
+  // Which kit she is opening up, if any.
+  const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -262,7 +276,33 @@ export default function MoneyCatalogue() {
                         % margin
                       </span>
                     )}
+
+                  {looksLikeKit(r) && (
+                    <button
+                      onClick={() =>
+                        setOpening(opening === r.product_id ? null : r.product_id)
+                      }
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/5 px-3 py-1.5 text-sm font-medium text-accent transition hover:bg-accent/10"
+                    >
+                      <PackageOpen size={14} />
+                      {opening === r.product_id ? "Never mind" : "What was in it?"}
+                    </button>
+                  )}
                 </div>
+
+                {opening === r.product_id && (
+                  <MoneyKitBreakout
+                    productId={r.product_id}
+                    productName={r.name}
+                    brand={r.brand}
+                    supplier={null}
+                    unitCostCents={r.unit_cost_cents}
+                    onDone={() => {
+                      setOpening(null);
+                      setReloadKey((k) => k + 1);
+                    }}
+                  />
+                )}
               </div>
             </div>
           ))}
