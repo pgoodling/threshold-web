@@ -250,13 +250,26 @@ Found 2026-09-25, while scoping retail-at-checkout. Not built on, not resolved
 — written down because it is a live obligation rather than a design question.
 
 **Ohio requires a vendor's licence for any retail sale of tangible goods.**
-$25, issued by the County Fiscal Officer. Cosmetology services are explicitly
-exempt — cuts, colour and styling are not taxable — but **product sales are**,
-at 6.5%–8% depending on county. One bottle sold triggers it. Paul confirmed she
-does not have one.
+Cosmetology services are explicitly exempt — cuts, colour and styling are not
+taxable — but **product sales are**. Her rate is **7.5%** (5.75% Ohio + 1.75%
+Montgomery County; Kettering adds nothing). One bottle sold triggers it.
 
-If she has sold retail since opening on 7 September, the obligation predates
-anyone noticing.
+**She has sold product and will keep selling it, and has no licence** (Paul,
+2026-09-25). So the obligation already exists and every sale until she
+registers is one she owes tax on without having collected it.
+
+**Getting it — online, issued immediately.** Ohio Business Gateway
+(`business.gateway.ohio.gov`) → **County Vendor's License Registration**. The
+paper route is form ST-1 to the Montgomery County Auditor, 451 W Third Street,
+Dayton OH 45422, 937-225-4314.
+
+- **The fee is $50.** It rose from $25 on 9 April 2025, and $25 is what
+  half the internet still says — including, twice, this file's first draft.
+- She wants a **County** licence, not a **Transient** one. County is for a
+  fixed place of business, which the Salon Lofts suite is; transient is for
+  markets and shows.
+- Worth asking at registration: Ohio lets low-volume vendors file
+  **semi-annually** rather than monthly. Two chores a year instead of twelve.
 
 ### The back bar / retail split is a tax treatment, not just a label
 
