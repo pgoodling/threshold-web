@@ -84,6 +84,8 @@ STRUCTURAL="
 0042_inventory|inventory_movements|
 0044_federal_tax_constants|tax_rates|bracket_floor_cents
 0044_federal_tax_constants|salon_settings|filing_status
+0045_sales_tax|inventory_movements|unit_tax_cents
+0045_sales_tax|salon_settings|prices_include_tax
 "
 
 # 0043 recreates a view with security_invoker — no new structure, and the
