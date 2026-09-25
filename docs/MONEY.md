@@ -244,6 +244,62 @@ existed would be quietly wrong.
 Typing a purchase in *is* the review, so manual entries land reviewed and
 business. Nobody hand-enters an expense while unsure whether it was one.
 
+## Sales tax, and the licence nobody has yet
+
+Found 2026-09-25, while scoping retail-at-checkout. Not built on, not resolved
+— written down because it is a live obligation rather than a design question.
+
+**Ohio requires a vendor's licence for any retail sale of tangible goods.**
+$25, issued by the County Fiscal Officer. Cosmetology services are explicitly
+exempt — cuts, colour and styling are not taxable — but **product sales are**,
+at 6.5%–8% depending on county. One bottle sold triggers it. Paul confirmed she
+does not have one.
+
+If she has sold retail since opening on 7 September, the obligation predates
+anyone noticing.
+
+### The back bar / retail split is a tax treatment, not just a label
+
+This is the part that surprised:
+
+- **Back bar** — dye, developer, shampoo used on clients — is consumed
+  delivering a service, not resold. Sales tax is correctly paid **when she
+  buys it**. Nothing to change.
+- **Retail** — bottles she sells — is bought **for resale**, so it can be
+  purchased tax-exempt with an Ohio blanket exemption certificate, and tax is
+  collected at the till instead.
+
+Her Premier invoices charge tax on everything: $150.03 on order #891488,
+$16.77 on #888385. So she is paying sales tax on stock she intends to resell
+and would charge tax on it again at the point of sale. The same money, taxed
+twice.
+
+**The app already holds the split.** `products.sells_retail` and
+`products.used_at_backbar` — the checkboxes she ticks in the catalogue — are
+exactly the distinction that decides which treatment applies to a line on an
+invoice. Nothing new needs modelling to answer "how much of this order should
+have been bought exempt".
+
+### Why retail-at-checkout is not being built yet
+
+A checkout that takes $26 for a bottle and adds no sales tax teaches the wrong
+habit every time it is used, and creates a liability that compounds quietly.
+The sequence has to be: licence first, then the feature.
+
+Once it exists, three things follow, in this order:
+1. Sales tax collected per retail sale, at Montgomery County's rate — **which
+   needs confirming**; the invoices imply roughly 7.5–8% but that includes
+   shipping and has not been verified.
+2. Retail revenue tracked **apart from service revenue**. Folding a $26 bottle
+   into an appointment's `paid_cents` alongside a $145 highlight is simpler and
+   wrong: sales tax applies to one and not the other, cost of goods applies to
+   one and supplies to the other, and average ticket and margin-per-service
+   both quietly inflate.
+3. A resale exemption certificate on file with Premier and SalonCentric, so
+   the retail portion of future orders stops being taxed twice.
+
+None of this is advice, and none of it has been checked with her accountant.
+
 ## The number that matters most
 
 Not cost-per-service. **Break-even**: fixed costs (Salon Lofts rent,
