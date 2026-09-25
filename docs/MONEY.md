@@ -386,6 +386,45 @@ thresholds. **Not yet verified** — Kettering's business page doesn't state
 them, and the contact number is (937) 296-2502. Oakwood's is (937) 298-0531.
 Confirm both before the app tells her a due date.
 
+## If a second stylist ever used this
+
+Raised 2026-09-25. Not being built — recorded because the cost of retrofitting
+it grows with every feature, and knowing which assumptions are load-bearing is
+most of the work.
+
+Everything here is built for one salon. Some of that is easy to undo and some
+is not, and the difference is worth knowing before anyone promises otherwise.
+
+**The genuinely hard one: RLS.** Every money table uses
+`for all to authenticated using (true) with check (true)` — any signed-in user
+sees everything. That is correct for one user and catastrophic for two, and it
+is not a column away from being fixed: every policy, every query and every
+route would need a tenant to scope by. This is the piece that decides whether
+multi-tenant is a project or a rewrite, and today it is the latter.
+
+**Easy, mostly mechanical:**
+- `salon_settings` admits exactly one row by construction
+  (`id boolean primary key check (id)`). It becomes a row per salon.
+- `opened_on`, the monthly target, quiet hours, digest hour — all hers.
+- Default supplier strings, and the salon's own phone and address.
+
+**Awkward, because they are judgements rather than data:**
+- **`tax_rates` has no tenant.** Kettering and Oakwood are seeded as *the*
+  municipalities, not as *her* municipalities. A stylist in Columbus needs
+  different rows, a different resident-credit rule, possibly a different
+  state entirely — and the Ohio Business Income Deduction that makes her state
+  line zero is not federal. The table's shape survives; its contents do not.
+- **The sales tax rate is Montgomery County's.** Ohio alone has 88 county
+  rates.
+- **The colour-cost model assumes one person's appointment book.** Two
+  stylists sharing a stock room breaks the "this order covered these
+  appointments" premise entirely.
+
+**The honest summary:** the schema would mostly survive, the RLS would not, and
+the tax content would have to become per-tenant configuration with a way to
+populate it. Worth doing deliberately if it ever matters, and worth not
+pretending is a weekend.
+
 ## Open questions
 
 1. ~~**Which bank?**~~ **Answered 2026-09-23: Relay.** See above — Teller is
