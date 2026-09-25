@@ -8,6 +8,7 @@ import MoneyManual from "./MoneyManual";
 import MoneyReview from "./MoneyReview";
 import MoneyInvoice from "./MoneyInvoice";
 import MoneyCatalogue from "./MoneyCatalogue";
+import MoneyCount from "./MoneyCount";
 import MoneyColourCost from "./MoneyColourCost";
 import MoneyTax from "./MoneyTax";
 
@@ -93,6 +94,9 @@ export default function Money() {
         {tab === "inventory" && (
           <>
             <MoneyInvoice onImported={changed} />
+            <div className="mt-10 border-t border-foreground/15 pt-8">
+              <MoneyCount key={`count-${dataKey}`} />
+            </div>
             <div className="mt-10 border-t border-foreground/15 pt-8">
               <h3 className="font-display text-lg">What she stocks</h3>
               <MoneyCatalogue key={`cat-${dataKey}`} />
