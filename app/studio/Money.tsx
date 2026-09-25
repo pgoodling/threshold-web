@@ -9,6 +9,7 @@ import MoneyReview from "./MoneyReview";
 import MoneyInvoice from "./MoneyInvoice";
 import MoneyCatalogue from "./MoneyCatalogue";
 import MoneyColourCost from "./MoneyColourCost";
+import MoneyTax from "./MoneyTax";
 
 // Money, as four jobs rather than one scroll.
 //
@@ -109,6 +110,7 @@ export default function Money() {
             <div className="mt-10 border-t border-foreground/15 pt-8">
               <MoneyReview key={dataKey} onCount={noop} />
             </div>
+            <MoneyTax key={`tax-${dataKey}`} />
           </>
         )}
 

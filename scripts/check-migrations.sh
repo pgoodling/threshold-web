@@ -82,6 +82,8 @@ STRUCTURAL="
 0039_opening_date|salon_settings|opened_on
 0042_inventory|products|sells_retail
 0042_inventory|inventory_movements|
+0044_federal_tax_constants|tax_rates|bracket_floor_cents
+0044_federal_tax_constants|salon_settings|filing_status
 "
 
 # 0043 recreates a view with security_invoker — no new structure, and the
