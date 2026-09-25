@@ -90,6 +90,46 @@ section, this section is right.
 | 18 | **Retail + inventory + cost-of-goods** (the salon-shaped gap QuickBooks handles poorly) | Go/no-go. Sell retail at checkout, track product/color stock + low-stock nudges, rough product cost per service → true margins. Own mini-project; needs a migration. ⚠️ This item used to say "keep general bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**, see [MONEY.md](MONEY.md). Evelyn wants to do her own taxes, so expenses and tax now live in the app and this item is the retail half of the same schema. |
 | 19 | **Money: bank feed, costs, tax** — expenses in by OFX statement import, business/personal review, break-even, margin per service, and the set-aside rate across four jurisdictions | Design agreed 2026-09-23; schema `0036_money.sql` applied. She banks with **Relay**, which Teller does not cover — OFX import is the path, Plaid (`ins_117228`) the later upgrade. See [MONEY.md](MONEY.md). |
 
+## 🧭 Navigation — decided 2026-09-24, mostly parked
+
+The studio is at 14 nav items with real overlaps in it, and Money had grown to
+seven stacked sections with two near-identical product searches — which is how
+Paul went looking for the catalogue and typed into the daily log.
+
+**Done:** Money is now four sub-tabs — **Today / Inventory / Bank & tax /
+Costs** — deep-linkable as `#money/inventory`, matching the `#clients/<id>`
+shape already parsed. Split by *when she does the thing*, not by what the data
+is. Bank and tax share a tab because categorising a statement **is** preparing
+the tax figure; splitting them means doing half the job in each place.
+
+*Not called "Books":* in a salon "my book" is the appointment schedule, so a
+money tab called Books invites exactly the wrong guess.
+
+**Decided, not built:**
+- **Reports stays its own nav item.** It was proposed to split — revenue into
+  Money, retention onto Clients — and that was rejected: Reports is a general
+  reporting surface that will hold lots of different things, and pre-emptively
+  scattering it is worse than leaving it whole. ⚠️ Watch for collision with
+  Money → Costs, which is also reporting. Whichever way that resolves later, it
+  should be deliberate rather than a surprise.
+- **Inventory on its own is right**, and now is.
+
+**Parked deliberately.** Folding Appointments and Time off into Calendar,
+Texts and Outreach into Messages, Services and Hours into Settings — 14 items
+down to ~6. Not started, for two reasons: `page.tsx` is 1,126 lines and the
+fold touches routing, the `#hours` fragments, the mobile hamburger and every
+cross-tab link, in an app she is using live; and the Money page has changed
+shape three times in one day without her having worked a full day on any
+version of it. Let the four tabs earn their keep first.
+
+Two of these folds are already agreed elsewhere: blocking time from the
+calendar (open question #2 below) and the appointments List tab, which was only
+ever kept as a view when the calendar shipped.
+
+Unresolved before any messaging merge: what actually distinguishes **Texts**
+(382 lines) from **Messages** (399). Nobody has read both; the names are not
+evidence.
+
 ## 🔧 Small / no info needed (I just build)
 - Top-level "New appointment" in Appointments (manual booking is per-client only today)
 
