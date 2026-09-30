@@ -532,11 +532,15 @@ consumption window rather than calendar month.
    than stored, so a rent rise carries itself through. Needs her average
    ticket, which needs check-out data.
 3. ~~**Where the money went**~~ **Built 2026-09-30** as Money → Overview.
-4. ~~**Margin per service**~~ **Built 2026-09-30** as Money → Services. Product
-   cost is every product order since opening, spread by visit length — nothing
-   is categorised "Colour and developer" yet, so the colour-only estimate had
-   nothing to divide. Hands-on time excludes unblocked processing. Per-visit
-   timing overrides count, so a blowout she stretched to two hours shows it.
+4. ~~**Margin per service**~~ **Built 2026-09-30** as Money → Services, ranked
+   by earnings per hour of her hands, **before product**. A first version
+   spread every product order since opening across every visit by length;
+   Paul pointed out it's the wrong model (an order isn't used up the month it
+   arrives, and colour never touches a blowout) and it was withdrawn the same
+   day. **Next:** a per-service list of what goes on the head — product and
+   amount — priced from each bottle's cost and size. Needs Evelyn's lists.
+   Every service shows the visits behind it and the sum written out, so the
+   arithmetic can be checked by hand.
 5. **Schedule C export** — the year-end summary with transactions behind each
    line.
 
