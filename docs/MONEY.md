@@ -507,10 +507,15 @@ consumption window rather than calendar month.
 
 ### Not built
 
-1. **Retail at check-out** — blocked on two things, neither technical: 45
-   products have no retail price, and she has no vendor's licence yet. The
-   design is settled: service and product on separate lines, 7.5% on the
-   product only, tax on top so $26 becomes $27.95.
+1. ~~**Retail at check-out**~~ **Built 2026-09-30** — migration `0047`. Products
+   go on check-out as separate lines under the service, 7.5% on the products
+   only, tax on top. **Sell** on Inventory does the same without an
+   appointment (client optional), and "Something else" rings up a one-off item
+   that isn't stock. Every sale is a `retail_sales` row with its lines, saved
+   by `record_retail_sale()` in one transaction — at check-out, together with
+   the appointment. Sales tax for the Ohio return is `sum(tax_cents)` there.
+   Until she enters her vendor's licence number in `salon_settings`, both
+   screens say so in small print.
 2. **Break-even** — fixed costs derived from categorised transactions rather
    than stored, so a rent rise carries itself through. Needs her average
    ticket, which needs check-out data.

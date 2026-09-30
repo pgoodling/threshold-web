@@ -30,6 +30,16 @@ import ActionStrip, { type Action } from "./ActionStrip";
 import { appointmentUrl } from "../../lib/policy";
 import { insertStudioAppointment } from "../../lib/appointments";
 import SlotStatus from "./SlotStatus";
+import SaleLines from "./SaleLines";
+import {
+  loadSaleContext,
+  totals,
+  usd,
+  percent,
+  recordSale,
+  type SaleContext,
+  type SaleLine,
+} from "../../lib/retail";
 
 // One appointment detail, shown as a centered modal, used everywhere an
 // appointment is clicked (calendar, list, overview, client history).
@@ -126,6 +136,10 @@ export default function ApptDetailModal({
   const [linkSent, setLinkSent] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string | null>(null);
+  // Products sold at check-out. Kept apart from the service amount: tax
+  // applies to these and not to the service (see migration 0047).
+  const [saleLines, setSaleLines] = useState<SaleLine[]>([]);
+  const [saleCtx, setSaleCtx] = useState<SaleContext | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -309,8 +323,10 @@ export default function ApptDetailModal({
     const cents = appt.paid_cents ?? appt.price_cents ?? 0;
     setAmount(cents ? (cents / 100).toFixed(2) : "");
     setMethod(appt.payment_method ?? "card");
+    setSaleLines([]);
     setError(null);
     setMode("checkout");
+    if (!saleCtx) loadSaleContext().then(setSaleCtx);
   }
 
   async function checkOut() {
@@ -322,15 +338,25 @@ export default function ApptDetailModal({
     }
     setBusy(true);
     setError(null);
-    const { error } = await supabase
-      .from("appointments")
-      .update({
-        status: "checked_out",
-        paid_cents: Math.round(dollars * 100),
-        payment_method: method,
-        checked_out_at: new Date().toISOString(),
-      })
-      .eq("id", appointmentId);
+    // With products, the sale and the check-out are one transaction, so a
+    // dropped connection can't leave one without the other.
+    const { error } = saleLines.length
+      ? await recordSale({
+          lines: saleLines,
+          paymentMethod: method,
+          clientId: appt?.client_id ?? null,
+          appointmentId,
+          servicePaidCents: Math.round(dollars * 100),
+        })
+      : await supabase
+          .from("appointments")
+          .update({
+            status: "checked_out",
+            paid_cents: Math.round(dollars * 100),
+            payment_method: method,
+            checked_out_at: new Date().toISOString(),
+          })
+          .eq("id", appointmentId);
     setBusy(false);
     if (error) {
       setError(error.message);
@@ -651,7 +677,7 @@ export default function ApptDetailModal({
                   Check out — record the payment:
                 </p>
                 <label className="text-sm">
-                  <span className="mb-1 block">Amount paid</span>
+                  <span className="mb-1 block">{appt.services?.name ?? "Service"}</span>
                   <div className="flex items-center gap-1">
                     <span className="text-muted">$</span>
                     <input
@@ -666,6 +692,24 @@ export default function ApptDetailModal({
                     />
                   </div>
                 </label>
+                <SaleLines lines={saleLines} onChange={setSaleLines} />
+                {saleLines.length > 0 && (() => {
+                  const rate = saleCtx?.rate ?? 0;
+                  const t = totals(saleLines, rate);
+                  const service = Math.round((parseFloat(amount) || 0) * 100);
+                  return (
+                    <div className="border-t border-foreground/20 pt-2 text-sm">
+                      <div className="flex justify-between text-muted">
+                        <span>Sales tax on products, {percent(rate)}</span>
+                        <span className="tabular-nums">{usd(t.tax)}</span>
+                      </div>
+                      <div className="mt-1 flex justify-between text-base font-medium">
+                        <span>Total</span>
+                        <span className="tabular-nums">{usd(service + t.total)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div>
                   <span className="mb-1 block text-sm">Paid with</span>
                   <div className="flex flex-wrap gap-2">
@@ -691,7 +735,14 @@ export default function ApptDetailModal({
                     disabled={busy || !method}
                     className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
-                    {busy ? "Saving…" : "Check out & mark paid"}
+                    {busy
+                      ? "Saving…"
+                      : saleLines.length
+                        ? `Check out · ${usd(
+                            Math.round((parseFloat(amount) || 0) * 100) +
+                              totals(saleLines, saleCtx?.rate ?? 0).total,
+                          )}`
+                        : "Check out & mark paid"}
                   </button>
                   <button
                     onClick={() => setMode("view")}
@@ -700,6 +751,9 @@ export default function ApptDetailModal({
                     Cancel
                   </button>
                 </div>
+                {saleLines.length > 0 && saleCtx && !saleCtx.licensed && (
+                  <p className="text-xs text-muted">No vendor&rsquo;s licence on file</p>
+                )}
               </div>
             ) : mode === "timing" ? (
               <div className="mt-4 grid gap-3">

@@ -87,7 +87,7 @@ section, this section is right.
 | 15 | Waitlist / cancellation fill | Go/no-go; depends on notifications |
 | 16 | Reviews & light marketing | Google Business link; go/no-go |
 | 17 | Google Calendar sync for Evelyn | Go/no-go (needs Google sign-in setup) |
-| 18 | ~~**Retail + inventory + cost-of-goods**~~ 🟡 **MOSTLY BUILT** — migrations `0042`, `0043`, `0045` | Stock, catalogue, supplier-order PDF import, kit splitting, back-bar log and stock count are all live. **Outstanding: selling at check-out**, blocked on 45 products having no retail price and on her vendor's licence. ⚠️ This item used to say "keep bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**; she does her own, so tax lives here too. |
+| 18 | ~~**Retail + inventory + cost-of-goods**~~ 🟡 **MOSTLY BUILT** — migrations `0042`, `0043`, `0045`–`0047` | Stock, catalogue, supplier-order PDF import, kit splitting, back-bar log and stock count are all live. **Selling built 2026-09-30** (`0047`): at check-out and on its own via Inventory → Sell. Outstanding: her vendor's licence number, and prices on the products she's marked for sale. ⚠️ This item used to say "keep bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**; she does her own, so tax lives here too. |
 | 19 | ~~**Money: bank feed, costs, tax**~~ 🟡 **MOSTLY BUILT** — migrations `0036`, `0037`, `0039`–`0041`, `0044` | Relay **CSV** (not OFX — their export dialog doesn't offer it) import with a balance-chain proof, review queue, manual purchases, colour cost, and the set-aside rate across four jurisdictions. **Outstanding: break-even, margin per service, spend-by-month, Schedule C export.** Plaid was costed and **abandoned** — she uploads monthly from her phone. See [MONEY.md](MONEY.md). |
 
 ## 🧭 Navigation — decided 2026-09-24, mostly parked
@@ -129,6 +129,28 @@ ever kept as a view when the calendar shipped.
 Unresolved before any messaging merge: what actually distinguishes **Texts**
 (382 lines) from **Messages** (399). Nobody has read both; the names are not
 evidence.
+
+## ⚙️ Settings to add if anyone else ever uses this
+
+Things that are hers today — true for Evelyn, wrong for a second salon — that
+would need to become settings. Collected here so they're found in one pass
+rather than one bug at a time. See also "If a second stylist ever used this"
+in [MONEY.md](MONEY.md), which covers why RLS is the hard part.
+
+- **Sales tax rate.** 7.5% (5.75% Ohio + 1.75% Montgomery County), stored as the
+  `ohio_sales_tax` row in `tax_rates` and read by `record_retail_sale` (0047)
+  and `lib/retail.ts`. Changing it today means a new row with a new
+  `effective_from`; a Settings field should write exactly that, never edit
+  the old row, so past sales keep the rate they were charged. The jurisdiction
+  name is Ohio-specific too.
+- **Prices include tax or not.** `salon_settings.prices_include_tax` exists
+  (0045) but nothing reads it; check-out always adds tax on top.
+- **Payment methods.** "Card (Intuit)" is Salon Lofts' reader, hardcoded in
+  `PAYMENT_METHODS` in `lib/format.ts`.
+- **Timezone.** `America/New_York` in `lib/format.ts`, and again inside 0047.
+- **Income tax jurisdictions** — Kettering and Oakwood rows in `tax_rates`.
+- **Product ranges** used to group names on a phone (`lib/productLine.ts`) —
+  Keune and Maria Nila only.
 
 ## 🔧 Small / no info needed (I just build)
 - Top-level "New appointment" in Appointments (manual booking is per-client only today)

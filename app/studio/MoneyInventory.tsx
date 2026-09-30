@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Plus, ClipboardList, Search, X, PackageOpen, Undo2 } from "lucide-react";
+import { Plus, ClipboardList, Search, X, PackageOpen, Undo2, Receipt } from "lucide-react";
 import MoneyInvoice from "./MoneyInvoice";
 import MoneyAddStock from "./MoneyAddStock";
 import MoneyCount from "./MoneyCount";
+import MoneySell from "./MoneySell";
 import MoneyKitBreakout from "./MoneyKitBreakout";
 import { supabase } from "../../lib/supabase";
 import { nameProduct, byName, type Named } from "../../lib/productLine";
@@ -19,7 +20,8 @@ import { describe, shortDate, type Movement } from "../../lib/stockEvents";
 //   is empty           Finished one             bar −1
 //   the number's wrong Count                    what's short is "missing"
 //
-// Sales are the fifth, and they belong to check-out, not here.
+// Sales are the fifth: at check-out, or with Sell here for someone buying
+// without an appointment. Both go through record_retail_sale (0047).
 //
 // There is no − and + on a product, on purpose. A − would be indistinguishable
 // from "I opened one", but it wouldn't be recorded as use, so her product cost
@@ -50,7 +52,7 @@ type Row = {
 };
 
 type Filter = "all" | "bar" | "sale" | "price";
-type Panel = null | "add" | "count";
+type Panel = null | "sell" | "add" | "count";
 
 const needsPrice = (r: Row) => r.sells_retail && r.retail_price_cents === null;
 
@@ -191,7 +193,9 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
   const panelView = panel && (
     <div>
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-xl">{panel === "add" ? "Add stock" : "Count"}</h3>
+        <h3 className="font-display text-xl">
+          {panel === "sell" ? "Sell" : panel === "add" ? "Add stock" : "Count"}
+        </h3>
         <button
           onClick={closePanel}
           aria-label="Close"
@@ -200,7 +204,9 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
           <X size={20} />
         </button>
       </div>
-      {panel === "add" ? (
+      {panel === "sell" ? (
+        <MoneySell onSold={changed} />
+      ) : panel === "add" ? (
         <>
           <MoneyInvoice onImported={changed} />
           <MoneyAddStock products={rows} named={named} onAdded={changed} />
@@ -215,6 +221,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
     <div className="flex gap-2 lg:justify-end">
       {(
         [
+          ["sell", "Sell", Receipt],
           ["add", "Add stock", Plus],
           ["count", "Count", ClipboardList],
         ] as const
@@ -225,8 +232,10 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
             setPanel(key);
             setOpenId(null);
           }}
-          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-foreground/30 lg:flex-none ${
-            panel === key ? "border-accent" : "border-foreground/15"
+          className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium shadow-sm transition lg:flex-none lg:px-4 ${
+            key === "sell"
+              ? "border-accent bg-accent text-white hover:bg-accent-dark"
+              : `bg-white hover:border-foreground/30 ${panel === key ? "border-accent" : "border-foreground/15"}`
           }`}
         >
           <Icon size={16} /> {label}
