@@ -751,9 +751,6 @@ export default function ApptDetailModal({
                     Cancel
                   </button>
                 </div>
-                {saleLines.length > 0 && saleCtx && !saleCtx.licensed && (
-                  <p className="text-xs text-muted">No vendor&rsquo;s licence on file</p>
-                )}
               </div>
             ) : mode === "timing" ? (
               <div className="mt-4 grid gap-3">

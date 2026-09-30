@@ -176,9 +176,6 @@ export default function MoneySell({ onSold }: { onSold?: () => void }) {
         {busy ? "Saving…" : lines.length ? `Sell · ${usd(t.total)}` : "Sell"}
       </button>
 
-      {ctx && !ctx.licensed && (
-        <p className="mt-2 text-center text-xs text-muted">No vendor&rsquo;s licence on file</p>
-      )}
     </div>
   );
 }

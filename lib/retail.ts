@@ -19,29 +19,22 @@ export type SaleLine = {
   quantity: number;
 };
 
-export type SaleContext = { rate: number; licensed: boolean };
+export type SaleContext = { rate: number };
 
 export async function loadSaleContext(): Promise<SaleContext> {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(
     new Date(),
   );
-  const [r, s] = await Promise.all([
-    supabase
-      .from("tax_rates")
-      .select("rate")
-      .eq("jurisdiction", "ohio_sales_tax")
-      .lte("effective_from", today)
-      .order("effective_from", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase.from("salon_settings").select("vendor_license_number").maybeSingle(),
-  ]);
+  const r = await supabase
+    .from("tax_rates")
+    .select("rate")
+    .eq("jurisdiction", "ohio_sales_tax")
+    .lte("effective_from", today)
+    .order("effective_from", { ascending: false })
+    .limit(1)
+    .maybeSingle();
   const rate = Number(r.data?.rate);
-  return {
-    rate: Number.isFinite(rate) && rate > 0 ? rate : FALLBACK_RATE,
-    // A failed read shouldn't nag her about a licence she may well have.
-    licensed: s.error ? true : Boolean(s.data?.vendor_license_number),
-  };
+  return { rate: Number.isFinite(rate) && rate > 0 ? rate : FALLBACK_RATE };
 }
 
 export function totals(lines: SaleLine[], rate: number) {

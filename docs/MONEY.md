@@ -514,8 +514,11 @@ consumption window rather than calendar month.
    that isn't stock. Every sale is a `retail_sales` row with its lines, saved
    by `record_retail_sale()` in one transaction — at check-out, together with
    the appointment. Sales tax for the Ohio return is `sum(tax_cents)` there.
-   Until she enters her vendor's licence number in `salon_settings`, both
-   screens say so in small print.
+   She got her vendor's licence on 30 Sep 2026. The number is deliberately
+   not stored: nothing in the app uses it, and a "no licence on file" note
+   that briefly existed was removed the same day. Where it *is* needed is the
+   Ohio blanket exemption certificate for Premier and SalonCentric, so the
+   retail part of future orders stops being taxed twice.
 2. **Break-even** — fixed costs derived from categorised transactions rather
    than stored, so a rent rise carries itself through. Needs her average
    ticket, which needs check-out data.
