@@ -92,6 +92,13 @@ section, this section is right.
 
 ## 🧭 Navigation — decided 2026-09-24, mostly parked
 
+**Decided 2026-09-30 — Ahead stays in Reports.** Money → Overview (revenue
+vs expenses, looking back) was mocked with Ahead folded in: booked revenue as
+outlined bars, the monthly target as a line, an empty week ahead flagged with
+a link to reach-outs. Paul chose to leave Ahead in Reports for now. The mock
+is the starting point if that changes; the overlap between Overview and
+Reports' revenue figures is known and accepted.
+
 **Update 2026-09-30:** Inventory left Money and became its own studio item
 (Stock / Activity), and Money is now Bank / Taxes / Costs. That takes the
 sidebar to 14 visible items — one more reason the fold below is overdue.
