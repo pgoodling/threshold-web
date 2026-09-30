@@ -445,7 +445,7 @@ pretending is a weekend.
 ## Where it got to
 
 Updated 2026-09-30. `/studio` → **Money**, four tabs split by *when she does
-the thing*: **Today**, **Inventory**, **Bank & tax**, **Costs**.
+the thing*: **Inventory**, **Activity**, **Bank & tax**, **Costs**.
 
 ### Built and live
 
@@ -455,7 +455,34 @@ and "always, for X" writes a rule, and manual entry (`MoneyManual`) for
 purchases the bank never saw — into `bank_transactions` against an account
 called "Paid outside Relay", not a table of their own.
 
-**Inventory** — migrations `0042`–`0043`, `0045`.
+**Inventory** — migrations `0042`–`0043`, `0045`, `0046`.
+
+*Redesigned 2026-09-30 with Evelyn.* Every change to stock happens on the
+Inventory tab (`MoneyInventory`), and each has one way in:
+
+| She does | Shelf | Bar | Kind |
+|---|---|---|---|
+| Add stock — order PDF or by hand (`MoneyAddStock`, cost required) | +n | | `received` |
+| Put one on bar | −1 | +1 | `used` — **the cost is taken here** |
+| Finished one — empty, in the bin | | −1 | `finished` — not a cost |
+| Sells one at check-out (once licensed) | −1 | | `sold` |
+| Count comes up short | −n | | `missing` — not a cost |
+
+Two numbers per product because she works in two places: sealed on the shelf,
+open on the back bar. The bar isn't stored; it's `used − finished`, so every
+`used` row from before `0046` landed on the bar and she clears the empty ones
+with *Finished one*. A count shortfall used to be booked as `used`; it's now
+`missing`, because theft and unrecorded sales look identical to a count and
+shouldn't inflate product cost. There's no −/+ on a product on purpose: a −
+would look like "opened one" without being recorded as use.
+
+Names are split into range and product (`lib/productLine.ts`) so a phone shows
+"Long & Strong" once as a heading and "Super Serum" in full on the row.
+**Activity** (`MoneyActivity`, formerly Today) is read-only, with Today / Week /
+Month. Month is the calendar month and leads with totals — to the bar,
+finished, orders in, missing, and the dollar value of product put to use. An
+order is one line, a count is one line, everything else a line per product.
+
 - Supplier order PDFs parse into products and stock (`MoneyInvoice`,
   `lib/supplierInvoice.ts`), refusing any invoice whose lines don't sum to its
   own subtotal, and spreading an intro kit's price across the contents the
@@ -463,12 +490,11 @@ called "Paid outside Relay", not a table of their own.
 - Kits the order *doesn't* itemise get broken open by hand
   (`MoneyKitBreakout`) — paste the contents, cost splits across them, matched
   against existing products so nothing becomes a near-duplicate.
-- Catalogue (`MoneyCatalogue`) opens on "needs you", edits save as typed, and
-  bulk actions exist because one kit put 26 products in the queue at once.
-- Back bar (`MoneyDaily`) is six tiles, one tap. Sales are not here — they
-  belong to check-out.
-- Stock count (`MoneyCount`) shows no expected numbers and afterwards reports
-  only the surprising rows.
+- Stock count (`MoneyCount`) counts the shelf only, shows no expected numbers,
+  and afterwards lists only what was missing or extra.
+- Gone: the old catalogue's "Needs you" default view and bulk actions, and the
+  six back-bar tiles on Today. The catalogue opening on a filter is likely why
+  she "couldn't see everything"; Inventory now opens on All.
 
 **Tax** — migration `0044`, `lib/tax.ts`, `MoneyTax`.
 One headline: put by 25¢ of every profit dollar, held apart from the honest

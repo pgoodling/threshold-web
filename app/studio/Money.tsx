@@ -1,14 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Sun, Package, Landmark, TrendingUp, type LucideIcon } from "lucide-react";
-import MoneyDaily from "./MoneyDaily";
+import { History, Package, Landmark, TrendingUp, type LucideIcon } from "lucide-react";
+import MoneyActivity from "./MoneyActivity";
+import MoneyInventory from "./MoneyInventory";
 import MoneyStatement from "./MoneyStatement";
 import MoneyManual from "./MoneyManual";
 import MoneyReview from "./MoneyReview";
-import MoneyInvoice from "./MoneyInvoice";
-import MoneyCatalogue from "./MoneyCatalogue";
-import MoneyCount from "./MoneyCount";
 import MoneyColourCost from "./MoneyColourCost";
 import MoneyTax from "./MoneyTax";
 
@@ -21,26 +19,30 @@ import MoneyTax from "./MoneyTax";
 //
 // The split is by WHEN she does the thing, not by what the data is:
 //
-//   Today        between clients, every working day
-//   Inventory    when an order arrives, and at a stock count
+//   Inventory    every change to stock: orders, the back bar, a count
+//   Activity     what happened today, this week, this month; nothing to press
 //   Bank & tax   once a month, and at the quarter
 //   Costs        when she's wondering whether her prices work
+//
+// Inventory opens first because it's where she has something to do. Activity
+// used to be "Today", a screen of back-bar tiles; putting a bottle on the
+// bar moved into Inventory so every change to stock happens in one place.
 //
 // Not called "Books", tempting as it was. In a salon "my book" is the
 // appointment schedule — "the book's full" — so a money tab called Books
 // invites exactly the wrong guess.
 
-type Tab = "today" | "inventory" | "bank" | "costs";
+type Tab = "inventory" | "activity" | "bank" | "costs";
 
 const TABS: [Tab, string, LucideIcon][] = [
-  ["today", "Today", Sun],
   ["inventory", "Inventory", Package],
+  ["activity", "Activity", History],
   ["bank", "Bank & tax", Landmark],
   ["costs", "Costs", TrendingUp],
 ];
 
 export default function Money() {
-  const [tab, setTab] = useState<Tab>("today");
+  const [tab, setTab] = useState<Tab>("inventory");
   // Bumped after anything that writes, so the tab she lands on next shows
   // what just happened rather than what was there when the page loaded.
   const [dataKey, setDataKey] = useState(0);
@@ -52,7 +54,8 @@ export default function Money() {
   // #clients/<id> shape the studio already parses as name-slash-detail.
   useEffect(() => {
     const read = () => {
-      const sub = window.location.hash.replace(/^#/, "").split("/")[1];
+      let sub = window.location.hash.replace(/^#/, "").split("/")[1];
+      if (sub === "today" || sub === "week") sub = "activity"; // an old bookmark
       if (sub && TABS.some(([k]) => k === sub)) setTab(sub as Tab);
     };
     read();
@@ -89,20 +92,9 @@ export default function Money() {
       </div>
 
       <div className="mt-6">
-        {tab === "today" && <MoneyDaily key={`daily-${dataKey}`} />}
+        {tab === "inventory" && <MoneyInventory onChanged={changed} />}
 
-        {tab === "inventory" && (
-          <>
-            <MoneyInvoice onImported={changed} />
-            <div className="mt-10 border-t border-foreground/15 pt-8">
-              <MoneyCount key={`count-${dataKey}`} />
-            </div>
-            <div className="mt-10 border-t border-foreground/15 pt-8">
-              <h3 className="font-display text-lg">What she stocks</h3>
-              <MoneyCatalogue key={`cat-${dataKey}`} />
-            </div>
-          </>
-        )}
+        {tab === "activity" && <MoneyActivity key={`activity-${dataKey}`} />}
 
         {tab === "bank" && (
           <>

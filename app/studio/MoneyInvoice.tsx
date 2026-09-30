@@ -91,14 +91,9 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
   }
 
   return (
-    <div className="mt-10 border-t border-foreground/15 pt-8">
-      <h3 className="font-display text-lg">Add stock from an order</h3>
-      <p className="mt-1 max-w-prose text-sm text-muted">
-        Drop in a supplier order PDF. Anything new goes into the catalogue with its
-        cost, and everything on it is added to stock. Uploading the same order twice
-        does nothing.
-      </p>
-
+    // Lives inside Inventory → Add stock, which already says what this is for.
+    // Uploading the same order twice does nothing — the order number is the key.
+    <div className="mt-4">
       <input
         ref={ref}
         id="supplier-pdf"
@@ -109,12 +104,12 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
       />
       <label
         htmlFor="supplier-pdf"
-        className={`mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-foreground/30 ${
+        className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 py-3.5 text-sm font-medium shadow-sm transition hover:border-foreground/30 ${
           busy ? "pointer-events-none opacity-60" : ""
         }`}
       >
         <FileUp size={16} />
-        {busy ? "Reading the order…" : "Choose a supplier order PDF"}
+        {busy ? "Reading the order…" : "Upload an order"}
       </label>
 
       {err && (
@@ -222,7 +217,7 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
           )}
           <p className="border-t border-foreground/10 px-4 py-3 text-xs text-muted">
             Whether something sells or goes on the back bar is a first guess. Correct it
-            once in the catalogue and it stays corrected.
+            once in Inventory and it stays corrected.
           </p>
         </div>
       )}
