@@ -232,7 +232,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
             setPanel(key);
             setOpenId(null);
           }}
-          className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium shadow-sm transition lg:flex-none lg:px-4 ${
+          className={`inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 py-2.5 text-sm font-medium shadow-sm transition sm:px-3 lg:flex-none lg:px-4 ${
             key === "sell"
               ? "border-accent bg-accent text-white hover:bg-accent-dark"
               : `bg-white hover:border-foreground/30 ${panel === key ? "border-accent" : "border-foreground/15"}`
@@ -587,6 +587,10 @@ function Detail({
   }, [r.product_id, historyKey]);
 
   async function record(kind: "used" | "finished") {
+    // The buttons already refuse these; this holds if two taps race the
+    // refetch after the last bottle left.
+    if (kind === "used" && Number(r.on_hand) <= 0) return;
+    if (kind === "finished" && Number(r.on_bar ?? 0) <= 0) return;
     setBusy(true);
     const { data, error } = await supabase
       .from("inventory_movements")
@@ -628,20 +632,32 @@ function Detail({
   }
 
   const bar = r.on_bar ?? 0;
+  const shelf = Number(r.on_hand);
 
   return (
     <div className="px-3 pb-3">
       {(r.used_at_backbar || bar > 0) && (
         <div className="flex gap-2">
-          {r.used_at_backbar && (
-            <button
-              onClick={() => record("used")}
-              disabled={busy}
-              className="flex-1 rounded-lg bg-accent px-3 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
-            >
-              Put one on bar
-            </button>
-          )}
+          {/* Nothing on the shelf, nothing to open. Only a sale may take the
+              shelf below zero — a bottle in her hand at the till means the
+              count is wrong — but opening one she doesn't have is a mis-tap. */}
+          {r.used_at_backbar &&
+            (shelf > 0 ? (
+              <button
+                onClick={() => record("used")}
+                disabled={busy}
+                className="flex-1 rounded-lg bg-accent px-3 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
+              >
+                Put one on bar
+              </button>
+            ) : (
+              <button
+                disabled
+                className="flex-1 cursor-not-allowed rounded-lg border border-foreground/10 bg-foreground/[0.04] px-3 py-2.5 text-sm text-muted"
+              >
+                None on the shelf
+              </button>
+            ))}
           {bar > 0 && (
             <button
               onClick={() => record("finished")}
