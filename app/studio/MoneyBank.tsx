@@ -6,6 +6,7 @@ import MoneyStatement from "./MoneyStatement";
 import MoneyReview from "./MoneyReview";
 import MoneyManual from "./MoneyManual";
 import { supabase } from "../../lib/supabase";
+import { readableTxn as readable } from "../../lib/bankNames";
 
 // Bank: what came in from her statements, month by month.
 //
@@ -41,17 +42,6 @@ const usd = (c: number) =>
   })}`;
 
 const whole = (c: number) => `$${Math.round(Math.abs(c) / 100).toLocaleString("en-US")}`;
-
-/** "INTUIT 31309943" → "Card payments (Intuit)"; "SALON LOFTS" → "Salon Lofts". */
-function readable(t: Txn): string {
-  const raw = (t.merchant || t.description || "—").trim();
-  if (/^intuit\b/i.test(raw)) return t.amount_cents > 0 ? "Card payments (Intuit)" : "Intuit fee";
-  if (raw !== raw.toUpperCase()) return raw;
-  return raw
-    .toLowerCase()
-    .replace(/\s+\d{3,}.*$/, "") // trailing store numbers
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 function sortedAs(t: Txn): string {
   if (t.reviewed_at === null) return "Not sorted yet";

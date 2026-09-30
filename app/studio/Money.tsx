@@ -1,13 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Landmark, Receipt, TrendingUp, type LucideIcon } from "lucide-react";
+import { BarChart3, Landmark, Receipt, TrendingUp, type LucideIcon } from "lucide-react";
 import MoneyBank from "./MoneyBank";
+import MoneyOverview from "./MoneyOverview";
 import MoneyColourCost from "./MoneyColourCost";
 import MoneyTax from "./MoneyTax";
 
 // Money: the monthly and quarterly jobs.
 //
+//   Overview revenue against expenses, by week, month, quarter or year
 //   Bank     upload a statement, see what came in, fix a category
 //   Taxes    what to set aside, when it's due, sales tax collected
 //   Costs    when she's wondering whether her prices work
@@ -20,16 +22,17 @@ import MoneyTax from "./MoneyTax";
 // appointment schedule — "the book's full" — so a money tab called Books
 // invites exactly the wrong guess.
 
-type Tab = "bank" | "taxes" | "costs";
+type Tab = "overview" | "bank" | "taxes" | "costs";
 
 const TABS: [Tab, string, LucideIcon][] = [
+  ["overview", "Overview", BarChart3],
   ["bank", "Bank", Landmark],
   ["taxes", "Taxes", Receipt],
   ["costs", "Costs", TrendingUp],
 ];
 
 export default function Money() {
-  const [tab, setTab] = useState<Tab>("bank");
+  const [tab, setTab] = useState<Tab>("overview");
   // Bumped after an upload or a re-categorised row, so Taxes reflects it.
   const [dataKey, setDataKey] = useState(0);
   const changed = useCallback(() => setDataKey((k) => k + 1), []);
@@ -75,6 +78,7 @@ export default function Money() {
       </div>
 
       <div className="mt-6">
+        {tab === "overview" && <MoneyOverview key={`ov-${dataKey}`} />}
         {tab === "bank" && <MoneyBank onChanged={changed} />}
         {tab === "taxes" && <MoneyTax key={`tax-${dataKey}`} />}
         {tab === "costs" && <MoneyColourCost key={`cc-${dataKey}`} />}

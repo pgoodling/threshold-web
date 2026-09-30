@@ -446,7 +446,10 @@ pretending is a weekend.
 
 Updated 2026-09-30. **Inventory** is its own studio item (tabs **Stock** and
 **Activity**), because she uses it daily and Money monthly. **Money** is
-**Bank** (upload, then month by month, tap a row to change its category),
+**Overview** (revenue from check-outs and product sales against sorted
+business expenses, by week / month / quarter / year, each side tappable down
+to categories and transactions; 'capital' categories shown apart as Setting
+up), **Bank** (upload, then month by month, tap a row to change its category),
 **Taxes** (set-aside in dollars, next payment, one line per place, sales tax
 collected; the working behind a toggle) and **Costs**. Old `#money/inventory`
 and `#money/activity` links redirect.
@@ -526,7 +529,7 @@ consumption window rather than calendar month.
 2. **Break-even** — fixed costs derived from categorised transactions rather
    than stored, so a rent rise carries itself through. Needs her average
    ticket, which needs check-out data.
-3. **Where the money went** — categorised spend by month.
+3. ~~**Where the money went**~~ **Built 2026-09-30** as Money → Overview.
 4. **Margin per service** — allocated product cost against revenue by service.
 5. **Schedule C export** — the year-end summary with transactions behind each
    line.
