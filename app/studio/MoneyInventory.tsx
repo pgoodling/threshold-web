@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Plus, ClipboardList, Search, X, PackageOpen, Undo2 } from "lucide-react";
 import MoneyInvoice from "./MoneyInvoice";
 import MoneyAddStock from "./MoneyAddStock";
@@ -66,6 +66,22 @@ function toCents(raw: string): number | null | undefined {
   return Number.isFinite(c) && c >= 0 ? c : undefined;
 }
 
+// Two panes from 1024px: an iPad held sideways. Not 768 — the studio's own
+// sidebar takes 224px of an upright iPad, which leaves Inventory about 460px,
+// and two columns in that are two cramped lists rather than one good one.
+const WIDE = "(min-width: 1024px)";
+function useWide(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(WIDE);
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(WIDE).matches,
+    () => false,
+  );
+}
+
 export default function MoneyInventory({ onChanged }: { onChanged?: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +92,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
   const [panel, setPanel] = useState<Panel>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  const wide = useWide();
 
   useEffect(() => {
     let alive = true;
@@ -158,33 +175,11 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
     onChanged?.();
   }
 
-  // ---- Add stock / Count take the page over until she's done ---------------
-  if (panel) {
-    return (
-      <div className="max-w-xl">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-xl">{panel === "add" ? "Add stock" : "Count"}</h3>
-          <button
-            onClick={() => {
-              setPanel(null);
-              reload();
-            }}
-            aria-label="Close"
-            className="rounded-lg p-1.5 text-muted transition hover:text-foreground"
-          >
-            <X size={20} />
-          </button>
-        </div>
-        {panel === "add" ? (
-          <>
-            <MoneyInvoice onImported={changed} />
-            <MoneyAddStock products={rows} named={named} onAdded={changed} />
-          </>
-        ) : (
-          <MoneyCount onSaved={changed} />
-        )}
-      </div>
-    );
+  const selected = openId ? rows.find((r) => r.product_id === openId) : undefined;
+
+  function closePanel() {
+    setPanel(null);
+    reload();
   }
 
   const TABS: [Filter, string][] = [
@@ -193,24 +188,56 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
     ["sale", "For sale"],
   ];
 
-  return (
-    <div className="max-w-xl">
-      <div className="flex gap-2">
+  const panelView = panel && (
+    <div>
+      <div className="flex items-center justify-between">
+        <h3 className="font-display text-xl">{panel === "add" ? "Add stock" : "Count"}</h3>
         <button
-          onClick={() => setPanel("add")}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-foreground/30"
+          onClick={closePanel}
+          aria-label="Close"
+          className="rounded-lg p-1.5 text-muted transition hover:text-foreground"
         >
-          <Plus size={16} /> Add stock
-        </button>
-        <button
-          onClick={() => setPanel("count")}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-foreground/30"
-        >
-          <ClipboardList size={16} /> Count
+          <X size={20} />
         </button>
       </div>
+      {panel === "add" ? (
+        <>
+          <MoneyInvoice onImported={changed} />
+          <MoneyAddStock products={rows} named={named} onAdded={changed} />
+        </>
+      ) : (
+        <MoneyCount onSaved={changed} />
+      )}
+    </div>
+  );
 
-      <div className="mt-3 flex items-center gap-2 rounded-xl border border-foreground/15 bg-white px-3 py-2 shadow-sm">
+  const buttons = (
+    <div className="flex gap-2 lg:justify-end">
+      {(
+        [
+          ["add", "Add stock", Plus],
+          ["count", "Count", ClipboardList],
+        ] as const
+      ).map(([key, label, Icon]) => (
+        <button
+          key={key}
+          onClick={() => {
+            setPanel(key);
+            setOpenId(null);
+          }}
+          className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-foreground/30 lg:flex-none ${
+            panel === key ? "border-accent" : "border-foreground/15"
+          }`}
+        >
+          <Icon size={16} /> {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const list = (
+    <>
+      <div className="flex items-center gap-2 rounded-xl border border-foreground/15 bg-white px-3 py-2 shadow-sm">
         <Search size={15} className="shrink-0 text-muted" />
         <input
           value={q}
@@ -263,8 +290,16 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
                   row={r}
                   name={named.get(r.product_id)!}
                   open={openId === r.product_id}
+                  inline={!wide}
                   pricing={filter === "price"}
-                  onToggle={() => setOpenId(openId === r.product_id ? null : r.product_id)}
+                  onToggle={() => {
+                    // On an iPad a tap always shows the product; tapping the
+                    // one already showing shouldn't blank the right side.
+                    if (wide) {
+                      setOpenId(r.product_id);
+                      setPanel(null);
+                    } else setOpenId(openId === r.product_id ? null : r.product_id);
+                  }}
                   onPatch={(c) => patch(r.product_id, c)}
                   onNudge={(s, b) => nudge(r.product_id, s, b)}
                   onReload={changed}
@@ -275,6 +310,92 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
           </section>
         ))
       )}
+    </>
+  );
+
+  // ---- Phone: one column; Add stock and Count take the page over ----------
+  if (!wide) {
+    return (
+      <div className="max-w-xl">
+        {panelView || (
+          <>
+            {buttons}
+            <div className="mt-3">{list}</div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ---- iPad and wider: the list stays put, everything opens on the right --
+  return (
+    <div className="max-w-5xl">
+      {buttons}
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-6">
+        <div>{list}</div>
+        <aside className="sticky top-4 max-h-[calc(100vh-2rem)] self-start overflow-y-auto rounded-xl border border-foreground/15 bg-white p-5 shadow-sm">
+          {panelView ||
+            (selected ? (
+              <Selected
+                key={selected.product_id}
+                row={selected}
+                name={named.get(selected.product_id)!}
+                onPatch={(c) => patch(selected.product_id, c)}
+                onNudge={(s, b) => nudge(selected.product_id, s, b)}
+                onReload={changed}
+                onError={setError}
+              />
+            ) : (
+              <p className="py-16 text-center text-sm text-muted">Pick a product</p>
+            ))}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/** The right-hand side on an iPad: the product's name and numbers, large. */
+function Selected({
+  row: r,
+  name,
+  ...rest
+}: {
+  row: Row;
+  name: Named;
+  onPatch: (c: Partial<Row>) => void;
+  onNudge: (shelf: number, bar: number) => void;
+  onReload: () => void;
+  onError: (m: string) => void;
+}) {
+  const big = (n: number, label: string) => {
+    const v = Number(n);
+    return (
+      <div>
+        <p
+          className={`text-3xl font-medium leading-none tabular-nums ${
+            v < 0 ? "text-red-700" : v === 0 ? "text-foreground/35" : ""
+          }`}
+        >
+          {Number.isInteger(v) ? v : v.toFixed(1)}
+        </p>
+        <p className="mt-1 text-xs text-muted">{label}</p>
+      </div>
+    );
+  };
+  return (
+    <div>
+      <p className="text-xs text-muted">{name.group}</p>
+      <h3 className="mt-0.5 font-display text-2xl leading-tight">
+        {name.short}
+        {name.size && <span className="ml-2 font-sans text-sm text-muted">{name.size}</span>}
+      </h3>
+      <div className="mb-4 mt-4 flex gap-8">
+        {big(r.on_hand, "on the shelf")}
+        {big(r.on_bar ?? 0, "on the bar")}
+      </div>
+      <div className="-mx-3">
+        <Detail row={r} {...rest} />
+      </div>
     </div>
   );
 }
@@ -285,6 +406,7 @@ function Product({
   row: r,
   name,
   open,
+  inline,
   pricing,
   onToggle,
   onPatch,
@@ -295,6 +417,8 @@ function Product({
   row: Row;
   name: Named;
   open: boolean;
+  /** Phone: the product opens in the list. iPad: it opens on the right. */
+  inline: boolean;
   pricing: boolean;
   onToggle: () => void;
   onPatch: (c: Partial<Row>) => void;
@@ -341,13 +465,13 @@ function Product({
         </button>
 
         {/* Pricing the "Needs price" list shouldn't mean opening 27 rows. */}
-        {pricing && !open && (
+        {pricing && !(open && inline) && (
           <div className="px-3 pb-3">
             <PriceField row={r} onPatch={onPatch} />
           </div>
         )}
 
-        {open && (
+        {open && inline && (
           <Detail
             row={r}
             onPatch={onPatch}
@@ -377,31 +501,43 @@ function Count({ n, label }: { n: number; label: string }) {
   );
 }
 
+// Price and cost side by side: seeing what a bottle cost her is what makes
+// the price easy to set (Evelyn, 2026-09-30). A price box only needs to hold
+// "$32.00", so it stays small. Products she doesn't sell show the cost alone.
 function PriceField({ row: r, onPatch }: { row: Row; onPatch: (c: Partial<Row>) => void }) {
   const [v, setV] = useState(dollars(r.retail_price_cents));
   const bad = toCents(v) === undefined;
+  const cost = r.unit_cost_cents === null ? "—" : `$${dollars(r.unit_cost_cents)}`;
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <span className="w-10 text-muted">Price</span>
-      <span
-        className={`flex flex-1 items-center rounded-lg border bg-white px-2.5 py-1.5 ${
-          r.retail_price_cents === null || bad ? "border-red-300" : "border-foreground/15"
-        }`}
-      >
-        <span className="text-muted">$</span>
-        <input
-          inputMode="decimal"
-          value={v}
-          onChange={(e) => setV(e.target.value)}
-          onBlur={() => {
-            const c = toCents(v);
-            if (c !== undefined && c !== r.retail_price_cents) onPatch({ retail_price_cents: c });
-          }}
-          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-          className="w-full bg-transparent pl-1 text-base tabular-nums outline-none"
-        />
+    <div className="flex items-center gap-2 text-sm">
+      {r.sells_retail && (
+        <label className="flex items-center gap-2">
+          <span className="text-muted">Price</span>
+          <span
+            className={`flex w-24 items-center rounded-lg border bg-white px-2.5 py-1.5 ${
+              r.retail_price_cents === null || bad ? "border-red-300" : "border-foreground/15"
+            }`}
+          >
+            <span className="text-muted">$</span>
+            <input
+              inputMode="decimal"
+              value={v}
+              onChange={(e) => setV(e.target.value)}
+              onBlur={() => {
+                const c = toCents(v);
+                if (c !== undefined && c !== r.retail_price_cents) onPatch({ retail_price_cents: c });
+              }}
+              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+              className="w-full min-w-0 bg-transparent pl-1 text-base tabular-nums outline-none"
+            />
+          </span>
+        </label>
+      )}
+      <span className={r.sells_retail ? "ml-3" : ""}>
+        <span className="text-muted">Cost </span>
+        <span className="tabular-nums">{cost}</span>
       </span>
-    </label>
+    </div>
   );
 }
 
@@ -509,11 +645,9 @@ function Detail({
         </div>
       )}
 
-      {r.sells_retail && (
-        <div className="mt-3">
-          <PriceField row={r} onPatch={onPatch} />
-        </div>
-      )}
+      <div className="mt-3">
+        <PriceField row={r} onPatch={onPatch} />
+      </div>
 
       <div className="mt-3 flex gap-5 text-sm">
         <label className="flex items-center gap-1.5">
