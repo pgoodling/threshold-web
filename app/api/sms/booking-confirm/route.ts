@@ -2,6 +2,7 @@ import twilio from "twilio";
 import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { toE164 } from "../../../../lib/phone";
+import { plainText } from "../../../../lib/sms";
 import { appointmentUrl, WHERE } from "../../../../lib/policy";
 import { readSettings } from "../../../../lib/settings";
 
@@ -129,12 +130,12 @@ export async function POST(req: Request) {
   const body =
     `Hi ${first}! You're booked at Threshold for ${what} on ${when}, in ${WHERE} ` +
     `Tell me about your hair, or change it: ${appointmentUrl(appt.id as string)} ` +
-    `— Evelyn (Reply STOP to opt out.)`;
+    `- Evelyn (Reply STOP to opt out.)`;
 
   const to = toE164(client.phone);
 
   try {
-    const msg = await twilio(sid, token).messages.create({ to, from, body });
+    const msg = await twilio(sid, token).messages.create({ to, from, body: plainText(body) });
 
     // Log it so the confirmation shows up in Evelyn's thread with the client,
     // and so the already_sent check above has something to find.

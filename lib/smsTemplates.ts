@@ -74,7 +74,7 @@ export function reminderText(opts: {
   // Not worth being right about.
   const stop = "(Reply STOP to opt out.)";
   const base =
-    `Hi ${firstName(opts.clientName)}, it's Threshold Salon — ` +
+    `Hi ${firstName(opts.clientName)}, it's Threshold Salon - ` +
     `you're booked for ${opts.service} ${when(opts.startsAt)}, ` +
     `in ${WHERE} Reply C to confirm.`;
 
@@ -127,7 +127,7 @@ export function welcomeConfirmText(opts: {
     : "so glad you're on the books.";
 
   const base =
-    `Hi ${firstName(opts.clientName)}! It's Evelyn from Threshold — ${opening} ` +
+    `Hi ${firstName(opts.clientName)}! It's Evelyn from Threshold - ${opening} ` +
     `You're booked for ${opts.service} on ${longWhen(opts.startsAt)}, ` +
     `in ${WHERE}`;
 
@@ -149,7 +149,7 @@ export function welcomeConfirmText(opts: {
 // the reply doesn't vanish into silence and leave them wondering.
 export function confirmedText(opts: { startsAt: string }): string {
   return (
-    `Lovely — you're confirmed for ${when(opts.startsAt)}. See you then! ` +
+    `Lovely - you're confirmed for ${when(opts.startsAt)}. See you then! ` +
     `Threshold Salon (Reply STOP to opt out.)`
   );
 }
@@ -188,7 +188,7 @@ export function ownerNewBookingText(opts: {
   const tag = opts.isNewClient ? " (new client)" : "";
 
   return (
-    `New booking — ${label}: ${who}${tag}, ${what}. ` +
+    `New booking - ${label}: ${who}${tag}, ${what}. ` +
     `Booked just now at threshold.salon.`
   );
 }
@@ -206,7 +206,7 @@ export function ownerNewBookingText(opts: {
 // can choose to do.
 export function reviewRequestText(clientName: string | null): string {
   return (
-    `Hi ${firstName(clientName)}! It's Evelyn — I loved doing your hair. ` +
+    `Hi ${firstName(clientName)}! It's Evelyn - I loved doing your hair. ` +
     `If you have a minute, a quick Google review means the world to a new ` +
     `salon: ${GOOGLE_REVIEW_URL} (Reply STOP to opt out.)`
   );

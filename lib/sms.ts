@@ -19,6 +19,27 @@ import {
 // cron run can report "12 sent, 4 no_consent, 1 quiet_hours" and Paul can tell
 // a working system from a broken one at a glance.
 
+// Keep a text in the cheap alphabet.
+//
+// A text is billed in segments. In the GSM-7 alphabet a segment holds 153
+// characters; one character outside it — an em dash, a curly apostrophe from
+// an iPhone keyboard, the narrow space some runtimes put before "PM" — flips
+// the WHOLE message to UCS-2, where a segment holds 67. The day-before
+// reminder went from 5 segments to 2 when its one "—" became "-".
+//
+// So everything that leaves through Twilio passes through here: the automated
+// templates, and Evelyn's own replies, where the curly quotes are her
+// keyboard's doing rather than her choice. Emoji can't be rescued and aren't
+// touched — if she sends one, it costs what it costs.
+export function plainText(s: string): string {
+  return s
+    .replace(/[\u2012-\u2015\u2212]/g, "-") // figure, en, em, horizontal-bar dashes, minus
+    .replace(/[\u2018\u2019\u201A\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u2033]/g, '"')
+    .replace(/\u2026/g, "...")
+    .replace(/[\u00A0\u2007\u2009\u200A\u202F]/g, " "); // no-break and thin spaces
+}
+
 export type SendResult =
   | { ok: true; sid: string }
   | { ok: false; reason: string };
@@ -96,7 +117,7 @@ export async function sendOwnerSms(body: string): Promise<SendResult> {
     const msg = await twilio(
       process.env.TWILIO_ACCOUNT_SID as string,
       process.env.TWILIO_AUTH_TOKEN as string,
-    ).messages.create({ to, from, body });
+    ).messages.create({ to, from, body: plainText(body) });
     return { ok: true, sid: msg.sid };
   } catch (e) {
     return {
@@ -162,19 +183,20 @@ export async function sendClientSms(
 
   const from = process.env.TWILIO_PHONE_NUMBER as string;
   const to = toE164(client.phone);
+  const body = plainText(opts.body);
 
   try {
     const msg = await twilio(
       process.env.TWILIO_ACCOUNT_SID as string,
       process.env.TWILIO_AUTH_TOKEN as string,
-    ).messages.create({ to, from, body: opts.body });
+    ).messages.create({ to, from, body });
 
     await admin.from("messages").insert({
       client_id: opts.clientId,
       appointment_id: opts.appointmentId ?? null,
       direction: "outbound",
       kind: "sms",
-      body: opts.body,
+      body,
       from_number: from,
       to_number: to,
       twilio_sid: msg.sid,

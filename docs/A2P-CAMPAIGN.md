@@ -3,6 +3,12 @@
 Three rejection cycles so far. This file holds the current submission so the
 next one isn't rebuilt from memory.
 
+**Plain ASCII since 2026-09-30.** Every outgoing text passes through
+`plainText()` in `lib/sms.ts`, which swaps dashes, curly quotes and odd spaces
+for plain ones so a message stays in the GSM-7 alphabet (153 characters a
+segment instead of 67). The reminder went from 5 segments to 2. A punctuation
+change doesn't alter the use case, so nothing was resubmitted.
+
 **Samples are generated from `lib/smsTemplates.ts` and
 `app/api/sms/booking-confirm/route.ts`.** If you reword a template, reword the
 matching sample here and in the console. Reviewers compare what arrives against
@@ -126,13 +132,13 @@ sample in isolation and can't see what came before it.
 **1 — Booking confirmation** *(automatic, on booking)*
 
 ```
-Hi [Name]! You're booked at Threshold for [Service] on [Day, Date, Time], in Loft 24 at Salon Lofts, 424 E. Stroop Rd. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] — Evelyn (Reply STOP to opt out.)
+Hi [Name]! You're booked at Threshold for [Service] on [Day, Date, Time], in Loft 24 at Salon Lofts, 424 E. Stroop Rd. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] - Evelyn (Reply STOP to opt out.)
 ```
 
 **2 — Appointment reminder** *(automatic, the day before)*
 
 ```
-Hi [Name], it's Threshold Salon — you're booked for [Service] [Day, Time], in Loft 24 at Salon Lofts, 424 E. Stroop Rd. Reply C to confirm. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] (Reply STOP to opt out.)
+Hi [Name], it's Threshold Salon - you're booked for [Service] [Day, Time], in Loft 24 at Salon Lofts, 424 E. Stroop Rd. Reply C to confirm. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] (Reply STOP to opt out.)
 ```
 
 **3 — Late arrival** *(submitted, but retired — no longer sent)*

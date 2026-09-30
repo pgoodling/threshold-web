@@ -2,6 +2,7 @@ import twilio from "twilio";
 import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { toE164 } from "../../../../lib/phone";
+import { plainText } from "../../../../lib/sms";
 
 // Send a text to a client and log it. Authenticated — only Evelyn's logged-in
 // studio session may call this (verified via her Supabase access token). Won't
@@ -59,12 +60,14 @@ export async function POST(req: Request) {
 
   try {
     const client = twilio(sid, authToken);
-    const msg = await client.messages.create({ to: toE164(to), from, body: body.trim() });
+    // Her keyboard's curly quotes would triple what a reply costs.
+    const text = plainText(body.trim());
+    const msg = await client.messages.create({ to: toE164(to), from, body: text });
     await admin.from("messages").insert({
       client_id: clientId ?? null,
       appointment_id: appointmentId ?? null,
       direction: "outbound",
-      body: body.trim(),
+      body: text,
       from_number: from,
       to_number: toE164(to),
       twilio_sid: msg.sid,
