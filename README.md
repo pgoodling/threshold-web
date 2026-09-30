@@ -7,7 +7,12 @@ in Kettering, Ohio. One Next.js app on Vercel, backed by Supabase.
   plus `/messaging`, `/privacy`, `/terms` (carrier compliance).
 - **Evelyn's studio:** `/studio` — password-protected dashboard. Overview,
   to-do, messages, calendar, appointments, clients, services, reports,
-  outreach, texts, time off, settings.
+  **money**, outreach, texts, time off, settings.
+
+**Money** is four sub-tabs, deep-linkable as `#money/inventory` and so on:
+Today (back-bar use), Inventory (supplier orders, catalogue, stock count),
+Bank & tax (statement import, review queue, what to set aside) and Costs.
+See `docs/MONEY.md` — especially before changing a tax rate or a category kind.
 
 ## Running it
 

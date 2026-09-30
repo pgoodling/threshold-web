@@ -1,6 +1,6 @@
 # Threshold — Product Backlog
 
-_Living list of what's built, what's next, and what we need to build it. Updated 2026-09-23._
+_Living list of what's built, what's next, and what we need to build it. Updated 2026-09-30._
 
 Related: [BUILD-PLAN.md](BUILD-PLAN.md) (the July decision record) and
 [A2P-CAMPAIGN.md](A2P-CAMPAIGN.md) (carrier submission — read before touching a
@@ -87,8 +87,8 @@ section, this section is right.
 | 15 | Waitlist / cancellation fill | Go/no-go; depends on notifications |
 | 16 | Reviews & light marketing | Google Business link; go/no-go |
 | 17 | Google Calendar sync for Evelyn | Go/no-go (needs Google sign-in setup) |
-| 18 | **Retail + inventory + cost-of-goods** (the salon-shaped gap QuickBooks handles poorly) | Go/no-go. Sell retail at checkout, track product/color stock + low-stock nudges, rough product cost per service → true margins. Own mini-project; needs a migration. ⚠️ This item used to say "keep general bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**, see [MONEY.md](MONEY.md). Evelyn wants to do her own taxes, so expenses and tax now live in the app and this item is the retail half of the same schema. |
-| 19 | **Money: bank feed, costs, tax** — expenses in by OFX statement import, business/personal review, break-even, margin per service, and the set-aside rate across four jurisdictions | Design agreed 2026-09-23; schema `0036_money.sql` applied. She banks with **Relay**, which Teller does not cover — OFX import is the path, Plaid (`ins_117228`) the later upgrade. See [MONEY.md](MONEY.md). |
+| 18 | ~~**Retail + inventory + cost-of-goods**~~ 🟡 **MOSTLY BUILT** — migrations `0042`, `0043`, `0045` | Stock, catalogue, supplier-order PDF import, kit splitting, back-bar log and stock count are all live. **Outstanding: selling at check-out**, blocked on 45 products having no retail price and on her vendor's licence. ⚠️ This item used to say "keep bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**; she does her own, so tax lives here too. |
+| 19 | ~~**Money: bank feed, costs, tax**~~ 🟡 **MOSTLY BUILT** — migrations `0036`, `0037`, `0039`–`0041`, `0044` | Relay **CSV** (not OFX — their export dialog doesn't offer it) import with a balance-chain proof, review queue, manual purchases, colour cost, and the set-aside rate across four jurisdictions. **Outstanding: break-even, margin per service, spend-by-month, Schedule C export.** Plaid was costed and **abandoned** — she uploads monthly from her phone. See [MONEY.md](MONEY.md). |
 
 ## 🧭 Navigation — decided 2026-09-24, mostly parked
 

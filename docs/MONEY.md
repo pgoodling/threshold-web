@@ -442,19 +442,59 @@ pretending is a weekend.
    sales are. Doesn't bite until backlog #18 ships retail, but the two features
    share a schema and it's cheaper to know now.
 
-## Build order
+## Where it got to
 
-1. **Schema + ingestion** — accounts, transactions, categories, rules, tax
-   rates. ✅ `0036_money.sql` (applied 2026-09-23), corrected by
-   `0037_money_real_data.sql` after reading two real statements. Next is the
-   **Relay CSV parser**, which unblocks everything downstream while Plaid
-   access is pending.
-2. **Review screen** — business/personal, category, bulk-by-merchant.
+Updated 2026-09-30. `/studio` → **Money**, four tabs split by *when she does
+the thing*: **Today**, **Inventory**, **Bank & tax**, **Costs**.
+
+### Built and live
+
+**Money in.** Relay CSV import (`MoneyStatement`) with the balance-chain proof,
+a review queue (`MoneyReview`) where the only question is business or personal
+and "always, for X" writes a rule, and manual entry (`MoneyManual`) for
+purchases the bank never saw — into `bank_transactions` against an account
+called "Paid outside Relay", not a table of their own.
+
+**Inventory** — migrations `0042`–`0043`, `0045`.
+- Supplier order PDFs parse into products and stock (`MoneyInvoice`,
+  `lib/supplierInvoice.ts`), refusing any invoice whose lines don't sum to its
+  own subtotal, and spreading an intro kit's price across the contents the
+  order itemises at $0.00.
+- Kits the order *doesn't* itemise get broken open by hand
+  (`MoneyKitBreakout`) — paste the contents, cost splits across them, matched
+  against existing products so nothing becomes a near-duplicate.
+- Catalogue (`MoneyCatalogue`) opens on "needs you", edits save as typed, and
+  bulk actions exist because one kit put 26 products in the queue at once.
+- Back bar (`MoneyDaily`) is six tiles, one tap. Sales are not here — they
+  belong to check-out.
+- Stock count (`MoneyCount`) shows no expected numbers and afterwards reports
+  only the surprising rows.
+
+**Tax** — migration `0044`, `lib/tax.ts`, `MoneyTax`.
+One headline: put by 25¢ of every profit dollar, held apart from the honest
+estimate so the cushion is visible. Compared against what she has actually
+moved to savings. Penalties and the ORC 718.08 $200 rule, so it says which
+city needs prepaying and which waits for filing.
+
+**Costs** — `lib/colourCost.ts`, `MoneyColourCost`. What a colour costs, by
+consumption window rather than calendar month.
+
+### Not built
+
+1. **Retail at check-out** — blocked on two things, neither technical: 45
+   products have no retail price, and she has no vendor's licence yet. The
+   design is settled: service and product on separate lines, 7.5% on the
+   product only, tax on top so $26 becomes $27.95.
+2. **Break-even** — fixed costs derived from categorised transactions rather
+   than stored, so a rent rise carries itself through. Needs her average
+   ticket, which needs check-out data.
 3. **Where the money went** — categorised spend by month.
-4. **Break-even** — fixed costs against average ticket.
-5. **Set-aside rate + quarterly estimates** — the four jurisdictions, one number.
-6. **Margin per service** — allocated product cost against revenue by service.
-7. **Plaid live sync** — `/transactions/sync` plus the webhook, replacing the
-   manual step and changing nothing above it. Start the production-access
-   application early; it gates nothing else, but it takes days.
-8. **Schedule C export** — the year-end summary with transactions behind each line.
+4. **Margin per service** — allocated product cost against revenue by service.
+5. **Schedule C export** — the year-end summary with transactions behind each
+   line.
+
+### Abandoned
+
+**Plaid.** Approved, costed and then dropped — see the decision note above.
+She uploads the CSV monthly from her phone. Nothing in the ingestion path
+assumes it, so this could be revived without touching anything above it.
