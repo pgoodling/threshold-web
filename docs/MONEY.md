@@ -451,7 +451,9 @@ business expenses, by week / month / quarter / year, each side tappable down
 to categories and transactions; 'capital' categories shown apart as Setting
 up), **Bank** (upload, then month by month, tap a row to change its category),
 **Taxes** (set-aside in dollars, next payment, one line per place, sales tax
-collected; the working behind a toggle) and **Costs**. Old `#money/inventory`
+collected; the working behind a toggle) and **Services** (each service ranked by
+what it earns per hour of her hands, after product and card fees; replaced
+Costs on 2026-09-30). Old `#money/inventory`
 and `#money/activity` links redirect.
 
 ### Built and live
@@ -530,7 +532,11 @@ consumption window rather than calendar month.
    than stored, so a rent rise carries itself through. Needs her average
    ticket, which needs check-out data.
 3. ~~**Where the money went**~~ **Built 2026-09-30** as Money → Overview.
-4. **Margin per service** — allocated product cost against revenue by service.
+4. ~~**Margin per service**~~ **Built 2026-09-30** as Money → Services. Product
+   cost is every product order since opening, spread by visit length — nothing
+   is categorised "Colour and developer" yet, so the colour-only estimate had
+   nothing to divide. Hands-on time excludes unblocked processing. Per-visit
+   timing overrides count, so a blowout she stretched to two hours shows it.
 5. **Schedule C export** — the year-end summary with transactions behind each
    line.
 

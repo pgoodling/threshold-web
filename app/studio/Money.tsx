@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BarChart3, Landmark, Receipt, TrendingUp, type LucideIcon } from "lucide-react";
+import { BarChart3, Landmark, Receipt, Scissors, type LucideIcon } from "lucide-react";
 import MoneyBank from "./MoneyBank";
 import MoneyOverview from "./MoneyOverview";
-import MoneyColourCost from "./MoneyColourCost";
+import MoneyServices from "./MoneyServices";
 import MoneyTax from "./MoneyTax";
 
 // Money: the monthly and quarterly jobs.
@@ -12,7 +12,7 @@ import MoneyTax from "./MoneyTax";
 //   Overview revenue against expenses, by week, month, quarter or year
 //   Bank     upload a statement, see what came in, fix a category
 //   Taxes    what to set aside, when it's due, sales tax collected
-//   Costs    when she's wondering whether her prices work
+//   Services what each service earns per hour of her hands, after product
 //
 // Inventory used to be two tabs here. It moved to its own studio item
 // (2026-09-30) because she uses it every day and this once a month, and taxes
@@ -22,13 +22,13 @@ import MoneyTax from "./MoneyTax";
 // appointment schedule — "the book's full" — so a money tab called Books
 // invites exactly the wrong guess.
 
-type Tab = "overview" | "bank" | "taxes" | "costs";
+type Tab = "overview" | "bank" | "taxes" | "services";
 
 const TABS: [Tab, string, LucideIcon][] = [
   ["overview", "Overview", BarChart3],
   ["bank", "Bank", Landmark],
   ["taxes", "Taxes", Receipt],
-  ["costs", "Costs", TrendingUp],
+  ["services", "Services", Scissors],
 ];
 
 export default function Money() {
@@ -41,7 +41,8 @@ export default function Money() {
   // are redirected by the studio before they get here.
   useEffect(() => {
     const read = () => {
-      const sub = window.location.hash.replace(/^#/, "").split("/")[1];
+      let sub = window.location.hash.replace(/^#/, "").split("/")[1];
+      if (sub === "costs") sub = "services"; // Costs became Services, 2026-09-30
       if (sub && TABS.some(([k]) => k === sub)) setTab(sub as Tab);
     };
     read();
@@ -81,7 +82,7 @@ export default function Money() {
         {tab === "overview" && <MoneyOverview key={`ov-${dataKey}`} />}
         {tab === "bank" && <MoneyBank onChanged={changed} />}
         {tab === "taxes" && <MoneyTax key={`tax-${dataKey}`} />}
-        {tab === "costs" && <MoneyColourCost key={`cc-${dataKey}`} />}
+        {tab === "services" && <MoneyServices key={`sv-${dataKey}`} />}
       </div>
     </div>
   );
