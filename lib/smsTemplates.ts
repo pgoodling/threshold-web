@@ -1,7 +1,7 @@
 import { TZ } from "./format";
 // One link per appointment: it carries the hair-notes form, the details and
 // cancellation, so a text needs only one URL rather than several.
-import { appointmentUrl, GOOGLE_REVIEW_URL } from "./policy";
+import { appointmentUrl, GOOGLE_REVIEW_URL, WHERE } from "./policy";
 import { beforeOpening } from "./opening";
 
 // What the automated texts actually say.
@@ -75,8 +75,8 @@ export function reminderText(opts: {
   const stop = "(Reply STOP to opt out.)";
   const base =
     `Hi ${firstName(opts.clientName)}, it's Threshold Salon — ` +
-    `you're booked for ${opts.service} ${when(opts.startsAt)}. ` +
-    `Reply C to confirm.`;
+    `you're booked for ${opts.service} ${when(opts.startsAt)}, ` +
+    `in ${WHERE} Reply C to confirm.`;
 
   if (!opts.appointmentId) return `${base} ${stop}`;
 

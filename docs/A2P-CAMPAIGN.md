@@ -126,13 +126,13 @@ sample in isolation and can't see what came before it.
 **1 — Booking confirmation** *(automatic, on booking)*
 
 ```
-Hi [Name]! You're booked at Threshold for [Service] on [Day, Date, Time]. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] — Evelyn (Reply STOP to opt out.)
+Hi [Name]! You're booked at Threshold for [Service] on [Day, Date, Time], in Loft 24 at Salon Lofts, 424 E. Stroop Rd. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] — Evelyn (Reply STOP to opt out.)
 ```
 
 **2 — Appointment reminder** *(automatic, the day before)*
 
 ```
-Hi [Name], it's Threshold Salon — you're booked for [Service] [Day, Time]. Reply C to confirm. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] (Reply STOP to opt out.)
+Hi [Name], it's Threshold Salon — you're booked for [Service] [Day, Time], in Loft 24 at Salon Lofts, 424 E. Stroop Rd. Reply C to confirm. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] (Reply STOP to opt out.)
 ```
 
 **3 — Late arrival** *(submitted, but retired — no longer sent)*

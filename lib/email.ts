@@ -9,6 +9,8 @@
 // marketing, so they aren't gated on A2P 10DLC. That's the whole reason this
 // exists: it works today, while texting waits on vetting.
 
+import { SALON_LOFT, SALON_STREET } from "./policy";
+
 const TZ = "America/New_York";
 const ACCENT = "#bd6b4d";
 
@@ -333,6 +335,7 @@ ${lead}
 
 ${service}
 ${when}
+${SALON_LOFT} · Salon Lofts, ${SALON_STREET}, Kettering
 
 ${tail}
 ${notesUrl ? `\n${notesLead}\n${notesUrl}\n` : ""}
@@ -347,6 +350,7 @@ Threshold — Studio by Evelyn
       <tr><td style="padding:16px 20px;">
         <div style="font-weight:600;font-size:16px;">${esc(service)}</div>
         <div style="margin-top:4px;color:#6b5d56;">${esc(when)}</div>
+        <div style="margin-top:8px;color:#6b5d56;"><strong style="color:#3b2f2a;">${esc(SALON_LOFT)}</strong> &middot; Salon Lofts, ${esc(SALON_STREET)}, Kettering</div>
       </td></tr>
     </table>
     <p style="margin:20px 0 0 0;">${esc(tail)}</p>

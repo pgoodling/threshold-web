@@ -2,7 +2,7 @@ import twilio from "twilio";
 import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { toE164 } from "../../../../lib/phone";
-import { appointmentUrl } from "../../../../lib/policy";
+import { appointmentUrl, WHERE } from "../../../../lib/policy";
 import { readSettings } from "../../../../lib/settings";
 
 // Sends a booking-confirmation text. Called by the public booking page right
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
   // cancelling. Naming the form is what earns the tap — "manage your booking"
   // is what everyone's spam says.
   const body =
-    `Hi ${first}! You're booked at Threshold for ${what} on ${when}. ` +
+    `Hi ${first}! You're booked at Threshold for ${what} on ${when}, in ${WHERE} ` +
     `Tell me about your hair, or change it: ${appointmentUrl(appt.id as string)} ` +
     `— Evelyn (Reply STOP to opt out.)`;
 

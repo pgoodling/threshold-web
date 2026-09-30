@@ -9,6 +9,16 @@
 /** Free cancellation up to this many hours before the appointment. */
 export const CANCEL_NOTICE_HOURS = 24;
 
+/**
+ * Where to actually go. "Salon Lofts" is a building of suites, so the address
+ * alone gets a new client to the car park and no further — the loft number is
+ * the part that gets them to the right door.
+ */
+export const SALON_LOFT = "Loft 24";
+export const SALON_STREET = "424 E. Stroop Rd.";
+/** As it reads in a text: loft first, because that's what they won't know. */
+export const WHERE = `${SALON_LOFT} at Salon Lofts, ${SALON_STREET}`;
+
 /** Absolute, because a text has no origin to resolve a relative link against. */
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://threshold.salon"
