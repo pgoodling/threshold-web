@@ -128,7 +128,8 @@ export function welcomeConfirmText(opts: {
 
   const base =
     `Hi ${firstName(opts.clientName)}! It's Evelyn from Threshold — ${opening} ` +
-    `You're booked for ${opts.service} on ${longWhen(opts.startsAt)}.`;
+    `You're booked for ${opts.service} on ${longWhen(opts.startsAt)}, ` +
+    `in ${WHERE}`;
 
   const tail = opts.appointmentId
     ? ` Tell me about your hair before you come in, or change your time here: ` +
