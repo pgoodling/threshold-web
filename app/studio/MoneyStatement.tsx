@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, FileText, CircleAlert, Check } from "lucide-react";
+import { Upload, CircleAlert, Check } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 
 // Bringing a Relay export in.
@@ -25,6 +25,9 @@ type ImportResult = {
   degraded?: boolean;
 };
 
+/** What the upload actually brought in, read back from the table. */
+type Span = { from: string; to: string };
+
 type Pending = { csv: string; name: string; reason: string; driftCents?: number };
 
 const money = (cents: number) =>
@@ -39,10 +42,13 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [span, setSpan] = useState<Span | null>(null);
 
   async function send(csv: string, name: string, allowGaps: boolean) {
     setBusy(true);
     setError(null);
+    setSpan(null);
+    const startedAt = new Date(Date.now() - 5_000).toISOString();
     try {
       const { data: sess } = await supabase.auth.getSession();
       const res = await fetch("/api/money/import", {
@@ -71,6 +77,17 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
       }
       setPending(null);
       setResult(json as ImportResult);
+      // Which dates came in, so the card can say "September" rather than a
+      // count she has to take on trust.
+      if ((json as ImportResult).imported > 0) {
+        const { data } = await supabase
+          .from("bank_transactions")
+          .select("posted_on")
+          .gte("created_at", startedAt)
+          .order("posted_on", { ascending: true });
+        const days = (data ?? []).map((r) => r.posted_on as string);
+        if (days.length) setSpan({ from: days[0], to: days[days.length - 1] });
+      }
       onImported?.();
     } catch {
       setError("Couldn't reach the server. Try again.");
@@ -92,39 +109,39 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
 
   return (
     <div>
-      <p className="max-w-prose text-sm text-muted">
-        In the Relay app: open the account, tap the{" "}
-        <span className="text-foreground">⋯</span> menu,{" "}
-        <span className="text-foreground">Download statements</span>, pick the month and
-        choose <span className="text-foreground">CSV</span>. Then come back here and
-        upload it. Importing the same file twice is safe — anything already here is left
-        alone, so there&rsquo;s no harm in re-uploading if you lose track.
-      </p>
+      <input
+        ref={fileRef}
+        type="file"
+        // Broad on purpose. She uploads from her phone, and iOS reports a
+        // CSV variously as text/csv, text/comma-separated-values, or
+        // text/plain depending on where it came from — a narrow accept list
+        // greys the file out in the Files picker with no explanation, which
+        // looks like the app refusing to work.
+        accept=".csv,text/csv,text/comma-separated-values,application/csv,text/plain"
+        onChange={onPick}
+        className="hidden"
+        id="relay-csv"
+      />
+      <label
+        htmlFor="relay-csv"
+        className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-accent-dark sm:w-auto sm:inline-flex ${
+          busy ? "pointer-events-none opacity-60" : ""
+        }`}
+      >
+        <Upload size={16} />
+        {busy ? "Reading…" : "Upload statement"}
+      </label>
 
-      <div className="mt-5">
-        <input
-          ref={fileRef}
-          type="file"
-          // Broad on purpose. She uploads from her phone, and iOS reports a
-          // CSV variously as text/csv, text/comma-separated-values, or
-          // text/plain depending on where it came from — a narrow accept list
-          // greys the file out in the Files picker with no explanation, which
-          // looks like the app refusing to work.
-          accept=".csv,text/csv,text/comma-separated-values,application/csv,text/plain"
-          onChange={onPick}
-          className="hidden"
-          id="relay-csv"
-        />
-        <label
-          htmlFor="relay-csv"
-          className={`inline-flex cursor-pointer items-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-foreground/30 ${
-            busy ? "pointer-events-none opacity-60" : ""
-          }`}
-        >
-          <Upload size={16} />
-          {busy ? "Reading…" : "Choose a Relay CSV"}
-        </label>
-      </div>
+      <details className="mt-2 text-xs text-muted">
+        <summary className="cursor-pointer select-none">How to get it from Relay</summary>
+        <p className="mt-1 max-w-prose">
+          In the Relay app: open the account, tap the{" "}
+          <span className="text-foreground">⋯</span> menu,{" "}
+          <span className="text-foreground">Download statements</span>, pick the month and
+          choose <span className="text-foreground">CSV</span>. Uploading the same file
+          twice is safe — anything already here is left alone.
+        </p>
+      </details>
 
       {error && (
         <div className="mt-5 flex max-w-prose gap-3 rounded-xl border border-foreground/15 bg-white p-4 text-sm shadow-sm">
@@ -171,79 +188,56 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
       )}
 
       {result && (
-        <div className="mt-6 max-w-prose overflow-hidden rounded-xl border border-foreground/15 bg-white shadow-sm">
-          <div className="flex items-center gap-2 border-b border-foreground/10 px-4 py-3">
-            <Check size={16} className="text-accent" />
-            <p className="text-sm font-medium">
+        <div className="mt-4 flex max-w-prose overflow-hidden rounded-xl border border-foreground/15 bg-white text-sm shadow-sm">
+          <span className="w-1 shrink-0 bg-accent" aria-hidden />
+          <div className="px-4 py-3">
+            <p className="font-medium">
               {result.imported === 0
-                ? "Nothing new — already had all of it."
-                : `${result.imported} transaction${result.imported === 1 ? "" : "s"} added.`}
+                ? "Nothing new — this was already here"
+                : span
+                  ? `${monthSpan(span)} added`
+                  : "Statement added"}
             </p>
+            {result.imported > 0 && (
+              <p className="mt-0.5 text-muted">
+                {span && `${day(span.from)} – ${day(span.to)} · `}
+                {result.imported} transaction{result.imported === 1 ? "" : "s"}
+                {result.duplicates > 0 && ` · ${result.duplicates} already here`}
+              </p>
+            )}
+            {result.balance.ok ? (
+              <p className="mt-0.5 flex items-center gap-1 text-muted">
+                <Check size={13} className="text-accent" /> Balance matches Relay
+              </p>
+            ) : (
+              <p className="mt-0.5 text-muted">Imported with rows missing</p>
+            )}
+            {result.unreadable && result.unreadable.length > 0 && (
+              <p className="mt-1 text-xs text-muted">
+                {result.unreadable.length} line
+                {result.unreadable.length === 1 ? "" : "s"} couldn&rsquo;t be read:{" "}
+                {result.unreadable[0].reason} (line {result.unreadable[0].line})
+              </p>
+            )}
           </div>
-
-          <dl className="text-sm">
-            <Row label="Read from the file" value={String(result.read)} />
-            {result.duplicates > 0 && (
-              <Row
-                label="Already here"
-                value={String(result.duplicates)}
-                note="skipped"
-              />
-            )}
-            <Row
-              label="Category suggested"
-              value={String(result.suggested)}
-              note={
-                result.imported > 0
-                  ? `${result.imported - result.suggested} need you`
-                  : undefined
-              }
-            />
-            {result.balance.ok && (
-              <Row
-                label="Balances"
-                value={`${money(result.balance.openingCents)} → ${money(
-                  result.balance.closingCents,
-                )}`}
-                note="chains cleanly"
-              />
-            )}
-          </dl>
-
-          {result.unreadable && result.unreadable.length > 0 && (
-            <p className="border-t border-foreground/10 px-4 py-3 text-xs text-muted">
-              {result.unreadable.length} line
-              {result.unreadable.length === 1 ? "" : "s"} couldn&rsquo;t be read:{" "}
-              {result.unreadable[0].reason} (line {result.unreadable[0].line})
-            </p>
-          )}
-
-          {result.degraded && (
-            <p className="border-t border-foreground/10 px-4 py-3 text-xs text-muted">
-              Saved without the pending and balance columns — migration 0037
-              hasn&rsquo;t run on this database yet.
-            </p>
-          )}
-
-          <p className="flex items-center gap-2 border-t border-foreground/10 px-4 py-3 text-xs text-muted">
-            <FileText size={13} />
-            Nothing counts toward a total until it&rsquo;s been reviewed.
-          </p>
         </div>
       )}
-
     </div>
   );
 }
 
-function Row({ label, value, note }: { label: string; value: string; note?: string }) {
-  return (
-    <div className="flex items-center justify-between border-t border-foreground/10 px-4 py-2.5 first:border-t-0">
-      <dt className="text-muted">{label}</dt>
-      <dd className="font-medium tabular-nums">
-        {value}
-        {note && <span className="ml-2 text-xs font-normal text-muted">{note}</span>}
-      </dd>
-    </div>
-  );
+const day = (ymd: string) =>
+  new Date(`${ymd}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+
+/** "September statement", or "August – September statement" across a boundary. */
+function monthSpan(s: Span): string {
+  const m = (ymd: string) =>
+    new Date(`${ymd}T12:00:00Z`).toLocaleDateString("en-US", { month: "long", timeZone: "UTC" });
+  const a = m(s.from);
+  const b = m(s.to);
+  return a === b ? `${a} statement` : `${a} – ${b} statement`;
 }

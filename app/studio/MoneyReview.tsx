@@ -46,7 +46,14 @@ const day = (iso: string) =>
     day: "numeric",
   });
 
-export default function MoneyReview({ onCount }: { onCount?: (n: number) => void }) {
+export default function MoneyReview({
+  onCount,
+  quietWhenEmpty = false,
+}: {
+  onCount?: (n: number) => void;
+  /** On the Bank page, an empty queue says nothing — the months say "all sorted". */
+  quietWhenEmpty?: boolean;
+}) {
   const [rows, setRows] = useState<Txn[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -238,6 +245,7 @@ export default function MoneyReview({ onCount }: { onCount?: (n: number) => void
   if (loading) return <p className="mt-6 text-sm text-muted">Loading…</p>;
 
   if (rows.length === 0) {
+    if (quietWhenEmpty) return <>{flashLine}</>;
     return (
       <>
         {flashLine}
@@ -254,7 +262,7 @@ export default function MoneyReview({ onCount }: { onCount?: (n: number) => void
       {flashLine}
       <div className="mb-3 mt-4 flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-display text-lg">
-          Needs you{" "}
+          To sort{" "}
           <span className="ml-1 text-sm font-normal text-muted">
             {rows.length} transaction{rows.length === 1 ? "" : "s"}
           </span>

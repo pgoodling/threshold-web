@@ -444,8 +444,12 @@ pretending is a weekend.
 
 ## Where it got to
 
-Updated 2026-09-30. `/studio` → **Money**, four tabs split by *when she does
-the thing*: **Inventory**, **Activity**, **Bank & tax**, **Costs**.
+Updated 2026-09-30. **Inventory** is its own studio item (tabs **Stock** and
+**Activity**), because she uses it daily and Money monthly. **Money** is
+**Bank** (upload, then month by month, tap a row to change its category),
+**Taxes** (set-aside in dollars, next payment, one line per place, sales tax
+collected; the working behind a toggle) and **Costs**. Old `#money/inventory`
+and `#money/activity` links redirect.
 
 ### Built and live
 

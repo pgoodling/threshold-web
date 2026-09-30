@@ -92,6 +92,10 @@ section, this section is right.
 
 ## 🧭 Navigation — decided 2026-09-24, mostly parked
 
+**Update 2026-09-30:** Inventory left Money and became its own studio item
+(Stock / Activity), and Money is now Bank / Taxes / Costs. That takes the
+sidebar to 14 visible items — one more reason the fold below is overdue.
+
 The studio is at 14 nav items with real overlaps in it, and Money had grown to
 seven stacked sections with two near-identical product searches — which is how
 Paul went looking for the catalogue and typed into the daily log.

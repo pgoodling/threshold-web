@@ -11,6 +11,7 @@ import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
 import Money from "./Money";
+import Inventory from "./Inventory";
 import Messages from "./Messages";
 import Outreach from "./Outreach";
 import Texts from "./Texts";
@@ -26,6 +27,7 @@ import {
   Scissors,
   BarChart3,
   Wallet,
+  Package,
   Clock,
   Send,
   Settings as SettingsIcon,
@@ -182,6 +184,7 @@ type Tab =
   | "clients"
   | "services"
   | "reports"
+  | "inventory"
   | "money"
   | "outreach"
   | "texts"
@@ -198,6 +201,9 @@ const TABS: [Tab, string, LucideIcon][] = [
   ["clients", "Clients", Users],
   ["services", "Services", Scissors],
   ["reports", "Reports", BarChart3],
+  // Its own item, not a Money tab: she opens it every working day, and
+  // Money once a month. Split 2026-09-30.
+  ["inventory", "Inventory", Package],
   ["money", "Money", Wallet],
   ["outreach", "Outreach", Send],
   ["texts", "Texts", MessageSquare],
@@ -230,7 +236,14 @@ const NAV_TABS = TABS.filter(([k]) => !HIDDEN_FROM_NAV.includes(k));
 function readView(): { tab: Tab; clientId: string | null } {
   const raw =
     typeof window === "undefined" ? "" : window.location.hash.replace(/^#/, "");
-  const [name, id] = raw.split("/");
+  let [name, id] = raw.split("/");
+  // Inventory and its activity used to live under Money. An old bookmark
+  // or a link in a text lands where the thing now is.
+  if (name === "money" && ["inventory", "activity", "week", "today"].includes(id)) {
+    const fresh = id === "inventory" ? "inventory" : "inventory/activity";
+    window.history.replaceState(null, "", `#${fresh}`);
+    [name, id] = fresh.split("/");
+  }
   const known = TABS.some(([k]) => k === name);
   return { tab: known ? (name as Tab) : "overview", clientId: id || null };
 }
@@ -446,6 +459,7 @@ function Dashboard() {
           )}
           {tab === "services" && <Services />}
           {tab === "reports" && <Reports />}
+          {tab === "inventory" && <Inventory />}
           {tab === "money" && <Money />}
           {tab === "outreach" && <Outreach />}
           {tab === "texts" && <Texts />}
