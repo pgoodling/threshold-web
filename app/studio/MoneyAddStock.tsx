@@ -13,6 +13,28 @@ import { salonToday } from "../../lib/stockEvents";
 // us, and without it every bottle from this delivery goes into her product
 // cost at nothing.
 
+// Size as a number and a unit, written to products.size as "10.1 fl oz".
+// Kept to these units so the text is always "<number> <unit>" — the
+// per-service product costing will need to read it back.
+const UNITS = ["fl oz", "oz", "ml", "L", "g", "lb", "pieces"] as const;
+
+/** "10.1 oz" / "1 litre" / "68 pc" → { amount, unit }, or blanks. */
+function splitSize(size: string | null | undefined): { amount: string; unit: string } {
+  const m = (size ?? "").trim().match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+  if (!m) return { amount: "", unit: "fl oz" };
+  const u = m[2].toLowerCase().replace(/\.$/, "");
+  const unit =
+    u === "" ? "fl oz"
+    : /^l(itre|iter)?$/.test(u) ? "L"
+    : /^ml$/.test(u) ? "ml"
+    : /^(fl\s*)?oz$/.test(u) ? "fl oz"
+    : /^lb/.test(u) ? "lb"
+    : /^g$/.test(u) ? "g"
+    : /^(pc|pcs|pieces?)$/.test(u) ? "pieces"
+    : "fl oz";
+  return { amount: m[1], unit };
+}
+
 type Product = {
   product_id: string;
   name: string;
@@ -34,6 +56,8 @@ export default function MoneyAddStock({
   const [qty, setQty] = useState("1");
   const [paid, setPaid] = useState("");
   const [date, setDate] = useState(salonToday());
+  const [sizeAmount, setSizeAmount] = useState("");
+  const [sizeUnit, setSizeUnit] = useState<string>("fl oz");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -51,8 +75,18 @@ export default function MoneyAddStock({
     return n ? { title: n.short, sub: [n.group, n.size].filter(Boolean).join(" · ") } : { title: p.name, sub: "" };
   }
 
+  function pick(p: Product) {
+    setPicked(p);
+    // Fill the size from what's already known, so she only types it once.
+    const s = splitSize(named.get(p.product_id)?.size);
+    setSizeAmount(s.amount);
+    setSizeUnit(s.unit);
+  }
+
   async function save() {
     setError(null);
+    const size = sizeAmount.trim() ? `${Number(sizeAmount)} ${sizeUnit}` : null;
+    if (sizeAmount.trim() && !(Number(sizeAmount) > 0)) return setError("Size should be a number, like 10.1.");
     const n = Number(qty);
     const cents = Math.round(Number(paid.replace(/[$,\s]/g, "")) * 100);
     if (!picked && !(isNew && q.trim())) return setError("Pick a product first.");
@@ -67,7 +101,7 @@ export default function MoneyAddStock({
     if (!productId) {
       const { data, error: e } = await supabase
         .from("products")
-        .insert({ name: productName, unit_cost_cents: cents })
+        .insert({ name: productName, unit_cost_cents: cents, size })
         .select("id")
         .single();
       if (e || !data) {
@@ -90,8 +124,12 @@ export default function MoneyAddStock({
       return setError(e2.message);
     }
     // The latest price she paid is the cost from now on, same as an order.
+    // A size typed here is the better record than one guessed from the name.
     if (picked) {
-      await supabase.from("products").update({ unit_cost_cents: cents }).eq("id", productId);
+      await supabase
+        .from("products")
+        .update(size ? { unit_cost_cents: cents, size } : { unit_cost_cents: cents })
+        .eq("id", productId);
     }
 
     setBusy(false);
@@ -101,6 +139,7 @@ export default function MoneyAddStock({
     setIsNew(false);
     setQty("1");
     setPaid("");
+    setSizeAmount("");
     onAdded();
   }
 
@@ -138,7 +177,7 @@ export default function MoneyAddStock({
               {matches.map((p) => (
                 <button
                   key={p.product_id}
-                  onClick={() => setPicked(p)}
+                  onClick={() => pick(p)}
                   className="block w-full border-t border-foreground/10 px-3 py-2 text-left first:border-t-0 hover:bg-foreground/[0.03]"
                 >
                   <span className="block text-[15px]">{label(p).title}</span>
@@ -155,6 +194,43 @@ export default function MoneyAddStock({
           )}
         </>
       )}
+
+      <div className="mt-3 flex gap-3">
+        <label className="flex-1 text-sm text-muted">
+          Size
+          <input
+            inputMode="decimal"
+            value={sizeAmount}
+            onChange={(e) => setSizeAmount(e.target.value)}
+            placeholder="10.1"
+            className={`mt-1 ${field} text-foreground`}
+          />
+        </label>
+        <label className="flex-1 text-sm text-muted">
+          Unit
+          <select
+            value={sizeUnit}
+            onChange={(e) => setSizeUnit(e.target.value)}
+            className={`mt-1 ${field} text-foreground`}
+          >
+            {UNITS.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <label className="mt-3 block text-sm text-muted">
+        Date it arrived
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className={`mt-1 ${field} text-foreground`}
+        />
+      </label>
 
       <div className="mt-3 flex gap-3">
         <label className="flex-1 text-sm text-muted">
@@ -177,16 +253,6 @@ export default function MoneyAddStock({
           />
         </label>
       </div>
-
-      <label className="mt-3 block text-sm text-muted">
-        Date
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className={`mt-1 ${field} text-foreground`}
-        />
-      </label>
 
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
