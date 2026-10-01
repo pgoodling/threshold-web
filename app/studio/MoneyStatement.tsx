@@ -101,6 +101,13 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
     if (!file) return;
     setResult(null);
     setPending(null);
+    // A supplier order is the other file she uploads, and it lives in
+    // Inventory. Say where, rather than failing on a PDF as a bad CSV.
+    if (/\.pdf$/i.test(file.name) || file.type === "application/pdf") {
+      setError("That looks like a supplier order. Orders go in Inventory → Add stock.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     const text = await file.text();
     await send(text, file.name, false);
     // Let her pick the same file again after a failure.
@@ -132,7 +139,14 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
         {busy ? "Reading…" : "Upload statement"}
       </label>
 
-      <details className="mt-2 text-xs text-muted">
+      <p className="mt-2 text-xs text-muted">
+        Supplier order?{" "}
+        <a href="#inventory" className="text-accent underline">
+          Upload it in Inventory → Add stock
+        </a>
+      </p>
+
+      <details className="mt-1 text-xs text-muted">
         <summary className="cursor-pointer select-none">How to get it from Relay</summary>
         <p className="mt-1 max-w-prose">
           In the Relay app: open the account, tap the{" "}
