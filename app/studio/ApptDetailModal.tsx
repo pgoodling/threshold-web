@@ -72,6 +72,8 @@ type Detail = {
   process_minutes: number | null;
   finish_minutes: number | null;
   block_processing: boolean | null;
+  /** Booked over another appointment on purpose (migration 0048). */
+  allow_overlap?: boolean | null;
   clients: {
     full_name: string;
     phone: string | null;
@@ -136,6 +138,10 @@ export default function ApptDetailModal({
   const [linkSent, setLinkSent] = useState(false);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<string | null>(null);
+  // Overlap handling (0048): how many appointments the new time overlaps,
+  // and — for timing, which is only checked on save — who it ran into.
+  const [moveOverlaps, setMoveOverlaps] = useState(0);
+  const [timingClash, setTimingClash] = useState<string | null>(null);
   // Products sold at check-out. Kept apart from the service amount: tax
   // applies to these and not to the service (see migration 0047).
   const [saleLines, setSaleLines] = useState<SaleLine[]>([]);
@@ -208,10 +214,11 @@ export default function ApptDetailModal({
     });
     setBlockGap(!!appt.block_processing);
     setError(null);
+    setTimingClash(null);
     setMode("timing");
   }
 
-  async function saveTiming() {
+  async function saveTiming(anyway = false) {
     if (!appt) return;
     const start = parseInt(seg.start, 10);
     if (!Number.isInteger(start) || start < 5) {
@@ -240,17 +247,39 @@ export default function ApptDetailModal({
         process_minutes: process,
         finish_minutes: finish,
         block_processing: blockGap,
+        // Keep an existing deliberate overlap; add one only when she says so.
+        ...(anyway ? { allow_overlap: true } : {}),
       })
       .eq("id", appointmentId);
     setBusy(false);
     if (err) {
-      setError(
-        /exclusion|overlap|conflict/i.test(err.message)
-          ? "That timing collides with another appointment."
-          : err.message,
-      );
+      if (/exclusion|overlap|conflict/i.test(err.message)) {
+        // Name who it runs into, so "Save anyway" is an informed choice.
+        const endsISO = new Date(
+          new Date(appt.starts_at).getTime() + (start + process + finish) * 60000,
+        ).toISOString();
+        const { data } = await supabase
+          .from("appointments")
+          .select("starts_at,clients(full_name),services(name)")
+          .neq("id", appointmentId)
+          .lt("starts_at", endsISO)
+          .gt("ends_at", appt.starts_at)
+          .not("status", "in", "(cancelled,no_show)")
+          .order("starts_at")
+          .limit(1);
+        const hit = (data ?? [])[0] as
+          | { starts_at: string; clients: { full_name: string } | { full_name: string }[] | null }
+          | undefined;
+        const who = Array.isArray(hit?.clients) ? hit?.clients[0]?.full_name : hit?.clients?.full_name;
+        setTimingClash(
+          who
+            ? `Runs into ${who} at ${fullWhen(hit!.starts_at).split(", ").pop()}.`
+            : "Runs into another appointment.",
+        );
+      } else setError(err.message);
       return;
     }
+    setTimingClash(null);
     setMode("view");
     onChanged?.();
     load();
@@ -376,14 +405,13 @@ export default function ApptDetailModal({
     ).toISOString();
     const { error } = await supabase
       .from("appointments")
-      .update({ starts_at: startsISO, ends_at: endsISO })
+      .update({ starts_at: startsISO, ends_at: endsISO, allow_overlap: moveOverlaps > 0 })
       .eq("id", appointmentId);
     if (error) {
-      setError(
-        error.message.includes("overlap") || error.message.includes("exclusion")
-          ? "That time overlaps another appointment."
-          : error.message,
-      );
+      if (/overlap|exclusion/i.test(error.message)) {
+        setMoveOverlaps((n) => Math.max(n, 1));
+        setError("That time overlaps another appointment. Move anyway to keep it.");
+      } else setError(error.message);
       return;
     }
     setMode("view");
@@ -641,7 +669,7 @@ export default function ApptDetailModal({
                   onClick={reschedule}
                   className="rounded-md bg-accent px-4 py-2 text-white hover:bg-accent-dark"
                 >
-                  Save
+                  {moveOverlaps > 0 ? "Move anyway" : "Save"}
                 </button>
                 <button
                   onClick={() => setMode("view")}
@@ -658,6 +686,7 @@ export default function ApptDetailModal({
                     serviceId={appt.service_id}
                     local={when}
                     ignoreAppointmentId={appt.id}
+                    onClashes={setMoveOverlaps}
                   />
                 </div>
               </div>
@@ -825,7 +854,10 @@ export default function ApptDetailModal({
                         className="input w-24"
                         value={seg[k]}
                         onChange={(e) =>
-                          setSeg((p) => ({ ...p, [k]: e.target.value }))
+                          {
+                            setSeg((p) => ({ ...p, [k]: e.target.value }));
+                            setTimingClash(null);
+                          }
                         }
                       />
                     </label>
@@ -835,17 +867,29 @@ export default function ApptDetailModal({
                   <input
                     type="checkbox"
                     checked={blockGap}
-                    onChange={(e) => setBlockGap(e.target.checked)}
+                    onChange={(e) => {
+                      setBlockGap(e.target.checked);
+                      setTimingClash(null);
+                    }}
                   />
                   Keep the processing time for myself
                 </label>
+                {timingClash && (
+                  <p
+                    className="py-1 pl-3 text-sm leading-snug"
+                    style={{ borderLeft: "3px solid #E0A33A" }}
+                  >
+                    <span className="font-medium text-[#854F0B]">{timingClash}</span> You can
+                    still save it.
+                  </p>
+                )}
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={saveTiming}
+                    onClick={() => saveTiming(timingClash !== null)}
                     disabled={busy}
                     className="rounded-md bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
-                    {busy ? "Saving…" : "Save timing"}
+                    {busy ? "Saving…" : timingClash ? "Save anyway" : "Save timing"}
                   </button>
                   <button
                     onClick={() => {
@@ -1107,6 +1151,10 @@ export function RebookForm({
       .then(({ data }) => setServices((data ?? []) as SvcOpt[]));
   }, []);
 
+  // How many appointments the chosen time overlaps, as SlotStatus reports it.
+  // Non-zero turns the button into "Book anyway" (migration 0048).
+  const [overlaps, setOverlaps] = useState(0);
+
   async function submit() {
     const svc = services.find((s) => s.id === serviceId);
     if (!svc || !when) return;
@@ -1123,15 +1171,16 @@ export function RebookForm({
       ends_at: endsISO,
       price_cents: svc.price_cents,
       status: "booked",
+      allow_overlap: overlaps > 0,
     });
     setBusy(false);
-    if (error)
-      setError(
-        error.message.includes("overlap") || error.message.includes("exclusion")
-          ? "That time overlaps another appointment."
-          : error.message,
-      );
-    else onDone();
+    if (error) {
+      // The check and the booking raced, or the check couldn't see it.
+      if (/overlap|exclusion/i.test(error.message)) {
+        setOverlaps((n) => Math.max(n, 1));
+        setError("That time overlaps another appointment. Book anyway to keep it.");
+      } else setError(error.message);
+    } else onDone();
   }
 
   return (
@@ -1184,7 +1233,7 @@ export function RebookForm({
           />
         </label>
       </div>
-      <SlotStatus serviceId={serviceId} local={when} />
+      <SlotStatus serviceId={serviceId} local={when} onClashes={setOverlaps} />
       {error && <p className="text-sm text-accent-dark">{error}</p>}
       <div className="flex gap-2">
         <button
@@ -1192,7 +1241,7 @@ export function RebookForm({
           disabled={busy}
           className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
-          {busy ? "Booking…" : "Book it"}
+          {busy ? "Booking…" : overlaps > 0 ? "Book anyway" : "Book it"}
         </button>
         <button
           onClick={onCancel}

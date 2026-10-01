@@ -7,6 +7,8 @@ export type StudioAppointmentRow = {
   ends_at: string;
   price_cents: number;
   status: string;
+  /** She chose to book this over another appointment (migration 0048). */
+  allow_overlap?: boolean;
 };
 
 // Book an appointment Evelyn is entering herself, at the desk or on the phone.

@@ -16,6 +16,7 @@ import {
 import ApptDetailModal, { RebookForm } from "./ApptDetailModal";
 import { saveClient } from "./Clients";
 import ClientPicker from "./ClientPicker";
+import BlockTimePanel, { type BlockRow } from "./BlockTimePanel";
 
 type Appt = {
   id: string;
@@ -28,6 +29,8 @@ type Appt = {
   process_minutes: number | null;
   finish_minutes: number | null;
   block_processing: boolean | null;
+  /** Booked over another appointment on purpose (0048). */
+  allow_overlap?: boolean | null;
   clients: { full_name: string; phone: string | null; email: string | null } | null;
   services: {
     name: string;
@@ -134,6 +137,8 @@ type Block = {
 type BlockSpan = {
   /** Unique per day-segment; a multi-day block appears once per day. */
   key: string;
+  /** The time_off row, so tapping a span can open it. */
+  id: string;
   reason: string | null;
   startMin: number;
   endMin: number;
@@ -160,6 +165,7 @@ function blockSpansByDay(
       // hour lines the grid draws beside it.
       spans.push({
         key: `${b.id}:${day}`,
+        id: b.id,
         reason: b.reason,
         startMin:
           from === dayStart ? 0 : salonMinutes(new Date(from).toISOString()),
@@ -240,6 +246,13 @@ export default function Calendar({
   const [newAppt, setNewAppt] = useState<{ date: string; time: string } | null>(
     null,
   );
+  // An empty time she tapped, waiting for "book or block?".
+  const [choice, setChoice] = useState<{ date: string; time: string } | null>(null);
+  // The block form: a new block from a day/time, or an existing one to change.
+  const [blockForm, setBlockForm] = useState<
+    { date: string; time: string } | { block: BlockRow } | null
+  >(null);
+  const [newMenu, setNewMenu] = useState(false);
 
   // Visible date range for the current view.
   const range = useMemo(() => {
@@ -255,7 +268,7 @@ export default function Calendar({
     supabase
       .from("appointments")
       .select(
-        "id,client_id,starts_at,ends_at,status,notes,start_minutes,process_minutes,finish_minutes,block_processing,clients(full_name,phone,email),services(name,duration_minutes,start_minutes,process_minutes,finish_minutes)",
+        "*,clients(full_name,phone,email),services(name,duration_minutes,start_minutes,process_minutes,finish_minutes)",
       )
       .gte("starts_at", fromISO)
       .lt("starts_at", toISO)
@@ -416,20 +429,41 @@ export default function Calendar({
               </button>
             ))}
           </div>
-          <button
-            onClick={() => {
-              setSelected(null);
-              // Whichever day she's looking at comes along; she fills in the
-              // time. In month view that's the day she last selected.
-              setNewAppt({
-                date: view === "month" ? selectedDay : anchor,
-                time: "",
-              });
-            }}
-            className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-dark"
-          >
-            + New
-          </button>
+          {/* + New offers both things a day can need. Whichever day she's
+              looking at comes along; in month view, the day last selected. */}
+          <div className="relative">
+            <button
+              onClick={() => setNewMenu((o) => !o)}
+              aria-expanded={newMenu}
+              className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-dark"
+            >
+              + New
+            </button>
+            {newMenu && (
+              <div className="absolute right-0 z-30 mt-1 w-44 overflow-hidden rounded-lg border border-foreground/15 bg-white text-sm shadow-lg">
+                <button
+                  onClick={() => {
+                    setNewMenu(false);
+                    setSelected(null);
+                    setNewAppt({ date: view === "month" ? selectedDay : anchor, time: "" });
+                  }}
+                  className="block w-full px-3 py-2.5 text-left hover:bg-foreground/[0.04]"
+                >
+                  Appointment
+                </button>
+                <button
+                  onClick={() => {
+                    setNewMenu(false);
+                    setSelected(null);
+                    setBlockForm({ date: view === "month" ? selectedDay : anchor, time: "" });
+                  }}
+                  className="block w-full border-t border-foreground/10 px-3 py-2.5 text-left hover:bg-foreground/[0.04]"
+                >
+                  Block time
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -464,7 +498,11 @@ export default function Calendar({
             onSelect={setSelected}
             onNewAt={(date, time) => {
               setSelected(null);
-              setNewAppt({ date, time });
+              setChoice({ date, time });
+            }}
+            onBlockSelect={(id) => {
+              const b = blocks.find((x) => x.id === id);
+              if (b) setBlockForm({ block: b });
             }}
             onMove={moveAppt}
           />
@@ -478,13 +516,65 @@ export default function Calendar({
             onSelect={setSelected}
             onNewAt={(date, time) => {
               setSelected(null);
-              setNewAppt({ date, time });
+              setChoice({ date, time });
+            }}
+            onBlockSelect={(id) => {
+              const b = blocks.find((x) => x.id === id);
+              if (b) setBlockForm({ block: b });
             }}
             onMove={moveAppt}
             wide
           />
         )}
       </div>
+
+      {choice && (
+        <Modal onClose={() => setChoice(null)}>
+          <div className="rounded-2xl border border-accent/30 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <p className="font-display text-lg">
+                {clockLabel(Number(choice.time.slice(0, 2)) * 60 + Number(choice.time.slice(3, 5)))}
+              </p>
+              <button onClick={() => setChoice(null)} aria-label="Close" className="text-muted hover:text-accent">
+                ✕
+              </button>
+            </div>
+            <div className="mt-4 grid gap-2">
+              <button
+                onClick={() => {
+                  setNewAppt(choice);
+                  setChoice(null);
+                }}
+                className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-dark"
+              >
+                Book an appointment
+              </button>
+              <button
+                onClick={() => {
+                  setBlockForm(choice);
+                  setChoice(null);
+                }}
+                className="rounded-md border border-foreground/20 px-4 py-2.5 text-sm font-medium hover:border-foreground/40"
+              >
+                Block this time
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {blockForm && (
+        <Modal onClose={() => setBlockForm(null)}>
+          <BlockTimePanel
+            {...("block" in blockForm ? { block: blockForm.block } : blockForm)}
+            onClose={() => setBlockForm(null)}
+            onDone={() => {
+              setBlockForm(null);
+              load();
+            }}
+          />
+        </Modal>
+      )}
 
       {newAppt && (
         <Modal onClose={() => setNewAppt(null)}>
@@ -512,7 +602,7 @@ export default function Calendar({
   );
 }
 
-function Modal({
+export function Modal({
   onClose,
   children,
 }: {
@@ -780,6 +870,7 @@ function TimeGrid({
   blocksByDay,
   onSelect,
   onNewAt,
+  onBlockSelect,
   onMove,
   wide,
 }: {
@@ -789,6 +880,8 @@ function TimeGrid({
   blocksByDay: Map<string, BlockSpan[]>;
   onSelect: (a: Appt) => void;
   onNewAt?: (date: string, time: string) => void;
+  /** Tapping a block opens it to change or unblock. */
+  onBlockSelect?: (id: string) => void;
   onMove?: (a: Appt, day: string, startMin: number) => void;
   wide?: boolean;
 }) {
@@ -879,7 +972,16 @@ function TimeGrid({
                 return (
                   <div
                     key={b.key}
-                    className="pointer-events-none absolute inset-x-0 overflow-hidden"
+                    role={onBlockSelect ? "button" : undefined}
+                    aria-label={onBlockSelect ? `Blocked: ${b.reason || "time off"}` : undefined}
+                    onClick={(e) => {
+                      // Not also a tap on the empty grid underneath.
+                      e.stopPropagation();
+                      onBlockSelect?.(b.id);
+                    }}
+                    className={`absolute inset-x-0 overflow-hidden ${
+                      onBlockSelect ? "cursor-pointer" : "pointer-events-none"
+                    }`}
                     style={{
                       top: clipTop,
                       height,
@@ -1069,6 +1171,17 @@ function TimeGrid({
                           ? clockLabel(drag.startMin)
                           : timeLabel(a.starts_at)}{" "}
                         {a.clients?.full_name?.split(" ")[0]}
+                        {/* Booked over another on purpose: marked so it reads
+                            as her choice, not a glitch. */}
+                        {a.allow_overlap && (
+                          <span
+                            className="ml-1 inline-block rounded-sm px-0.5 text-[9px] font-semibold text-[#854F0B]"
+                            style={{ background: "#FAEEDA" }}
+                            title="Booked over another appointment"
+                          >
+                            overlap
+                          </span>
+                        )}
                       </div>
                       {h > 34 && (
                         <div className="relative truncate text-muted">
@@ -1092,7 +1205,7 @@ type ClientOpt = { id: string; full_name: string; phone?: string | null };
 // Walk-ins and phone bookings are often people who aren't in the book yet, so
 // this panel can either pick an existing client or create one on the spot —
 // previously it could only pick, which dead-ended her at the calendar.
-function NewAppointmentPanel({
+export function NewAppointmentPanel({
   date,
   time,
   onClose,

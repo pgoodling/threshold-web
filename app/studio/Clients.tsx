@@ -1089,6 +1089,9 @@ function NewAppointment({
       .then(({ data }) => setServices((data ?? []) as SvcOpt[]));
   }, []);
 
+  // Non-zero turns the button into "Book anyway" (migration 0048).
+  const [overlaps, setOverlaps] = useState(0);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const svc = services.find((s) => s.id === serviceId);
@@ -1106,14 +1109,14 @@ function NewAppointment({
       ends_at: endsISO,
       price_cents: svc.price_cents,
       status: "booked",
+      allow_overlap: overlaps > 0,
     });
     setBusy(false);
     if (error) {
-      setError(
-        error.message.includes("overlap") || error.message.includes("exclusion")
-          ? "That time overlaps another appointment."
-          : error.message,
-      );
+      if (/overlap|exclusion/i.test(error.message)) {
+        setOverlaps((n) => Math.max(n, 1));
+        setError("That time overlaps another appointment. Book anyway to keep it.");
+      } else setError(error.message);
       return;
     }
     onDone();
@@ -1147,11 +1150,11 @@ function NewAppointment({
           required
         />
       </label>
-      <SlotStatus serviceId={serviceId} local={when} />
+      <SlotStatus serviceId={serviceId} local={when} onClashes={setOverlaps} />
       {error && <ErrorNote>{error}</ErrorNote>}
       <div>
         <Button type="submit" disabled={busy}>
-          {busy ? "Booking…" : "Book appointment"}
+          {busy ? "Booking…" : overlaps > 0 ? "Book anyway" : "Book appointment"}
         </Button>
       </div>
     </form>

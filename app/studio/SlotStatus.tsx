@@ -11,10 +11,10 @@ import { BLOCK_INK, timeLabel } from "../../lib/format";
 // time: she opens the form, puts in the service and the time they asked for,
 // and knows what to reply before she's committed to anything.
 //
-// Only one outcome stops the booking — a clash with another client's busy
-// time, which the database refuses regardless. Time off and working hours are
-// warnings: it's her calendar, and a regular asking for 7:30 on a Tuesday is
-// hers to say yes to.
+// Nothing here stops a booking any more. A clash with another client's busy
+// time used to be a wall; since 0048 she can book over it on purpose, so it's
+// named — who, what, when — and the form's button becomes "Book anyway".
+// Time off and working hours were always warnings: it's her calendar.
 
 const WEEKDAYS = [
   "Sundays",
@@ -61,7 +61,11 @@ export default function SlotStatus({
   serviceId,
   local,
   ignoreAppointmentId,
+  onClashes,
 }: {
+  /** Told how many appointments this time overlaps, so the form can offer
+   *  "Book anyway" rather than failing on submit. */
+  onClashes?: (n: number) => void;
   serviceId: string;
   /** "YYYY-MM-DDTHH:MM", salon wall-clock time. */
   local: string;
@@ -80,13 +84,15 @@ export default function SlotStatus({
     let live = true;
     checkSlot(supabase, { serviceId, local, ignoreAppointmentId }).then(
       (report) => {
-        if (live) setResult({ key, report });
+        if (!live) return;
+        setResult({ key, report });
+        onClashes?.(report?.clashes.length ?? 0);
       },
     );
     return () => {
       live = false;
     };
-  }, [key, serviceId, local, ignoreAppointmentId]);
+  }, [key, serviceId, local, ignoreAppointmentId, onClashes]);
 
   if (!key) return null;
   if (result.key !== key) {
@@ -106,10 +112,10 @@ export default function SlotStatus({
   return (
     <div className="grid gap-1.5" aria-live="polite">
       {r.clashes.map((c) => (
-        <Line key={c.id} color="#8f3f4a">
-          <span className="font-medium text-[#8f3f4a]">Taken.</span>{" "}
-          {c.who} is booked for {c.service}, {timeLabel(c.startsAt)} –{" "}
-          {timeLabel(c.endsAt)}.
+        <Line key={c.id} color="#E0A33A">
+          <span className="font-medium text-[#854F0B]">Overlaps {c.who}</span> —{" "}
+          {c.service}, {timeLabel(c.startsAt)} – {timeLabel(c.endsAt)}. You can
+          still book it.
         </Line>
       ))}
 

@@ -6,7 +6,7 @@ import { supabase } from "../../lib/supabase";
 import { onMessagesChanged } from "../../lib/messagesChanged";
 import Overview from "./Overview";
 import Tasks from "./Tasks";
-import Calendar from "./Calendar";
+import Calendar, { NewAppointmentPanel, Modal as CalendarModal } from "./Calendar";
 import Clients from "./Clients";
 import Services from "./Services";
 import Reports from "./Reports";
@@ -488,6 +488,9 @@ function Appointments({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  // Booking by hand used to need a client's page or a tap on the calendar.
+  // Same form as the calendar's + New, so there is one way to book.
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -506,10 +509,42 @@ function Appointments({
 
   useEffect(load, [load]);
 
+  const header = (
+    <>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h2 className="font-display text-2xl leading-none sm:text-3xl">Appointments</h2>
+        <button
+          onClick={() => setAdding(true)}
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark"
+        >
+          + New appointment
+        </button>
+      </div>
+      {adding && (
+        <CalendarModal onClose={() => setAdding(false)}>
+          <NewAppointmentPanel
+            date={new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date())}
+            time=""
+            onClose={() => setAdding(false)}
+            onDone={() => {
+              setAdding(false);
+              load();
+            }}
+          />
+        </CalendarModal>
+      )}
+    </>
+  );
+
   if (loading) return <p className="text-muted">Loading appointments…</p>;
   if (error) return <ErrorNote>{error}</ErrorNote>;
   if (appts.length === 0)
-    return <p className="text-muted">No upcoming appointments.</p>;
+    return (
+      <div>
+        {header}
+        <p className="text-muted">No upcoming appointments.</p>
+      </div>
+    );
 
   // Grouped by month, because a flat run of a hundred appointments gives no
   // sense of where "next week" ends and "November" begins.
@@ -527,9 +562,7 @@ function Appointments({
 
   return (
     <div>
-      <h2 className="mb-5 font-display text-2xl leading-none sm:text-3xl">
-        Appointments
-      </h2>
+      {header}
       {months.map((m) => (
         <section key={m.label} className="mt-6 first:mt-0">
           {/* Month left, count right, with the rule between them doing the
