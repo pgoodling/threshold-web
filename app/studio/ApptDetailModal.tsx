@@ -30,6 +30,7 @@ import ActionStrip, { type Action } from "./ActionStrip";
 import { appointmentUrl } from "../../lib/policy";
 import { insertStudioAppointment } from "../../lib/appointments";
 import SlotStatus from "./SlotStatus";
+import DayPicker from "./DayPicker";
 import SaleLines from "./SaleLines";
 import {
   loadSaleContext,
@@ -1233,6 +1234,8 @@ export function RebookForm({
           />
         </label>
       </div>
+      {/* The whole day, so she can see where it fits rather than guess. */}
+      <DayPicker date={date} time={time} serviceId={serviceId} onDate={setDate} onTime={setTime} />
       <SlotStatus serviceId={serviceId} local={when} onClashes={setOverlaps} />
       {error && <p className="text-sm text-accent-dark">{error}</p>}
       <div className="flex gap-2">

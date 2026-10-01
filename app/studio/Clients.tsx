@@ -30,6 +30,7 @@ import {
 import { formulaName } from "../../lib/hair";
 import { insertStudioAppointment } from "../../lib/appointments";
 import SlotStatus from "./SlotStatus";
+import DayPicker from "./DayPicker";
 import ApptDetailModal from "./ApptDetailModal";
 import ClientMessages from "./ClientMessages";
 import HairNotes from "./HairNotes";
@@ -1150,6 +1151,14 @@ function NewAppointment({
           required
         />
       </label>
+      {/* The whole day, so she can see where it fits rather than guess. */}
+      <DayPicker
+        date={when.slice(0, 10)}
+        time={when.slice(11, 16)}
+        serviceId={serviceId}
+        onDate={(d) => setWhen(`${d}T${when.slice(11, 16) || "09:00"}`)}
+        onTime={(t) => setWhen(`${when.slice(0, 10)}T${t}`)}
+      />
       <SlotStatus serviceId={serviceId} local={when} onClashes={setOverlaps} />
       {error && <ErrorNote>{error}</ErrorNote>}
       <div>
