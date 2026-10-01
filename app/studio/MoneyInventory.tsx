@@ -47,11 +47,13 @@ type Row = {
   sells_retail: boolean;
   used_at_backbar: boolean;
   on_hand: number;
+  /** False once she's removed it. Hidden, never deleted, while it has history. */
+  active: boolean;
   /** Absent until migration 0046 has run. */
   on_bar?: number;
 };
 
-type Filter = "all" | "bar" | "sale" | "price";
+type Filter = "all" | "bar" | "sale" | "price" | "removed";
 type Panel = null | "sell" | "add" | "count";
 
 const needsPrice = (r: Row) => r.sells_retail && r.retail_price_cents === null;
@@ -101,7 +103,8 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
     supabase
       .from("product_stock")
       .select("*")
-      .eq("active", true)
+      // Removed products come too, for the Removed filter. Everything else
+      // works from `live`.
       .then(({ data, error: e }) => {
         if (!alive) return;
         if (e) setError(e.message);
@@ -119,11 +122,13 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
     return m;
   }, [rows]);
 
-  const priceCount = useMemo(() => rows.filter(needsPrice).length, [rows]);
+  const live = useMemo(() => rows.filter((r) => r.active), [rows]);
+  const removedCount = rows.length - live.length;
+  const priceCount = useMemo(() => live.filter(needsPrice).length, [live]);
 
   const groups = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const shown = rows
+    const shown = (filter === "removed" ? rows.filter((r) => !r.active) : live)
       .filter((r) => {
         if (filter === "bar") return (r.on_bar ?? 0) > 0;
         if (filter === "sale") return r.sells_retail;
@@ -149,7 +154,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
           byName(named.get(a.product_id)!.short, named.get(b.product_id)!.short),
         ),
       }));
-  }, [rows, named, filter, q]);
+  }, [rows, live, named, filter, q]);
 
   // Optimistic: pricing 27 bottles one round trip at a time would feel broken.
   async function patch(id: string, change: Partial<Row>) {
@@ -209,7 +214,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
       ) : panel === "add" ? (
         <>
           <MoneyInvoice onImported={changed} />
-          <MoneyAddStock products={rows} named={named} onAdded={changed} />
+          <MoneyAddStock products={live} named={named} onAdded={changed} />
         </>
       ) : (
         <MoneyCount onSaved={changed} />
@@ -278,6 +283,16 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
             }`}
           >
             Needs price {priceCount}
+          </button>
+        )}
+        {removedCount > 0 && (
+          <button
+            onClick={() => setFilter("removed")}
+            className={`-mb-px border-b-2 pb-2 transition ${
+              filter === "removed" ? "border-accent font-medium" : "border-transparent text-muted"
+            }`}
+          >
+            Removed {removedCount}
           </button>
         )}
       </div>
@@ -631,8 +646,45 @@ function Detail({
     setHistoryKey((k) => k + 1);
   }
 
+  const [confirming, setConfirming] = useState(false);
+
+  // Removing hides a product; its history stays, so past months' costs,
+  // sales and sales tax don't move. Only a product with no history at all —
+  // added by mistake, never received, opened or sold — is truly deleted,
+  // because then there's nothing to lose.
+  async function remove() {
+    setBusy(true);
+    const { count } = await supabase
+      .from("inventory_movements")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", r.product_id);
+    const { error } =
+      count === 0
+        ? await supabase.from("products").delete().eq("id", r.product_id)
+        : await supabase.from("products").update({ active: false }).eq("id", r.product_id);
+    setBusy(false);
+    setConfirming(false);
+    if (error) return onError(error.message);
+    onReload();
+  }
+
   const bar = r.on_bar ?? 0;
   const shelf = Number(r.on_hand);
+
+  if (!r.active) {
+    return (
+      <div className="px-3 pb-3">
+        <p className="text-sm text-muted">Removed from inventory. Its history is kept.</p>
+        <button
+          onClick={() => onPatch({ active: true })}
+          className="mt-2 rounded-lg border border-foreground/20 bg-white px-3 py-2 text-sm font-medium hover:border-foreground/40"
+        >
+          Bring it back
+        </button>
+        <History history={history} mine={mine} onUndo={undo} />
+      </div>
+    );
+  }
 
   return (
     <div className="px-3 pb-3">
@@ -718,29 +770,70 @@ function Detail({
         </div>
       )}
 
-      <div className="mt-3 border-t border-foreground/10 pt-2 text-xs leading-6 text-muted">
-        {history === null ? (
-          "…"
-        ) : history.length === 0 ? (
-          "Nothing yet."
+      <History history={history} mine={mine} onUndo={undo} />
+
+      {/* Rare, so a quiet link rather than a button, and one confirm. */}
+      <div className="mt-3 text-xs">
+        {confirming ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="text-muted">
+              {history && history.length === 0
+                ? "Delete this product? It has no history."
+                : "Remove from the list? Its history is kept."}
+            </span>
+            <button
+              onClick={remove}
+              disabled={busy}
+              className="rounded-md border border-red-300 px-2.5 py-1 font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+            >
+              {history && history.length === 0 ? "Delete" : "Remove"}
+            </button>
+            <button onClick={() => setConfirming(false)} className="text-muted hover:text-foreground">
+              Cancel
+            </button>
+          </div>
         ) : (
-          history.map((m) => (
-            <div key={m.id} className="flex items-center justify-between gap-3">
-              <span>
-                {shortDate(m.occurred_on)} · {describe(m)}
-              </span>
-              {mine.has(m.id) && (
-                <button
-                  onClick={() => undo(m)}
-                  className="inline-flex items-center gap-1 text-muted hover:text-foreground"
-                >
-                  <Undo2 size={12} /> Undo
-                </button>
-              )}
-            </div>
-          ))
+          <button onClick={() => setConfirming(true)} className="text-muted underline hover:text-foreground">
+            Remove from inventory
+          </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function History({
+  history,
+  mine,
+  onUndo,
+}: {
+  history: Movement[] | null;
+  mine: Set<string>;
+  onUndo: (m: Movement) => void;
+}) {
+  return (
+    <div className="mt-3 border-t border-foreground/10 pt-2 text-xs leading-6 text-muted">
+      {history === null ? (
+        "…"
+      ) : history.length === 0 ? (
+        "Nothing yet."
+      ) : (
+        history.map((m) => (
+          <div key={m.id} className="flex items-center justify-between gap-3">
+            <span>
+              {shortDate(m.occurred_on)} · {describe(m)}
+            </span>
+            {mine.has(m.id) && (
+              <button
+                onClick={() => onUndo(m)}
+                className="inline-flex items-center gap-1 text-muted hover:text-foreground"
+              >
+                <Undo2 size={12} /> Undo
+              </button>
+            )}
+          </div>
+        ))
+      )}
     </div>
   );
 }
