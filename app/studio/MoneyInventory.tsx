@@ -92,6 +92,12 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  // Switching list closes whatever was open. Otherwise a product removed in
+  // All turns up already expanded under Removed, and the first tap closes it.
+  const pickFilter = (f: Filter) => {
+    setFilter(f);
+    setOpenId(null);
+  };
   const [openId, setOpenId] = useState<string | null>(null);
   const [panel, setPanel] = useState<Panel>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -265,7 +271,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
         {TABS.map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setFilter(key)}
+            onClick={() => pickFilter(key)}
             className={`-mb-px border-b-2 pb-2 transition ${
               filter === key
                 ? "border-accent font-medium"
@@ -277,7 +283,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
         ))}
         {priceCount > 0 && (
           <button
-            onClick={() => setFilter("price")}
+            onClick={() => pickFilter("price")}
             className={`-mb-px border-b-2 pb-2 text-red-700 transition ${
               filter === "price" ? "border-accent font-medium" : "border-transparent"
             }`}
@@ -287,7 +293,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
         )}
         {removedCount > 0 && (
           <button
-            onClick={() => setFilter("removed")}
+            onClick={() => pickFilter("removed")}
             className={`-mb-px border-b-2 pb-2 transition ${
               filter === "removed" ? "border-accent font-medium" : "border-transparent text-muted"
             }`}
@@ -591,6 +597,9 @@ function Detail({
       .from("inventory_movements")
       .select("id,kind,quantity,occurred_on,created_at,invoice_ref,note,unit_price_cents")
       .eq("product_id", r.product_id)
+      // By the day it happened, then the order it was entered. Sorting on
+      // entry alone put a sale dated back to 7 Sep under a later delivery.
+      .order("occurred_on", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(8)
       .then(({ data }) => {

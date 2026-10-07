@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { salonWallToISO } from "../../lib/format";
-import { layoutLanes, salonMinutes } from "../../lib/dayLayout";
+import { layoutLanes, salonMinutes, freeGaps } from "../../lib/dayLayout";
 
 // The day she's booking into, drawn under the date while she rebooks.
 //
@@ -27,7 +27,6 @@ type Appt = {
   services: { name: string } | { name: string }[] | null;
 };
 type Span = { starts_at: string; ends_at: string };
-type Gap = { from: number; to: number };
 
 const HOUR_PX = 40;
 const SNAP = 15;
@@ -155,21 +154,8 @@ export default function DayPicker({
     const placed = layoutLanes(ready.appts);
     const off = ready.off.map((b) => ({ ...clip(b), reason: b.reason }));
     const busy = ready.busy.map(clip);
-    // Free: inside her hours, outside every busy block and block of time off,
-    // and long enough for this service.
-    const taken = [...busy, ...off].sort((x, y) => x.from - y.from);
-    const gaps: Gap[] = [];
-    for (const w of ready.hours) {
-      let cursor = w.start;
-      for (const t of taken) {
-        if (t.to <= cursor || t.from >= w.end) continue;
-        if (t.from > cursor) gaps.push({ from: cursor, to: Math.min(t.from, w.end) });
-        cursor = Math.max(cursor, t.to);
-        if (cursor >= w.end) break;
-      }
-      if (cursor < w.end) gaps.push({ from: cursor, to: w.end });
-    }
-    const fitting = gaps.filter((g) => g.to - g.from >= ready.duration);
+    // Free: inside her hours, clear of busy blocks and time off, long enough.
+    const fitting = freeGaps(ready.hours, [...busy, ...off], ready.duration);
     const edges = [
       ...ready.hours.flatMap((h) => [h.start, h.end]),
       ...placed.flatMap((p) => [p.startMin, p.endMin]),

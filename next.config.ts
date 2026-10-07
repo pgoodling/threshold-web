@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 // Native Next.js on Vercel — server routes are needed for secure Stripe calls.
 const nextConfig: NextConfig = {
+  // The test rig runs its own dev server beside the normal one, against the
+  // local database, and needs its own build folder so the two don't share a
+  // lock (tests/rig/app.mjs). Unset everywhere else, including Vercel.
+  ...(process.env.NEXT_DIST_DIR ? { distDir: process.env.NEXT_DIST_DIR } : {}),
   images: {
     unoptimized: true, // we use plain <img> tags, not next/image
   },

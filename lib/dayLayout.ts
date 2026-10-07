@@ -82,3 +82,28 @@ export function layoutLanes<T extends { starts_at: string; ends_at: string }>(
   flush();
   return out;
 }
+
+/**
+ * Gaps inside her working hours that are clear of every busy block and every
+ * block of time off, and at least `minutes` long. All values are minutes past
+ * midnight, salon time. Used by the day shown while booking.
+ */
+export function freeGaps(
+  hours: { start: number; end: number }[],
+  taken: { from: number; to: number }[],
+  minutes: number,
+): { from: number; to: number }[] {
+  const sorted = [...taken].sort((x, y) => x.from - y.from);
+  const gaps: { from: number; to: number }[] = [];
+  for (const w of hours) {
+    let cursor = w.start;
+    for (const t of sorted) {
+      if (t.to <= cursor || t.from >= w.end) continue;
+      if (t.from > cursor) gaps.push({ from: cursor, to: Math.min(t.from, w.end) });
+      cursor = Math.max(cursor, t.to);
+      if (cursor >= w.end) break;
+    }
+    if (cursor < w.end) gaps.push({ from: cursor, to: w.end });
+  }
+  return gaps.filter((g) => g.to - g.from >= minutes);
+}

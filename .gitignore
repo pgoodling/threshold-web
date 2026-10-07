@@ -60,3 +60,12 @@ next-env.d.ts
 
 # Supabase CLI working files
 supabase/.temp/
+
+# Test rig: generated migrations copy, CLI state, results
+tests/rig/supabase/migrations/
+tests/rig/supabase/.temp/
+tests/rig/supabase/.branches/
+tests/rig/.env.rig
+test-results/
+e2e-out/
+.next-rig/

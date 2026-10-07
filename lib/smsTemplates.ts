@@ -54,6 +54,35 @@ const time = (iso: string) =>
     minute: "2-digit",
   }).format(new Date(iso));
 
+// The booking confirmation, sent the moment a client books online
+// (app/api/sms/booking-confirm). A receipt for something they did thirty
+// seconds ago, so it's short.
+//
+// One link, doing three jobs: the hair-notes form, the details, and
+// cancelling. Naming the form is what earns the tap — "manage your booking"
+// is what everyone's spam says. A2P expects the opt-out line; the inbound
+// webhook honours STOP.
+export function bookingConfirmText(opts: {
+  clientName: string | null;
+  service: string | null;
+  startsAt: string;
+  appointmentId: string;
+}): string {
+  const when = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(opts.startsAt));
+  return (
+    `Hi ${firstName(opts.clientName)}! You're booked at Threshold for ${opts.service ?? "your appointment"} on ${when}, in ${WHERE} ` +
+    `Tell me about your hair, or change it: ${appointmentUrl(opts.appointmentId)} ` +
+    `- Evelyn (Reply STOP to opt out.)`
+  );
+}
+
 // Day-before reminder. Ends with the one instruction we parse on the way back
 // in, phrased as a request rather than a menu — "reply C to confirm, or call us"
 // invites a phone call from someone who wanted to reschedule anyway.

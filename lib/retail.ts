@@ -6,18 +6,12 @@
 // uses the same per-unit rounding so the two agree to the cent.
 
 import { supabase } from "./supabase";
+import type { SaleLine } from "./retailMath";
+
+export { totals, usd, percent, type SaleLine } from "./retailMath";
 
 /** Montgomery County, 2026 — used only if the rate can't be read. */
 const FALLBACK_RATE = 0.075;
-
-export type SaleLine = {
-  key: string;
-  product_id: string | null;
-  description: string;
-  sub: string;
-  unit_price_cents: number;
-  quantity: number;
-};
 
 export type SaleContext = { rate: number };
 
@@ -36,21 +30,6 @@ export async function loadSaleContext(): Promise<SaleContext> {
   const rate = Number(r.data?.rate);
   return { rate: Number.isFinite(rate) && rate > 0 ? rate : FALLBACK_RATE };
 }
-
-export function totals(lines: SaleLine[], rate: number) {
-  let sub = 0;
-  let tax = 0;
-  for (const l of lines) {
-    sub += Math.round(l.unit_price_cents * l.quantity);
-    tax += Math.round(Math.round(l.unit_price_cents * rate) * l.quantity);
-  }
-  return { sub, tax, total: sub + tax };
-}
-
-export const usd = (c: number) =>
-  `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-export const percent = (rate: number) => `${+(rate * 100).toFixed(3)}%`;
 
 /** Save a sale. At check-out, pass the appointment and the service amount. */
 export async function recordSale(opts: {

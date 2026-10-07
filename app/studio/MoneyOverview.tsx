@@ -4,6 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { readableTxn } from "../../lib/bankNames";
+import {
+  salonDay,
+  utc,
+  visiblePeriods,
+  periodLabel,
+  bucketTotals,
+  breakdown,
+  type Grain,
+  type OverviewAppt,
+  type OverviewSale,
+  type OverviewTxn,
+} from "../../lib/overview";
 
 // Overview: revenue against expenses, by week, month, quarter or year.
 //
@@ -24,27 +36,9 @@ import { readableTxn } from "../../lib/bankNames";
 // So the bar shows it as a lighter block on top, and the summary gives profit
 // both with it and before it.
 
-type Grain = "week" | "month" | "quarter" | "year";
-
-type Appt = {
-  starts_at: string;
-  paid_cents: number | null;
-  services: { name: string } | null;
-};
-type Sale = { sold_on: string; subtotal_cents: number };
-type Txn = {
-  id: string;
-  posted_on: string;
-  amount_cents: number;
-  merchant: string | null;
-  description: string | null;
-  expense_categories: { name: string; kind: string } | null;
-};
-
-const EXPENSE_KINDS = ["fixed", "product", "variable", "resale"];
-const SETUP_KIND = "capital";
-// Six weeks, not eight: at eight, the profit figures under the bars touch on a phone.
-const HOW_MANY: Record<Grain, number> = { week: 6, month: 6, quarter: 4, year: 3 };
+type Appt = OverviewAppt;
+type Sale = OverviewSale;
+type Txn = OverviewTxn;
 
 const whole = (c: number) =>
   `${c < 0 ? "−" : ""}$${Math.round(Math.abs(c) / 100).toLocaleString("en-US")}`;
@@ -60,61 +54,10 @@ const exact = (c: number) =>
     maximumFractionDigits: 2,
   })}`;
 
-// ---- Dates: plain YYYY-MM-DD, salon time, no clock arithmetic -------------
-
-const salonDay = (iso: string) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(iso));
 const today = () => salonDay(new Date().toISOString());
-const utc = (ymd: string) => {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d));
-};
-const ymdOf = (d: Date) => d.toISOString().slice(0, 10);
-
-/** The key of the period a day falls in. Weeks start Monday. */
-function periodOf(ymd: string, g: Grain): string {
-  if (g === "year") return ymd.slice(0, 4);
-  if (g === "month") return ymd.slice(0, 7);
-  if (g === "quarter") return `${ymd.slice(0, 4)}-Q${Math.floor((Number(ymd.slice(5, 7)) - 1) / 3) + 1}`;
-  const d = utc(ymd);
-  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
-  return ymdOf(d);
-}
-
-/** The n periods ending with the current one, oldest first. */
-function periodsBack(g: Grain, n: number): string[] {
-  const out: string[] = [];
-  const d = utc(today());
-  for (let i = 0; i < n; i++) {
-    out.unshift(periodOf(ymdOf(d), g));
-    if (g === "week") d.setUTCDate(d.getUTCDate() - 7);
-    else if (g === "month") d.setUTCMonth(d.getUTCMonth() - 1, 1);
-    else if (g === "quarter") d.setUTCMonth(d.getUTCMonth() - 3, 1);
-    else d.setUTCFullYear(d.getUTCFullYear() - 1, 0, 1);
-  }
-  return out;
-}
-
-function label(key: string, g: Grain, long = false): string {
-  if (g === "year") return key;
-  if (g === "quarter") return long ? `${key.slice(5)} ${key.slice(0, 4)}` : key.slice(5);
-  if (g === "month")
-    return utc(`${key}-15`).toLocaleDateString("en-US", {
-      month: long ? "long" : "short",
-      timeZone: "UTC",
-    });
-  if (!long) return `${Number(key.slice(5, 7))}/${Number(key.slice(8, 10))}`; // 9/7 fits under a bar
-  const s = utc(key).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-  return `Week of ${s}`;
-}
+const label = periodLabel;
 
 // ---- The page ----------------------------------------------------------------
-
-type Totals = {
-  revenue: number;
-  expenses: number;
-  setup: number;
-};
 
 export default function MoneyOverview() {
   const [grain, setGrain] = useState<Grain>("month");
@@ -162,80 +105,26 @@ export default function MoneyOverview() {
     };
   }, []);
 
-  // Months before the salon had any money moving are just empty bars — four
-  // of them squeezed September into a corner. Start at the first period with
-  // anything in it; the current period always stays.
-  const periods = useMemo(() => {
-    const all = periodsBack(grain, HOW_MANY[grain]);
-    const days = [
-      ...(appts ?? []).map((a) => salonDay(a.starts_at)),
-      ...sales.map((x) => x.sold_on),
-      ...txns.map((t) => t.posted_on),
-    ].sort();
-    if (days.length === 0) return all.slice(-1);
-    const first = periodOf(days[0], grain);
-    const from = all.findIndex((p) => p >= first);
-    return from === -1 ? all.slice(-1) : all.slice(from);
-  }, [grain, appts, sales, txns]);
+  // Months before the salon had any money moving are just empty bars — the
+  // chart starts at the first period with anything in it (lib/overview).
+  const periods = useMemo(
+    () => visiblePeriods(grain, today(), appts ?? [], sales, txns),
+    [grain, appts, sales, txns],
+  );
   const current = periods[periods.length - 1];
   const selected = picked && periods.includes(picked) ? picked : current;
 
   // Everything bucketed by period, once per grain.
-  const buckets = useMemo(() => {
-    const m = new Map<string, Totals>(periods.map((p) => [p, { revenue: 0, expenses: 0, setup: 0 }]));
-    for (const a of appts ?? []) {
-      const b = m.get(periodOf(salonDay(a.starts_at), grain));
-      if (b) b.revenue += a.paid_cents ?? 0;
-    }
-    for (const s of sales) {
-      const b = m.get(periodOf(s.sold_on, grain));
-      if (b) b.revenue += s.subtotal_cents;
-    }
-    for (const t of txns) {
-      const kind = t.expense_categories?.kind ?? "";
-      const b = m.get(periodOf(t.posted_on, grain));
-      if (!b) continue;
-      // Negated, so a refund in an expense category reduces it.
-      if (EXPENSE_KINDS.includes(kind)) b.expenses -= t.amount_cents;
-      else if (kind === SETUP_KIND) b.setup -= t.amount_cents;
-    }
-    return m;
-  }, [appts, sales, txns, grain, periods]);
+  const buckets = useMemo(
+    () => bucketTotals(periods, grain, appts ?? [], sales, txns),
+    [appts, sales, txns, grain, periods],
+  );
 
   // The selected period, broken down.
-  const detail = useMemo(() => {
-    const inPeriod = (ymd: string) => periodOf(ymd, grain) === selected;
-    const services = new Map<string, { cents: number; visits: number }>();
-    for (const a of appts ?? []) {
-      if (!inPeriod(salonDay(a.starts_at))) continue;
-      const k = a.services?.name ?? "Other";
-      const v = services.get(k) ?? { cents: 0, visits: 0 };
-      v.cents += a.paid_cents ?? 0;
-      v.visits += 1;
-      services.set(k, v);
-    }
-    const productCents = sales.filter((s) => inPeriod(s.sold_on)).reduce((t, s) => t + s.subtotal_cents, 0);
-
-    const cats = new Map<string, { cents: number; setup: boolean; rows: Txn[] }>();
-    for (const t of txns) {
-      const kind = t.expense_categories?.kind ?? "";
-      if (!inPeriod(t.posted_on)) continue;
-      if (!EXPENSE_KINDS.includes(kind) && kind !== SETUP_KIND) continue;
-      const k = t.expense_categories!.name;
-      const v = cats.get(k) ?? { cents: 0, setup: kind === SETUP_KIND, rows: [] };
-      v.cents -= t.amount_cents;
-      v.rows.push(t);
-      cats.set(k, v);
-    }
-    const byCents = <T extends { cents: number }>(a: [string, T], b: [string, T]) => b[1].cents - a[1].cents;
-    return {
-      services: [...services.entries()].sort(byCents),
-      productCents,
-      running: [...cats.entries()].filter(([, v]) => !v.setup).sort(byCents),
-      setup: [...cats.entries()].filter(([, v]) => v.setup).sort(byCents),
-      cats,
-    };
-  }, [appts, sales, txns, grain, selected]);
+  const detail = useMemo(
+    () => breakdown(selected, grain, appts ?? [], sales, txns),
+    [appts, sales, txns, grain, selected],
+  );
 
   const sel = buckets.get(selected) ?? { revenue: 0, expenses: 0, setup: 0 };
   const profit = sel.revenue - sel.expenses - sel.setup;

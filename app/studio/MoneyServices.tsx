@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import {
+  cardFeeRate,
+  serviceRows,
+  sumVisits as sum,
+  perHour,
+  handRate,
+  type EarningsAppt,
+  type ServiceRow,
+} from "../../lib/serviceEarnings";
 
 // Services: what each one earns per hour of her hands.
 //
@@ -27,53 +36,18 @@ import { supabase } from "../../lib/supabase";
 //
 // Every figure can be checked: a service lists the visits behind it.
 
-type Appt = {
-  id: string;
-  starts_at: string;
-  paid_cents: number | null;
-  payment_method: string | null;
-  status: string;
-  start_minutes: number | null;
-  process_minutes: number | null;
-  finish_minutes: number | null;
-  block_processing: boolean | null;
-  services: {
-    name: string;
-    price_cents: number | null;
-    start_minutes: number | null;
-    process_minutes: number | null;
-    finish_minutes: number | null;
-    duration_minutes: number | null;
-  } | null;
-};
-
-type Visit = {
-  id: string;
-  day: string;
-  paidCents: number;
-  feeCents: number;
-  card: boolean;
-  handMinutes: number;
-  chairMinutes: number;
-  processMinutes: number;
-  startMinutes: number;
-  finishMinutes: number;
-};
-
-type Row = { name: string; listCents: number | null; visits: Visit[] };
+type Row = ServiceRow;
 
 const MIN_VISITS = 2;
 
 const whole = (c: number) => `$${Math.round(c / 100).toLocaleString("en-US")}`;
 const exact = (c: number) =>
   `$${(c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const perHour = (net: number, minutes: number) => (minutes > 0 ? (net / minutes) * 60 : 0);
 const hm = (m: number) => {
   const h = Math.floor(m / 60);
   const r = Math.round(m % 60);
   return h ? `${h} h${r ? ` ${r}` : ""}` : `${r} min`;
 };
-const sum = (vs: Visit[], k: keyof Visit) => vs.reduce((t, v) => t + (v[k] as number), 0);
 
 export default function MoneyServices() {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -100,58 +74,22 @@ export default function MoneyServices() {
       if (a.error || t.error) setError((a.error ?? t.error)!.message);
       const one = <T,>(x: T | T[] | null): T | null => (Array.isArray(x) ? (x[0] ?? null) : x);
 
-      // Card fees: what Intuit took, over what it paid in.
-      let fees = 0;
-      let deposits = 0;
-      for (const r of t.data ?? []) {
-        const cat = one(r.expense_categories as unknown as { name: string } | null)?.name ?? "";
-        const amt = Number(r.amount_cents);
-        if (cat === "Card processing fees") fees += Math.abs(amt);
-        if (cat === "Card revenue (Intuit)" && amt > 0) deposits += amt;
-      }
-      const rate = deposits > 0 ? fees / deposits : 0;
-
-      const by = new Map<string, Row>();
-      for (const raw of (a.data ?? []) as unknown as Appt[]) {
-        const sv = one(raw.services);
-        const paid = raw.paid_cents ?? 0;
-        if (paid <= 0 || !sv) continue;
-        const st = raw.start_minutes ?? sv.start_minutes ?? 0;
-        const pr = raw.process_minutes ?? sv.process_minutes ?? 0;
-        const fi = raw.finish_minutes ?? sv.finish_minutes ?? 0;
-        const chair = st + pr + fi || sv.duration_minutes || 0;
-        const freeGap = pr > 0 && !raw.block_processing;
-        const card = raw.payment_method === "card";
-        const row = by.get(sv.name) ?? { name: sv.name, listCents: sv.price_cents, visits: [] };
-        row.visits.push({
-          id: raw.id,
-          day: new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(
-            new Date(raw.starts_at),
-          ),
-          paidCents: paid,
-          feeCents: card ? Math.round(paid * rate) : 0,
-          card,
-          handMinutes: freeGap ? st + fi : chair,
-          chairMinutes: chair,
-          processMinutes: freeGap ? pr : 0,
-          startMinutes: st,
-          finishMinutes: fi,
-        });
-        by.set(sv.name, row);
-      }
+      const rate = cardFeeRate(
+        (t.data ?? []).map((r) => ({
+          amount_cents: Number(r.amount_cents),
+          category: one(r.expense_categories as unknown as { name: string } | null)?.name ?? "",
+        })),
+      );
+      setRows(serviceRows((a.data ?? []) as unknown as EarningsAppt[], rate));
       setFeeRate(rate);
-      setRows([...by.values()]);
     });
     return () => {
       alive = false;
     };
   }, []);
 
-  const net = (r: Row) => sum(r.visits, "paidCents") - sum(r.visits, "feeCents");
-  const handRate = (r: Row) => perHour(net(r), sum(r.visits, "handMinutes"));
   const ranked = useMemo(
     () => (rows ?? []).filter((r) => r.visits.length >= MIN_VISITS).sort((a, b) => handRate(b) - handRate(a)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows],
   );
   const few = (rows ?? []).filter((r) => r.visits.length < MIN_VISITS);

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getAdminClient } from "../../../../lib/supabaseAdmin";
 import { toE164 } from "../../../../lib/phone";
 import { plainText } from "../../../../lib/sms";
-import { appointmentUrl, WHERE } from "../../../../lib/policy";
+import { bookingConfirmText } from "../../../../lib/smsTemplates";
 import { readSettings } from "../../../../lib/settings";
 
 // Sends a booking-confirmation text. Called by the public booking page right
@@ -110,27 +110,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "SMS not configured." }, { status: 503 });
   }
 
-  const when = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(appt.starts_at as string));
-
-  const first = client.full_name?.trim().split(" ")[0] || "there";
-  const what = service?.name ?? "your appointment";
-  // A2P 10DLC expects opt-out language in the message; the inbound webhook
-  // already honours STOP.
-  //
-  // One link, doing three jobs: the hair-notes form, the details, and
-  // cancelling. Naming the form is what earns the tap — "manage your booking"
-  // is what everyone's spam says.
-  const body =
-    `Hi ${first}! You're booked at Threshold for ${what} on ${when}, in ${WHERE} ` +
-    `Tell me about your hair, or change it: ${appointmentUrl(appt.id as string)} ` +
-    `- Evelyn (Reply STOP to opt out.)`;
+  const body = bookingConfirmText({
+    clientName: client.full_name,
+    service: service?.name ?? null,
+    startsAt: appt.starts_at as string,
+    appointmentId: appt.id as string,
+  });
 
   const to = toE164(client.phone);
 
