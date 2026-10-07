@@ -193,7 +193,7 @@ export default function MoneyActivity() {
           <button
             key={key}
             onClick={() => setRange(key)}
-            className={`-mb-px border-b-2 pb-2 transition ${
+            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 transition ${
               range === key
                 ? "border-accent font-medium"
                 : "border-transparent text-muted hover:text-foreground"

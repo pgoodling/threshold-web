@@ -581,7 +581,7 @@ export default function ApptDetailModal({
                     {appt.services?.name} · {fullWhen(appt.starts_at)}
                   </span>
                   <span
-                    className="text-[11px] uppercase tracking-wider"
+                    className="text-xs uppercase tracking-wider"
                     style={{ color: statusBlockColor(live)?.bg ?? "#6f5c52" }}
                   >
                     {statusLabel(live)}
@@ -603,7 +603,7 @@ export default function ApptDetailModal({
               <button
                 onClick={onClose}
                 aria-label="Close"
-                className="text-muted hover:text-accent"
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center -my-2 -mr-2.5 text-muted hover:text-accent"
               >
                 ✕
               </button>
@@ -612,7 +612,7 @@ export default function ApptDetailModal({
             {/* Visible as well as sendable — she may want to paste it into a
                 text she's already writing, or read it out. */}
             <div className="mt-4 flex items-center gap-3 rounded-lg border border-foreground/10 bg-background/50 px-3 py-2">
-              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted">
+              <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted">
                 {appointmentUrl(appt.id)}
               </span>
               <button
@@ -622,7 +622,7 @@ export default function ApptDetailModal({
                     .then(() => setCopied(true))
                     .catch(() => setError("Couldn't copy that link."));
                 }}
-                className="shrink-0 text-xs text-accent-dark underline decoration-accent underline-offset-4"
+                className="-my-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-xs text-accent-dark underline decoration-accent underline-offset-4"
               >
                 {copied ? "Copied" : "Copy"}
               </button>
@@ -748,7 +748,7 @@ export default function ApptDetailModal({
                         key={m.value}
                         type="button"
                         onClick={() => setMethod(m.value)}
-                        className={`rounded-md border px-3 py-1.5 text-xs transition ${
+                        className={`min-h-11 rounded-md border px-3.5 text-sm transition ${
                           method === m.value
                             ? "border-accent bg-accent text-white"
                             : "border-foreground/15 hover:border-accent"
@@ -776,7 +776,7 @@ export default function ApptDetailModal({
                   </button>
                   <button
                     onClick={() => setMode("view")}
-                    className="text-sm text-muted hover:text-accent"
+                    className="inline-flex min-h-11 items-center px-2 text-sm text-muted hover:text-accent"
                   >
                     Cancel
                   </button>
@@ -897,7 +897,7 @@ export default function ApptDetailModal({
                       setError(null);
                       setMode("view");
                     }}
-                    className="text-sm text-muted hover:text-accent"
+                    className="inline-flex min-h-11 items-center px-2 text-sm text-muted hover:text-accent"
                   >
                     Cancel
                   </button>
@@ -934,7 +934,7 @@ export default function ApptDetailModal({
                       setError(null);
                       setMode("view");
                     }}
-                    className="text-sm text-muted hover:text-accent"
+                    className="inline-flex min-h-11 items-center px-2 text-sm text-muted hover:text-accent"
                   >
                     Cancel
                   </button>
@@ -1248,7 +1248,7 @@ export function RebookForm({
         </button>
         <button
           onClick={onCancel}
-          className="text-sm text-muted hover:text-accent"
+          className="inline-flex min-h-11 items-center px-2 text-sm text-muted hover:text-accent"
         >
           Cancel
         </button>
@@ -1317,7 +1317,8 @@ function ActionBtn({
   return (
     <button
       onClick={onClick}
-      className={`underline decoration-accent/50 underline-offset-4 transition hover:decoration-accent ${
+      // 44 points tall to the finger, the same line-height to the eye.
+      className={`-my-3 inline-flex min-h-11 items-center underline decoration-accent/50 underline-offset-4 transition hover:decoration-accent ${
         primary || danger
           ? "font-medium text-accent-dark"
           : "text-foreground hover:text-accent-dark"

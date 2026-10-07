@@ -255,7 +255,7 @@ export default function MoneyTax() {
       {/* ---- Everything else, out of the way --------------------------------- */}
       <button
         onClick={() => setShowWorking((s) => !s)}
-        className="mt-6 inline-flex items-center gap-1 text-sm text-muted transition hover:text-foreground"
+        className="mt-4 inline-flex min-h-11 items-center gap-1 text-sm text-muted transition hover:text-foreground"
       >
         How this is worked out
         <ChevronDown size={15} className={showWorking ? "rotate-180" : ""} />

@@ -192,7 +192,7 @@ export default function MoneyBank({ onChanged }: { onChanged?: () => void }) {
             setOpen(null);
             setEditing(null);
           }}
-          className="-ml-1 inline-flex items-center gap-1 font-display text-xl"
+          className="-ml-1 inline-flex min-h-11 items-center gap-1 font-display text-xl"
         >
           <ChevronLeft size={20} /> {monthName(opened.key)}
         </button>

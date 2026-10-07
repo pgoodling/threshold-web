@@ -347,7 +347,7 @@ function Dashboard() {
               <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
               <span className="flex-1 text-left">{label}</span>
               {key === "messages" && unread > 0 && (
-                <span className="rounded-md bg-accent px-1.5 py-0.5 text-[10px] text-white">
+                <span className="rounded-md bg-accent px-1.5 py-0.5 text-xs text-white">
                   {unread}
                 </span>
               )}
@@ -406,7 +406,7 @@ function Dashboard() {
                   <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
                   <span className="flex-1">{label}</span>
                   {key === "messages" && unread > 0 && (
-                    <span className="rounded-md bg-accent px-1.5 py-0.5 text-[10px] text-white">
+                    <span className="rounded-md bg-accent px-1.5 py-0.5 text-xs text-white">
                       {unread}
                     </span>
                   )}

@@ -76,6 +76,13 @@ First run (2026-10-07) found:
   labels.
 - **A product added by hand has no brand**, so it lands under "Other" with
   its full name rather than under its range.
+- **Fixed 2026-10-07:** every item above except the brand was resized —
+  close buttons, choice chips, filter tabs, the calendar toolbar, the day
+  view's arrows, text links, Undo/Cancel/Change/Copy — to a 44-point tap
+  area, and the flagged 10–11px text to 12px. Add stock gained a Brand box
+  for new products. A re-run found nothing under 32 points and no small text.
+  The calendar's month grid keeps its 9–11px text on purpose: each day is a
+  small box listing several appointments.
 - Found by the walks and fixed the same day: a product's history sorted by
   when it was typed rather than the date it happened; a removed product
   stayed open and the first tap in Removed closed it.

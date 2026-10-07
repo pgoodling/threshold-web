@@ -210,7 +210,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
         <button
           onClick={closePanel}
           aria-label="Close"
-          className="rounded-lg p-1.5 text-muted transition hover:text-foreground"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center -my-2 -mr-2.5 rounded-lg p-1.5 text-muted transition hover:text-foreground"
         >
           <X size={20} />
         </button>
@@ -272,7 +272,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
           <button
             key={key}
             onClick={() => pickFilter(key)}
-            className={`-mb-px border-b-2 pb-2 transition ${
+            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 transition ${
               filter === key
                 ? "border-accent font-medium"
                 : "border-transparent text-muted hover:text-foreground"
@@ -284,7 +284,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
         {priceCount > 0 && (
           <button
             onClick={() => pickFilter("price")}
-            className={`-mb-px border-b-2 pb-2 text-red-700 transition ${
+            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 text-red-700 transition ${
               filter === "price" ? "border-accent font-medium" : "border-transparent"
             }`}
           >
@@ -294,7 +294,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
         {removedCount > 0 && (
           <button
             onClick={() => pickFilter("removed")}
-            className={`-mb-px border-b-2 pb-2 transition ${
+            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 transition ${
               filter === "removed" ? "border-accent font-medium" : "border-transparent text-muted"
             }`}
           >
@@ -526,7 +526,7 @@ function Count({ n, label }: { n: number; label: string }) {
       >
         {Number.isInteger(v) ? v : v.toFixed(1)}
       </span>
-      <span className="block text-[11px] text-muted">{label}</span>
+      <span className="block text-xs text-muted">{label}</span>
     </span>
   );
 }
@@ -736,7 +736,7 @@ function Detail({
       </div>
 
       <div className="mt-3 flex gap-5 text-sm">
-        <label className="flex items-center gap-1.5">
+        <label className="flex min-h-11 items-center gap-1.5">
           <input
             type="checkbox"
             checked={r.sells_retail}
@@ -744,7 +744,7 @@ function Detail({
           />
           Sell
         </label>
-        <label className="flex items-center gap-1.5">
+        <label className="flex min-h-11 items-center gap-1.5">
           <input
             type="checkbox"
             checked={r.used_at_backbar}
@@ -802,7 +802,7 @@ function Detail({
             </button>
           </div>
         ) : (
-          <button onClick={() => setConfirming(true)} className="text-muted underline hover:text-foreground">
+          <button onClick={() => setConfirming(true)} className="-my-3 inline-flex min-h-11 items-center text-muted underline hover:text-foreground">
             Remove from inventory
           </button>
         )}
@@ -835,7 +835,7 @@ function History({
             {mine.has(m.id) && (
               <button
                 onClick={() => onUndo(m)}
-                className="inline-flex items-center gap-1 text-muted hover:text-foreground"
+                className="-my-3 inline-flex min-h-11 items-center gap-1 px-2 text-muted hover:text-foreground"
               >
                 <Undo2 size={12} /> Undo
               </button>

@@ -114,7 +114,7 @@ export default function MoneyServices() {
       <div className="max-w-xl">
         <button
           onClick={() => setOpen(null)}
-          className="-ml-1 inline-flex items-center gap-1 text-left font-display text-xl"
+          className="-ml-1 inline-flex min-h-11 items-center gap-1 text-left font-display text-xl"
         >
           <ChevronLeft size={20} className="shrink-0" /> {r.name}
         </button>

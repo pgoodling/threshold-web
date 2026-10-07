@@ -93,7 +93,7 @@ export default function ClientPicker({
               setQuery("");
               setOpen(true);
             }}
-            className="shrink-0 text-sm text-muted transition hover:text-accent-dark"
+            className="-my-2 inline-flex min-h-11 shrink-0 items-center px-1 text-sm text-muted transition hover:text-accent-dark"
           >
             Change
           </button>

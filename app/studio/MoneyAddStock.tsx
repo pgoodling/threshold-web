@@ -36,6 +36,13 @@ export default function MoneyAddStock({
   const [paid, setPaid] = useState("");
   const [date, setDate] = useState(salonToday());
   const [sizeAmount, setSizeAmount] = useState("");
+  // A new product's brand. Without it a hand-added Keune bottle lands under
+  // "Other" with its full name, instead of under its range like the rest.
+  const [brand, setBrand] = useState("");
+  const brands = useMemo(
+    () => [...new Set(products.map((p) => p.brand?.trim()).filter(Boolean) as string[])].sort(),
+    [products],
+  );
   const [sizeUnit, setSizeUnit] = useState<string>("fl oz");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +87,7 @@ export default function MoneyAddStock({
     if (!productId) {
       const { data, error: e } = await supabase
         .from("products")
-        .insert({ name: productName, unit_cost_cents: cents, size })
+        .insert({ name: productName, unit_cost_cents: cents, size, brand: brand.trim() || null })
         .select("id")
         .single();
       if (e || !data) {
@@ -119,6 +126,7 @@ export default function MoneyAddStock({
     setQty("1");
     setPaid("");
     setSizeAmount("");
+    setBrand("");
     onAdded();
   }
 
@@ -150,7 +158,23 @@ export default function MoneyAddStock({
             placeholder="Start typing a name"
             className={`mt-1 ${field}`}
           />
-          {isNew && <p className="mt-1 text-xs text-muted">New product</p>}
+          {isNew && (
+            <label className="mt-3 block text-sm text-muted">
+              Brand
+              <input
+                list="known-brands"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                placeholder="Keune"
+                className={`mt-1 ${field} text-foreground`}
+              />
+              <datalist id="known-brands">
+                {brands.map((b) => (
+                  <option key={b} value={b} />
+                ))}
+              </datalist>
+            </label>
+          )}
           {(matches.length > 0 || (q.trim() !== "" && !isNew)) && (
             <div className="mt-1 overflow-hidden rounded-lg border border-foreground/15 bg-white">
               {matches.map((p) => (

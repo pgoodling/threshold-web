@@ -314,14 +314,14 @@ export default function Calendar({
             <button
               onClick={() => shift(-1)}
               aria-label="Previous"
-              className="rounded px-2 py-1 text-lg leading-none text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
+              className="inline-flex h-11 min-w-11 items-center justify-center rounded px-2 text-lg leading-none text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
             >
               ‹
             </button>
             <button
               onClick={() => shift(1)}
               aria-label="Next"
-              className="rounded px-2 py-1 text-lg leading-none text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
+              className="inline-flex h-11 min-w-11 items-center justify-center rounded px-2 text-lg leading-none text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
             >
               ›
             </button>
@@ -330,7 +330,7 @@ export default function Calendar({
                 setAnchor(todayKey);
                 setSelectedDay(todayKey);
               }}
-              className="rounded px-2 py-1 text-xs text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
+              className="inline-flex h-11 items-center rounded px-3 text-sm text-muted transition hover:bg-foreground/5 hover:text-accent-dark"
             >
               Today
             </button>
@@ -343,7 +343,7 @@ export default function Calendar({
                 key={v}
                 onClick={() => setView(v)}
                 aria-pressed={view === v}
-                className={`border-l border-foreground/15 px-4 py-1.5 text-xs capitalize transition first:border-l-0 ${
+                className={`min-h-11 border-l border-foreground/15 px-4 text-sm capitalize transition first:border-l-0 ${
                   view === v
                     ? "bg-foreground text-background"
                     : "text-muted hover:bg-foreground/5 hover:text-accent-dark"
@@ -459,7 +459,7 @@ export default function Calendar({
               <p className="font-display text-lg">
                 {clockLabel(Number(choice.time.slice(0, 2)) * 60 + Number(choice.time.slice(3, 5)))}
               </p>
-              <button onClick={() => setChoice(null)} aria-label="Close" className="text-muted hover:text-accent">
+              <button onClick={() => setChoice(null)} aria-label="Close" className="inline-flex h-11 w-11 shrink-0 items-center justify-center -my-2 -mr-2.5 text-muted hover:text-accent">
                 ✕
               </button>
             </div>
@@ -849,7 +849,7 @@ function TimeGrid({
               <div
                 key={i}
                 style={{ height: HOUR_PX }}
-                className="-translate-y-2 text-right pr-2 text-[11px] text-muted"
+                className="-translate-y-2 text-right pr-2 text-xs text-muted"
               >
                 {hourLabel(HOUR_START + i)}
               </div>
@@ -922,7 +922,7 @@ function TimeGrid({
                     {/* Only when there's room. A 20-minute band with text
                         crammed into it is less legible than one without. */}
                     {height >= 26 && (
-                      <span className="block truncate px-2 py-1 text-[11px] italic leading-tight text-muted">
+                      <span className="block truncate px-2 py-1 text-xs italic leading-tight text-muted">
                         {b.reason || "Blocked"}
                       </span>
                     )}
@@ -1060,7 +1060,7 @@ function TimeGrid({
                         zIndex: isDragging ? 20 : undefined,
                         cursor: onMove ? "grab" : undefined,
                       }}
-                      className="overflow-hidden rounded-md px-1.5 py-1 text-left text-[11px] leading-tight"
+                      className="overflow-hidden rounded-md px-1.5 py-1 text-left text-xs leading-tight"
                     >
                       {/* The processing window: she's free here, so it reads as
                           hollow rather than solid. This is what explains why
@@ -1161,7 +1161,7 @@ export function NewAppointmentPanel({
         <button
           onClick={onClose}
           aria-label="Close"
-          className="text-muted hover:text-accent"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center -my-2 -mr-2.5 text-muted hover:text-accent"
         >
           ✕
         </button>
@@ -1191,7 +1191,7 @@ export function NewAppointmentPanel({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="mt-2 text-sm text-accent hover:text-accent-dark"
+            className="mt-1 inline-flex min-h-11 items-center text-sm text-accent hover:text-accent-dark"
           >
             + Add a new client
           </button>

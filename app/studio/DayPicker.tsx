@@ -187,7 +187,7 @@ export default function DayPicker({
           type="button"
           onClick={() => onDate(addDays(date, -1))}
           aria-label="Previous day"
-          className="rounded-md p-1 text-muted hover:text-foreground"
+          className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-md text-muted hover:text-foreground"
         >
           <ChevronLeft size={18} />
         </button>
@@ -196,7 +196,7 @@ export default function DayPicker({
           type="button"
           onClick={() => onDate(addDays(date, 1))}
           aria-label="Next day"
-          className="rounded-md p-1 text-muted hover:text-foreground"
+          className="-m-2 inline-flex h-11 w-11 items-center justify-center rounded-md text-muted hover:text-foreground"
         >
           <ChevronRight size={18} />
         </button>
@@ -228,7 +228,7 @@ export default function DayPicker({
               (m) => (
                 <div
                   key={m}
-                  className="absolute inset-x-0 border-t border-foreground/10 text-[10px] text-muted"
+                  className="absolute inset-x-0 border-t border-foreground/10 text-xs text-muted"
                   style={{ top: y(m) }}
                 >
                   <span className="relative -top-2 bg-white pr-1">{clock(m)}</span>
@@ -245,7 +245,7 @@ export default function DayPicker({
                   e.stopPropagation();
                   onTime(hhmm(g.from));
                 }}
-                className="absolute left-8 right-1 rounded border border-dashed border-[#1D9E75] bg-[#1D9E75]/[0.06] px-1.5 text-left text-[10px] text-[#0F6E56]"
+                className="absolute left-8 right-1 rounded border border-dashed border-[#1D9E75] bg-[#1D9E75]/[0.06] px-1.5 text-left text-xs text-[#0F6E56]"
                 style={{ top: y(g.from) + 1, height: Math.max(14, y(g.to) - y(g.from) - 2) }}
               >
                 Free {clock(g.from)}–{clock(g.to)}
@@ -256,7 +256,7 @@ export default function DayPicker({
             {view.off.map((b, i) => (
               <div
                 key={`off${i}`}
-                className="pointer-events-none absolute left-8 right-1 overflow-hidden px-1.5 text-[10px] italic text-muted"
+                className="pointer-events-none absolute left-8 right-1 overflow-hidden px-1.5 text-xs italic text-muted"
                 style={{
                   top: y(Math.max(b.from, view.top)),
                   height: Math.max(12, y(Math.min(b.to, view.bottom)) - y(Math.max(b.from, view.top))),
@@ -276,7 +276,7 @@ export default function DayPicker({
               return (
                 <div
                   key={a.id}
-                  className="pointer-events-none absolute overflow-hidden rounded-sm px-1.5 text-[10px] leading-tight text-[#712B13]"
+                  className="pointer-events-none absolute overflow-hidden rounded-sm px-1.5 text-xs leading-tight text-[#712B13]"
                   style={{
                     left,
                     width,

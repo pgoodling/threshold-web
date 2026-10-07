@@ -120,7 +120,7 @@ export default function BlockTimePanel({
     <div className="rounded-2xl border border-accent/30 bg-white p-5 shadow-xl">
       <div className="flex items-center justify-between">
         <p className="font-display text-lg">{block ? "Blocked time" : "Block time"}</p>
-        <button onClick={onClose} aria-label="Close" className="text-muted hover:text-accent">
+        <button onClick={onClose} aria-label="Close" className="inline-flex h-11 w-11 shrink-0 items-center justify-center -my-2 -mr-2.5 text-muted hover:text-accent">
           ✕
         </button>
       </div>
@@ -238,7 +238,7 @@ export default function BlockTimePanel({
               Unblock
             </button>
           )}
-          <button onClick={onClose} className="text-sm text-muted hover:text-accent">
+          <button onClick={onClose} className="inline-flex min-h-11 items-center px-2 text-sm text-muted hover:text-accent">
             Cancel
           </button>
         </div>

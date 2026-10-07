@@ -140,7 +140,7 @@ export default function MoneyOverview() {
       <div className="max-w-xl">
         <button
           onClick={() => setCategory(null)}
-          className="-ml-1 inline-flex items-center gap-1 font-display text-xl"
+          className="-ml-1 inline-flex min-h-11 items-center gap-1 font-display text-xl"
         >
           <ChevronLeft size={20} /> {category}
         </button>
@@ -203,7 +203,7 @@ export default function MoneyOverview() {
               setGrain(g);
               setPicked(null);
             }}
-            className={`-mb-px border-b-2 pb-2 transition ${
+            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 transition ${
               grain === g ? "border-accent font-medium" : "border-transparent text-muted hover:text-foreground"
             }`}
           >
@@ -242,11 +242,11 @@ export default function MoneyOverview() {
                   />
                 </span>
               </span>
-              <span className={`mt-1 whitespace-nowrap text-[11px] ${isSel ? "font-medium" : "text-muted"}`}>
+              <span className={`mt-1 whitespace-nowrap text-xs ${isSel ? "font-medium" : "text-muted"}`}>
                 {label(p, grain)}
               </span>
               <span
-                className={`whitespace-nowrap text-[10px] tabular-nums ${
+                className={`whitespace-nowrap text-xs tabular-nums ${
                   isCurrent || empty ? "text-muted" : pr >= 0 ? "text-green-800" : "text-red-700"
                 }`}
               >

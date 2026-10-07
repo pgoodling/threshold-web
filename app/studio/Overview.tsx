@@ -549,7 +549,7 @@ export default function Overview({
                   </span>
                   {showStatus && (
                     <span
-                      className="shrink-0 text-[11px] uppercase tracking-wider"
+                      className="shrink-0 text-xs uppercase tracking-wider"
                       style={{ color: labelColor }}
                     >
                       {statusLabel(eff)}
@@ -605,7 +605,7 @@ export default function Overview({
                       </span>
                     )}
                     <span
-                      className="ml-auto shrink-0 whitespace-nowrap text-[11px] uppercase tracking-wider"
+                      className="ml-auto shrink-0 whitespace-nowrap text-xs uppercase tracking-wider"
                       style={{ color: overdue ? "#8f3f4a" : "#bd8f45" }}
                     >
                       {overdue ? "overdue" : "today"}

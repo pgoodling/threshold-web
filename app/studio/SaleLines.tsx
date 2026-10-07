@@ -47,7 +47,7 @@ export default function SaleLines({
           <button
             onClick={() => onChange(lines.filter((x) => x.key !== l.key))}
             aria-label={`Remove ${l.description}`}
-            className="p-1 text-muted hover:text-foreground"
+            className="-my-2 -mr-2 inline-flex h-11 w-11 items-center justify-center text-muted hover:text-foreground"
           >
             <X size={15} />
           </button>
@@ -137,7 +137,7 @@ function Picker({
     <div className="mt-2 rounded-xl border border-foreground/15 bg-white p-3">
       <div className="flex items-center justify-between">
         <span className="font-display text-base">Add a product</span>
-        <button onClick={onClose} aria-label="Close" className="p-1 text-muted hover:text-foreground">
+        <button onClick={onClose} aria-label="Close" className="inline-flex h-11 w-11 shrink-0 items-center justify-center -my-2 -mr-2.5 p-1 text-muted hover:text-foreground">
           <X size={17} />
         </button>
       </div>

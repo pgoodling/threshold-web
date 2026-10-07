@@ -155,7 +155,7 @@ export default function MoneySell({ onSold }: { onSold?: () => void }) {
           <button
             key={m.value}
             onClick={() => setMethod(m.value)}
-            className={`rounded-md border px-3 py-1.5 text-xs transition ${
+            className={`min-h-11 rounded-md border px-3.5 text-sm transition ${
               method === m.value
                 ? "border-accent bg-accent text-white"
                 : "border-foreground/15 hover:border-accent"

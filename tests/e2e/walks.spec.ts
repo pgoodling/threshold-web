@@ -214,6 +214,7 @@ test("Inventory: add stock by hand, count, remove", async () => {
     await page.getByRole("button", { name: "Add stock" }).click();
     await page.getByPlaceholder("Start typing a name").fill("Silver Savior Silver Shampoo");
     await page.getByRole("button", { name: /as a new product/ }).click();
+    await page.getByPlaceholder("Keune").fill("Keune");
     await page.getByPlaceholder("10.1").fill("10.1");
     await page.locator("label", { hasText: "How many" }).locator("input").fill("2");
     await page.locator("label", { hasText: "Paid each" }).locator("input").fill("15");
@@ -224,6 +225,9 @@ test("Inventory: add stock by hand, count, remove", async () => {
     check("cost saved", p?.unit_cost_cents === 1500, 1500, p?.unit_cost_cents);
     const s = await stock("Silver Savior Silver Shampoo");
     check("two on the shelf", s.shelf === 2, 2, s.shelf);
+    // With its brand it files under its range, like a bottle from an order.
+    await open("inventory");
+    check("filed under its range", await page.getByText("Keune · Silver Savior").isVisible(), "Keune · Silver Savior");
   });
 
   await w.step(page, "Count the conditioner as 0: one goes missing", async (check) => {
@@ -241,7 +245,7 @@ test("Inventory: add stock by hand, count, remove", async () => {
 
   await w.step(page, "Remove the new product: its history is kept", async (check) => {
     await open("inventory");
-    await page.getByText("Silver Savior Silver Shampoo", { exact: true }).click();
+    await page.getByText("Silver Shampoo", { exact: true }).click();
     await page.getByRole("button", { name: "Remove from inventory" }).click();
     await page.getByRole("button", { name: "Remove", exact: true }).click();
     await expect(page.getByRole("button", { name: /Removed 1/ })).toBeVisible();
@@ -254,7 +258,7 @@ test("Inventory: add stock by hand, count, remove", async () => {
 
   await w.step(page, "Bring it back", async (check) => {
     await page.getByRole("button", { name: /Removed 1/ }).click();
-    await page.getByText("Silver Savior Silver Shampoo", { exact: true }).click();
+    await page.getByText("Silver Shampoo", { exact: true }).click();
     await page.getByRole("button", { name: "Bring it back" }).click();
     await expect
       .poll(async () => (await sql.query(`select active from products where name = 'Silver Savior Silver Shampoo'`)).rows[0].active)
