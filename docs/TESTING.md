@@ -6,9 +6,9 @@ all functioning the way it is supposed to").
 
 | Command | What it checks | Needs |
 |---|---|---|
-| `npm test` | **The arithmetic** — sales tax, earnings per hour, Overview's periods and totals, the tax estimate, text segments and wording, which texts are due, one-day hours, changing a service, product cost per service, bottle sizes, product names, where a service fits in a day. 89 tests, under a second. | Nothing |
+| `npm test` | **The arithmetic** — sales tax, earnings per hour, Overview's periods and totals, the tax estimate, text segments and wording, which texts are due, one-day hours, changing a service, product cost per service, bottle sizes, product names, tidying a typed client name, where a service fits in a day. 91 tests, under a second. | Nothing |
 | `npm run test:db` | **The database's own rules** — what a sale writes, shelf and bar, wrong-signed stock refused, the overlap rules (incl. checking in under an overlap), online booking refused on blocked/taken time, one-day hours (a longer day, a closed day, a normally closed day opened), changing a service (new end, busy time, running into the next client), anonymous visitors seeing nothing. 21 tests. | The rig |
-| `npm run walks` | **The studio clicked through like a person**, on a phone-sized screen: Inventory, pricing, Sell, check-out, Taxes, Overview, Services, Bank, Calendar, and the menu (eight items, every old address landing on its tab, the sidebar on a computer screen), hours for one day, and changing an appointment's service. Screens checked against answers worked out by hand; the database checked behind them. A photo of every step. | The rig, installed Chrome |
+| `npm run walks` | **The studio clicked through like a person**, on a phone-sized screen, 14 walks: Inventory (shelf and back bar; pricing; Sell without an appointment; add stock by hand, count, remove), check-out with a product, Money's Taxes, Overview, Services (earnings per hour, and a highlight's measured product cost taken off) and Bank, Calendar (block, unblock, book anyway), the menu (eight items, every old address landing on its tab, the sidebar on a computer screen), hours for one day, changing an appointment's service, and a client with two hair-notes forms (both shown). Screens checked against answers worked out by hand; the database checked behind them. A photo of every step. | The rig, installed Chrome |
 | `npm run test:all` | All three. **Run before deploying.** | |
 
 The walks write `e2e-out/walks-<time>/report.html` (gitignored): every step
@@ -52,7 +52,8 @@ npm run rig:stop
   rounding differ. That test exists now.
 - Logic lives in `lib/` (not inside a screen) so tests can import it:
   `serviceEarnings`, `overview`, `dayLayout`, `retailMath`, `stockSize`,
-  `smsSegments`. Screens call the same functions.
+  `smsSegments`, `dayHours`, `serviceChange`, `productCost`, `tidyName`.
+  Screens call the same functions.
 - Database tests run in a transaction that's rolled back, and should only
   count their own rows — the walks leave data in the rig.
 - A walk step = do it, check the screen, check the database. Use

@@ -175,6 +175,13 @@ keyboard-first — rather than trying to make it disappear.
 
 ## What a service actually costs
 
+> **Superseded 2026-10-08.** Allocation was tried and withdrawn (an order
+> isn't used up the period it arrives, and colour never touches a blowout).
+> Product cost is now measured per service from Evelyn's own amounts and
+> learned from finished back-bar bottles — see
+> [Product cost per service](#product-cost-per-service-2026-10-08). The
+> reasoning below is kept as the record of how it got there.
+
 > **Revisit this.** A supplier invoice (2026-09-23) put real unit costs on the
 > table and a bill of materials is now plausible for colour, which allocation
 > was chosen to avoid:
@@ -293,7 +300,12 @@ exactly the distinction that decides which treatment applies to a line on an
 invoice. Nothing new needs modelling to answer "how much of this order should
 have been bought exempt".
 
-### Why retail-at-checkout is not being built yet
+### Why retail-at-checkout was not built first
+
+> **Since resolved.** She got her vendor's licence on 30 Sep 2026 and retail
+> at check-out was built the same day (migration `0047`; see
+> [Not built](#not-built), item 1). The rate is 7.5%, stored in `tax_rates`
+> as `ohio_sales_tax` (`0045`). Kept for the reasoning.
 
 A checkout that takes $26 for a bottle and adds no sales tax teaches the wrong
 habit every time it is used, and creates a liability that compounds quietly.
@@ -428,7 +440,7 @@ pretending is a weekend.
 ## Open questions
 
 1. ~~**Which bank?**~~ **Answered 2026-09-23: Relay.** See above — Teller is
-   out, OFX import is the path, Plaid is the later upgrade.
+   out, CSV import is the path, and Plaid was dropped.
 2. **Is the salon account separate from personal?** Changes how aggressive the
    business/personal review step needs to be. Relay's whole pitch is multiple
    named accounts for one business, so she may already have the split — which
@@ -438,13 +450,12 @@ pretending is a weekend.
 4. **Does she have other income** (W-2, a spouse's, prior employment this year)?
    Federal brackets and the QBI limit depend on total taxable income, so an
    estimate that assumes the salon is her only income will be wrong if it isn't.
-5. **Ohio sales tax on retail.** Services aren't taxed in Ohio; retail product
-   sales are. Doesn't bite until backlog #18 ships retail, but the two features
-   share a schema and it's cheaper to know now.
+5. ~~**Ohio sales tax on retail.**~~ **Answered and built 2026-09-30:** 7.5%
+   on product lines only, collected at check-out or Sell (`0045`, `0047`).
 
 ## Where it got to
 
-Updated 2026-09-30. **Inventory** is its own studio item (tabs **Stock** and
+Updated 2026-10-08. **Inventory** is its own studio item (tabs **Stock** and
 **Activity**), because she uses it daily and Money monthly. **Money** is
 **Overview** (revenue from check-outs and product sales against sorted
 business expenses, by week / month / quarter / year, each side tappable down
@@ -453,8 +464,9 @@ up), **Bank** (upload, then month by month, tap a row to change its category),
 **Taxes** (set-aside in dollars, next payment, one line per place, sales tax
 collected; the working behind a toggle) and **Services** (each service ranked by
 what it earns per hour of her hands, after product and card fees; replaced
-Costs on 2026-09-30). Old `#money/inventory`
-and `#money/activity` links redirect.
+Costs on 2026-09-30; product counted from 2026-10-08). Old `#money/inventory`
+and `#money/activity` links redirect to Inventory, and `#money/costs` to
+Services.
 
 ### Built and live
 
@@ -466,19 +478,19 @@ called "Paid outside Relay", not a table of their own.
 
 **Inventory** — migrations `0042`–`0043`, `0045`, `0046`.
 
-*Redesigned 2026-09-30 with Evelyn.* Every change to stock happens on the
-Inventory tab (`MoneyInventory`), and each has one way in:
+*Redesigned 2026-09-30 with Evelyn.* Every change to stock happens on
+Inventory → Stock (`MoneyInventory`), and each has one way in:
 
 | She does | Shelf | Bar | Kind |
 |---|---|---|---|
 | Add stock — order PDF or by hand (`MoneyAddStock`, cost required) | +n | | `received` |
 | Put one on bar | −1 | +1 | `used` — **the cost is taken here** |
 | Finished one — empty, in the bin | | −1 | `finished` — not a cost |
-| Sells one at check-out (once licensed) | −1 | | `sold` |
+| Sells one — at check-out or with Sell (`MoneySell`) | −1 | | `sold` |
 | Count comes up short | −n | | `missing` — not a cost |
 
 Two numbers per product because she works in two places: sealed on the shelf,
-open on the back bar. The bar isn't stored; it's `used − finished`, so every
+open on the back bar. The bar isn't stored; it's `used − finished` (`0046`), so every
 `used` row from before `0046` landed on the bar and she clears the empty ones
 with *Finished one*. A count shortfall used to be booked as `used`; it's now
 `missing`, because theft and unrecorded sales look identical to a count and
@@ -511,8 +523,14 @@ estimate so the cushion is visible. Compared against what she has actually
 moved to savings. Penalties and the ORC 718.08 $200 rule, so it says which
 city needs prepaying and which waits for filing.
 
-**Costs** — `lib/colourCost.ts`, `MoneyColourCost`. What a colour costs, by
-consumption window rather than calendar month.
+**Overview** — `lib/overview.ts`, `MoneyOverview`. Revenue against expenses by
+week / month / quarter / year, with drill-down; capital shown apart as
+Setting up.
+
+**Services** — `lib/serviceEarnings.ts`, `lib/productCost.ts`,
+`MoneyServices`. Earnings per hour of her hands after card fees and product
+(`handRate(row, productPerVisit)`). The old Costs tab (`MoneyColourCost`) is
+gone; `lib/colourCost.ts` is still in the repo but nothing imports it.
 
 ### Not built
 
@@ -520,7 +538,7 @@ consumption window rather than calendar month.
    go on check-out as separate lines under the service, 7.5% on the products
    only, tax on top. **Sell** on Inventory does the same without an
    appointment (client optional), and "Something else" rings up a one-off item
-   that isn't stock. Every sale is a `retail_sales` row with its lines, saved
+   that isn't stock. Tax is worked out per unit and rounded. Every sale is a `retail_sales` row with its lines, saved
    by `record_retail_sale()` in one transaction — at check-out, together with
    the appointment. Sales tax for the Ohio return is `sum(tax_cents)` there.
    She got her vendor's licence on 30 Sep 2026. The number is deliberately
@@ -533,13 +551,14 @@ consumption window rather than calendar month.
    ticket, which needs check-out data.
 3. ~~**Where the money went**~~ **Built 2026-09-30** as Money → Overview.
 4. ~~**Margin per service**~~ **Built 2026-09-30** as Money → Services, ranked
-   by earnings per hour of her hands, **before product**. A first version
-   spread every product order since opening across every visit by length;
-   Paul pointed out it's the wrong model (an order isn't used up the month it
-   arrives, and colour never touches a blowout) and it was withdrawn the same
-   day. **Next:** a per-service list of what goes on the head — product and
-   amount — priced from each bottle's cost and size. Needs Evelyn's lists.
-   Every service shows the visits behind it and the sum written out, so the
+   by earnings per hour of her hands — **after product since 2026-10-08**. A
+   first version spread every product order since opening across every visit
+   by length; Paul pointed out it's the wrong model (an order isn't used up the
+   month it arrives, and colour never touches a blowout) and it was withdrawn
+   the same day. Its replacement — a per-service list of what goes on the
+   head, priced from each bottle's cost and size — is
+   [Product cost per service](#product-cost-per-service-2026-10-08). Every
+   service shows the visits behind it and the sum written out, so the
    arithmetic can be checked by hand.
 5. **Schedule C export** — the year-end summary with transactions behind each
    line.
@@ -577,5 +596,7 @@ assumes it, so this could be revived without touching anything above it.
   $8.99 a 1,700 m spool) and 15 beads ($14.99 for 2,500), about 10.5¢ a row.
   Extensions are priced by the row at $115, so a visit's rows = paid ÷ $115.
   String and beads use Paul's prices until they're in the inventory.
-- The four Keune liters were corrected from $10.30 to $34 (products and their
-  movements) on 2026-10-08.
+- The four Keune liter back-bar products were corrected from $10.30 to $34
+  (products and their movements) on 2026-10-08.
+- The Style Intro package ($585) was entered the same day as 21 products × 3,
+  its price spread by Keune's US prices.

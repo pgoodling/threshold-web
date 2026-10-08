@@ -1,7 +1,7 @@
 # A2P 10DLC campaign — what to paste into the form
 
-Three rejection cycles so far. This file holds the current submission so the
-next one isn't rebuilt from memory.
+Approved 9 Sep 2026 after four rejections (see History). This file holds the
+submission so any future edit isn't rebuilt from memory.
 
 **Plain ASCII since 2026-09-30.** Every outgoing text passes through
 `plainText()` in `lib/sms.ts`, which swaps dashes, curly quotes and odd spaces
@@ -129,6 +129,13 @@ Every sample carries opt-out language. Stricter than CTIA requires — the
 opt-out only has to appear on the first message — but a reviewer reads each
 sample in isolation and can't see what came before it.
 
+**Samples 1 and 2 below are what the app sends now**, from `bookingConfirmText`
+and `reminderText`. They are not word for word what went to the carrier on
+9 Sep: that text had no location and used em dashes. The loft and street were
+added on 30 Sep (`WHERE` in `lib/policy.ts`) and the dashes became hyphens the
+same day (`plainText()`). Neither changes the use case, so nothing was
+resubmitted. Samples 3–5 are as submitted.
+
 **1 — Booking confirmation** *(automatic, on booking)*
 
 ```
@@ -140,6 +147,9 @@ Hi [Name]! You're booked at Threshold for [Service] on [Day, Date, Time], in Lof
 ```
 Hi [Name], it's Threshold Salon - you're booked for [Service] [Day, Time], in Loft 24 at Salon Lofts, 424 E. Stroop Rd. Reply C to confirm. Tell me about your hair, or change it: https://threshold.salon/appointment/[id] (Reply STOP to opt out.)
 ```
+
+If the client has already filled in their hair notes, "Tell me about your
+hair, or change it:" becomes "Change or cancel:".
 
 **3 — Late arrival** *(submitted, but retired — no longer sent)*
 
@@ -167,18 +177,28 @@ Hi [Name], it's Evelyn at Threshold — I've had a cancellation this [Day] at [T
 ```
 
 Samples 4 and 5 are the ones added on 8 Sep. Without them the campaign
-collects marketing consent it never demonstrates.
+collects marketing consent it never demonstrates. They are not templates —
+offers are written by hand — and anything sent from the studio also goes
+through `plainText()`, so the em dashes above arrive as hyphens.
+
+Two other client texts come from `lib/smsTemplates.ts` and aren't samples,
+both transactional: `confirmedText`, the reply when a client answers C
+("Lovely - you're confirmed for [Day, Time]. See you then! Threshold Salon
+(Reply STOP to opt out.)"), and `reviewRequestText`, which only fills
+Evelyn's reply box for her to edit and send by hand.
 
 ### The internal one, which is not like the others
 
 **6 — Short-notice booking alert** *(automatic, to Evelyn's own mobile)*
 
 ```
-New booking — TODAY [Time]: [Name] (new client), [Service]. Booked just now at threshold.salon.
+New booking - TODAY [Time]: [Name] (new client), [Service]. Booked just now at threshold.salon.
 ```
 
 Built 9 Sep 2026 (`lib/smsTemplates.ts` → `ownerNewBookingText`, sent by
-`/api/sms/new-booking` when a booking lands inside the next 24 hours).
+`/api/sms/new-booking` when a booking lands inside the alert window set in
+Settings, 24 hours by default). A booking later than today shows the weekday
+and time instead of "TODAY".
 
 Written after the campaign was submitted, and listed here for completeness
 rather than as a problem. **No amendment is needed.**

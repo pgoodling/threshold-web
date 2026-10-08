@@ -1,5 +1,6 @@
 "use client";
 
+import { tidyName } from "../../lib/tidyName";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Elements } from "@stripe/react-stripe-js";
 import { supabase } from "../../lib/supabase";
@@ -144,7 +145,7 @@ export default function BookPage() {
   // one `full_name`, so nothing downstream changes.
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+  const fullName = tidyName(`${firstName} ${lastName}`);
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");

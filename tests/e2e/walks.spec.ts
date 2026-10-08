@@ -536,3 +536,16 @@ test("Change an appointment's service", async () => {
     check("hand timing cleared", r.start_minutes === null, null, r.start_minutes);
   });
 });
+
+test("Two hair-notes forms on one client", async () => {
+  const w = walk("Two hair-notes forms on one client", "A parent fills the form for herself and her child; both show, each labelled with its visit.");
+  await w.step(page, "Sarah's hair notes show both forms", async (check) => {
+    await open("clients");
+    await page.getByText("Sarah Jenkins").first().click();
+    await page.getByRole("button", { name: "Hair notes" }).click();
+    await expect(page.getByText("“For my daughter”")).toBeVisible();
+    check("the newer form", true);
+    check("the older form too", await page.getByText("“For me”").isVisible());
+    check("each says which visit", (await page.getByText(/^For$/).count()) >= 0 && (await page.getByText(/filled in/).count()) === 2, 2, await page.getByText(/filled in/).count());
+  });
+});

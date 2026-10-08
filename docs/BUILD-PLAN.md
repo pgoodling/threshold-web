@@ -13,6 +13,25 @@ Prepared July 2026.
 > SMS is not a "fast-follow" but live, with the A2P campaign cleared on
 > 9 September.
 >
+> As of 8 October 2026, a few more places where the text below would mislead:
+>
+> - **Inventory was not deferred.** Evelyn retails product, so there is a full
+>   Inventory item in the studio (stock, back bar, retail sales with sales tax)
+>   and product cost per service.
+> - **No deposits.** The `deposit_cents` / `deposit_status` columns exist but
+>   nothing uses them. The booking page saves a card instead
+>   (`/api/stripe/setup-intent`) and Evelyn can charge a no-show fee
+>   (`/api/stripe/charge-no-show`).
+> - **Reminders are one text the day before**, not email at 24h/48h
+>   (`/api/cron/reminders`). Email is the booking confirmation and Evelyn's
+>   schedule digest.
+> - **The data model differs from §4.** There is no `appointment_photos` table
+>   (photos live in the `booking-photos` storage bucket), no `intake_forms`
+>   (hair notes are `appointment_intake` and `client_formulas`) and no
+>   `messages_log` (texts are in `messages`). One-day hours are in `day_hours`.
+> - **Migrations aren't run by a deploy** — they're applied with the Supabase
+>   CLI, one file at a time; see the README.
+>
 > For what actually exists, read [BACKLOG.md](BACKLOG.md) and the README.
 
 ---

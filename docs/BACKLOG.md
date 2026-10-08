@@ -1,6 +1,6 @@
 # Threshold — Product Backlog
 
-_Living list of what's built, what's next, and what we need to build it. Updated 2026-09-30._
+_Living list of what's built, what's next, and what we need to build it. Updated 2026-10-08._
 
 Related: [BUILD-PLAN.md](BUILD-PLAN.md) (the July decision record) and
 [A2P-CAMPAIGN.md](A2P-CAMPAIGN.md) (carrier submission — read before touching a
@@ -24,9 +24,18 @@ section, this section is right.
 - `/messaging`, `/privacy`, `/terms` — carrier compliance.
 
 **Studio**
-- Overview, to-do, messages, calendar (month/week/day, drag to move), appointments,
-  clients CRM, services, reports, outreach, texts, time off, **settings**.
-- Calendar shows her time off, and warns when she blocks over a booked client.
+- **Eight-item menu (2026-10-08)**: Overview (+ To-do), Calendar (+ Upcoming,
+  Time off), Clients (+ Outreach), Messages (Inbox + To send, which used to be
+  Texts), Inventory, Money, Reports, Settings (+ Hours, Services). The sidebar
+  lists the tabs under each item; every old `#hash` still works.
+- Calendar: month/week/day, drag to move, shows her time off, and warns when
+  she blocks over a booked client. Block time straight from the calendar.
+- **Hours for one day** (`0049`): change a single date's hours without touching
+  the week — from the day view's hours line, or + New → "Hours for this day".
+  Settings › Hours lists them under "Just these days".
+- Booking from Calendar › Upcoming ("+ New appointment") as well as from a
+  client. An overlap is allowed with a warning — the button becomes "Book
+  anyway" (`0048`). Change an appointment's service after booking.
 - "Booked while you were away" strip; short-notice booking alert texted to her.
 - Booking forms say whether a time is free, taken, blocked or outside her hours
   *before* she books — judged against `appointment_busy`, so a cut that fits in a
@@ -53,6 +62,8 @@ section, this section is right.
     — turning it on reintroduces the MX and the collision.
   - Consequence: the Cloudflare DNS migration is still optional, not forced.
 - `scripts/check-migrations.sh` — asks the database which migrations actually ran.
+- Tests on a local rig: `npm test` (logic), `npm run test:db`, `npm run walks`
+  (Playwright); `npm run test:all` before deploying. See [TESTING.md](TESTING.md).
 
 ---
 
@@ -74,23 +85,31 @@ section, this section is right.
 | 7 | ~~**Photo upload at booking**~~ ✅ **SHIPPED** (run migration `0003` to activate) | Up to 3 optional photos at booking; Evelyn views them per-appointment in `/studio` | **Run `supabase/migrations/0003_booking_photos.sql`** in the SQL editor |
 | 8 | ~~**Client self-service**~~ ✅ **SHIPPED (cancel)** | Cancel from the link in the confirmation. Reschedule is still "text or call" on purpose — handing a client the calendar risks colliding their old slot with their new one | — |
 | 9 | ~~**SMS text reminders**~~ ✅ **SHIPPED** | Confirmations + day-before reminders; A2P cleared 9 Sep 2026 | — |
-| 10 | **Intake / consultation forms** | New-client allergies, patch test, hair history, goals | The questions; needs a migration |
-| 11 | **Before/after photos** | Attach result photos to a client's visit history | Confirm; needs Storage + migration |
+| 10 | ~~**Intake / consultation forms**~~ ✅ **SHIPPED** as hair notes (`0028`, `0030`) | "Tell me about your hair" at `/hair-notes/[id]`, offered after booking: hair type, strand, density, length, last cut, struggles, allergies, a free note, optional photos. Every question optional. No patch-test question. | — |
+| 11 | **Before/after photos** — not built | Attach result photos to a client's visit history. What exists is the *client's* photos (at booking and on the hair-notes form), shown on the appointment; Evelyn can't add her own. | Confirm; needs Storage + migration |
 
 ## 🌱 Tier 3 — growth & polish (post-launch)
 
 | # | Feature | Needs from you |
 |---|---|---|
-| 12 | Rebooking / birthday nudges | Cadence; depends on email/SMS |
+| 12 | Rebooking / birthday nudges — 🟡 **rebooking side built**: rebooking rate on Reports, Reach-out list and win-back text. No birthdays. | Cadence; depends on email/SMS |
 | 13 | Gift cards | Payments; go/no-go |
 | 14 | Memberships / packages | Payments; the packages + prices |
 | 15 | Waitlist / cancellation fill | Go/no-go; depends on notifications |
 | 16 | Reviews & light marketing | Google Business link; go/no-go |
 | 17 | Google Calendar sync for Evelyn | Go/no-go (needs Google sign-in setup) |
-| 18 | ~~**Retail + inventory + cost-of-goods**~~ 🟡 **MOSTLY BUILT** — migrations `0042`, `0043`, `0045`–`0047` | Stock, catalogue, supplier-order PDF import, kit splitting, back-bar log and stock count are all live. **Selling built 2026-09-30** (`0047`): at check-out and on its own via Inventory → Sell. All 29 products she sells priced 2026-09-30 at Keune's / Maria Nila's US retail. She has her vendor's licence; the number isn't stored because nothing needs it — it goes on the resale exemption certificate for Premier and SalonCentric instead. ⚠️ This item used to say "keep bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**; she does her own, so tax lives here too. |
-| 19 | ~~**Money: bank feed, costs, tax**~~ 🟡 **MOSTLY BUILT** — migrations `0036`, `0037`, `0039`–`0041`, `0044` | Relay **CSV** (not OFX — their export dialog doesn't offer it) import with a balance-chain proof, review queue, manual purchases, colour cost, and the set-aside rate across four jurisdictions. **Outstanding: break-even, margin per service, spend-by-month, Schedule C export.** Plaid was costed and **abandoned** — she uploads monthly from her phone. See [MONEY.md](MONEY.md). |
+| 18 | ~~**Retail + inventory + cost-of-goods**~~ 🟡 **MOSTLY BUILT** — migrations `0042`, `0043`, `0045`–`0047` | Stock, catalogue, supplier-order PDF import, kit splitting, back-bar log and stock count are all live. **Selling built 2026-09-30** (`0047`): at check-out and on its own via Inventory → Sell. All 29 products she sells priced 2026-09-30 at Keune's / Maria Nila's US retail. She has her vendor's licence; the number isn't stored because nothing needs it — it goes on the resale exemption certificate for Premier and SalonCentric instead (certificate still not sent). ⚠️ This item used to say "keep bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**; she does her own, so tax lives here too. |
+| 19 | ~~**Money: bank feed, costs, tax**~~ 🟡 **MOSTLY BUILT** — migrations `0036`, `0037`, `0039`–`0041`, `0044` | Relay **CSV** (not OFX — their export dialog doesn't offer it) import with a balance-chain proof, review queue, manual purchases, colour cost, and the set-aside rate across four jurisdictions. **Built since:** spend by week/month/quarter/year (Money → Overview); margin per service with product cost (Money → Services, `lib/productCost.ts`) — colour, lightener, foils, toner, gloves, caps and extension string/beads measured, bowl and styling product learned from back-bar bottles finished since 1 Oct. **Outstanding: break-even.** Schedule C: every category carries its line (`0036`) and Paul counts the year-end summary as done, but no screen or export that groups by line was found in the code — confirm. Plaid was costed and **abandoned** — she uploads monthly from her phone. See [MONEY.md](MONEY.md). |
 
-## 🧭 Navigation — decided 2026-09-24, mostly parked
+## 🧭 Navigation — decided 2026-09-24; superseded 2026-10-08
+
+**Superseded 2026-10-08.** The fold parked below was built: 14 items became
+eight, with six pages turned into tabs of the page they belong with (see
+Shipped, and the comment above `NAV` in `app/studio/page.tsx`). Appointments
+is now Calendar › Upcoming, Time off is under Calendar, Texts is Messages ›
+To send, Outreach is under Clients, Hours and Services are under Settings.
+Reports stayed its own item; Money is now Overview / Bank / Taxes / Services.
+The notes below are kept as history.
 
 **Decided 2026-09-30 — Ahead stays in Reports.** Money → Overview (revenue
 vs expenses, looking back) was mocked with Ahead folded in: booked revenue as
@@ -139,7 +158,9 @@ ever kept as a view when the calendar shipped.
 
 Unresolved before any messaging merge: what actually distinguishes **Texts**
 (382 lines) from **Messages** (399). Nobody has read both; the names are not
-evidence.
+evidence. *Resolved 2026-10-08:* Messages is the inbox of what came in; Texts
+is the queue of texts that need her to decide before they go out — now
+Messages › To send.
 
 ## ⚙️ Settings to add if anyone else ever uses this
 
@@ -164,14 +185,14 @@ in [MONEY.md](MONEY.md), which covers why RLS is the hard part.
   Keune and Maria Nila only.
 
 ## 🔧 Small / no info needed (I just build)
-- Top-level "New appointment" in Appointments (manual booking is per-client only today)
+- ~~Top-level "New appointment" in Appointments~~ ✅ **SHIPPED** — "+ New appointment" on Calendar › Upcoming.
 
 ## Also shipped
 - **Check in / Check out** — appointment lifecycle is now Booked → Confirmed → **Checked in** (arrived) → **Checked out** (paid & done), replacing the single "Completed". Check-out records the **amount paid** (editable) + **payment method** (Card (Intuit) / Cash / Venmo / Zelle / Other). Reports counts checked-out visits as revenue and adds a **By payment method** breakdown so the **Card total reconciles against Intuit deposits**. Needs migration `0006_check_in_out.sql`.
 - **Card on file at booking** (Stripe SetupIntent, no charge) — clean **card-only** field, plus an **Apple Pay / Google Pay** button that appears only on wallet-capable devices. ✅ **Live mode is done** (verified 2026-08-18: the deployed bundle serves a `pk_live_` key and the Apple Pay button renders, which it only does when the domain is registered in Payment method domains for the *current* mode). Nothing outstanding here for launch.
   - ▢ Genuinely untested, because testing it moves real money: the **no-show / late-cancel charge** path (`/api/stripe/charge-no-show`) against a live saved card. Worth one small real charge to a card you own, then refund it in the Stripe dashboard.
   - ▢ Evelyn hasn't set `deposit_cents` on any service yet, so no booking currently asks for a deposit. That's a decision for her, not a build.
-- **Calendar** in `/studio` — Month / Week / Day views, color-coded, click-to-manage; old list kept as "List" tab.
+- **Calendar** in `/studio` — Month / Week / Day views, color-coded, click-to-manage; old list kept as "List" tab (now Calendar › Upcoming).
 - **PWA install** — web manifest + Apple touch icon + theme color; "Add to Home Screen" launches standalone on iPad/iPhone.
 - **Date-range time off** (block weeks/months in one entry, e.g. "closed until September") — the way to pause online booking until she's ready.
 - **Demo data seed** (`supabase/seed_demo.sql`) for previewing a populated app.
@@ -381,7 +402,7 @@ Design direction: a stylist reads overdue clients by **grown-out roots**, so the
 - Later: **photo-suggested color** (sample from her uploaded photos), and wiring the color ring / "who needs attention" onto the dashboard.
 
 ## Roadmap (next, defined — no info needed)
-- **Projected vs. actual earnings (#14)** — actual = checked-out revenue (have it); projected = value of upcoming booked appts. Add to Reports.
+- ~~**Projected vs. actual earnings (#14)**~~ ✅ **SHIPPED** as Ahead in Reports (`lib/projection.ts`): booked vs expected, kept apart.
 - **New-client retention (#15)** — % of first-time clients who book a 2nd visit within 90 days (window TBC with Evelyn).
 - **AI content tab (#16)** — own mini-project, per research above.
 
@@ -431,5 +452,11 @@ Optional uploads during the public booking flow: a photo of the client's hair to
 
 ## ❓ Open, as of 2026-09-23
 1. **Salon Lofts bookings** arrive by email and text and are logged by hand. Automating the email side needs a sample of what Salon Lofts actually sends — forwarded email + screenshot of a text. Texts reach her personal phone, so the app can't see them unless Salon Lofts can send to the salon number.
-2. **Blocking time from the calendar** rather than the Time off tab — agreed as the right home, not built.
-3. **Buffer between appointments** — see #5 above.
+2. ~~**Blocking time from the calendar**~~ ✅ **SHIPPED** (`BlockTimePanel`).
+3. **Buffer between appointments** — see #5 above. Still not built.
+
+## ❓ Open, as of 2026-10-08
+1. **Sales tax filing frequency** — Paul finding out. Until then Money › Taxes
+   shows sales tax collected by month and for the year.
+2. **Twilio auto-recharge** — still to set up.
+3. **Resale exemption certificate** for Premier and SalonCentric — still to send.

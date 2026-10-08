@@ -126,10 +126,16 @@ export async function seed(r: Rig) {
                  case when $5 = 'checked_out' then $3::timestamptz + make_interval(mins => $4) end) returning id`,
         [cl, sv, starts, mins, status, paid, method])).rows[0].id as string;
     await appt(liz, hl, at(lm(7), "13:00"), 180, "checked_out", 20000, "card");
-    await appt(sarah, cut, at(lm(10), "10:00"), 60, "checked_out", 5500, "cash");
+    const sarahLast = await appt(sarah, cut, at(lm(10), "10:00"), 60, "checked_out", 5500, "cash");
     await appt(mike, cut, at(lm(12), "15:00"), 60, "checked_out", 5500, "card");
     // Today: Sarah in the chair at 2pm, ready to check out.
-    await appt(sarah, cut, at(today, "14:00"), 60, "checked_in", null, null);
+    const sarahToday = await appt(sarah, cut, at(today, "14:00"), 60, "checked_in", null, null);
+    // Two hair-notes forms, one per visit, describing different hair -- the
+    // way it looks when a parent books their child under their own name.
+    await c.query(
+      `insert into appointment_intake (appointment_id, client_id, hair_type, length, note) values
+         ($1, $3, 'wavy', 'shoulders', 'For me'), ($2, $3, 'straight', 'midback', 'For my daughter')`,
+      [sarahLast, sarahToday, sarah]);
 
     // Stock.
     const product = async (brand: string, name: string, cost: number, price: number | null, sells: boolean, bar: boolean, shelf: number) => {

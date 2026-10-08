@@ -2,7 +2,8 @@
 #
 # Which migrations have actually reached the database?
 #
-# Migrations here are applied by hand in the Supabase SQL editor, and there is
+# Migrations here are applied by hand (the Supabase SQL editor, or since
+# 2026-09-30 `npx supabase db query --linked --project-ref ... -f <file>`), and there is
 # no schema_migrations table recording what ran. That is fine when one person
 # is working in one place. It stops being fine the moment two sessions add a
 # migration on the same afternoon — which has already happened once (there are
@@ -86,6 +87,11 @@ STRUCTURAL="
 0044_federal_tax_constants|salon_settings|filing_status
 0045_sales_tax|inventory_movements|unit_tax_cents
 0045_sales_tax|salon_settings|prices_include_tax
+0046_back_bar|product_stock|on_bar
+0047_retail_sales|retail_sales|
+0047_retail_sales|retail_sale_lines|
+0048_studio_overlap|appointments|allow_overlap
+0049_day_hours|day_hours|
 "
 
 # 0043 recreates a view with security_invoker — no new structure, and the

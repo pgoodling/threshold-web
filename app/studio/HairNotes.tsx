@@ -30,6 +30,8 @@ type FormulaRow = {
 type IntakeRow = Intake & {
   appointment_id: string;
   created_at: string;
+  /** The visit it was filled in for -- one form per appointment. */
+  appointments: { starts_at: string; services: { name: string } | null } | null;
 };
 
 export default function HairNotes({
@@ -58,7 +60,7 @@ export default function HairNotes({
         .order("created_at", { ascending: false }),
       supabase
         .from("appointment_intake")
-        .select("*")
+        .select("*,appointments(starts_at,services(name))")
         .eq("client_id", clientId)
         .order("created_at", { ascending: false }),
     ]).then(([f, i]) => {
@@ -127,7 +129,6 @@ export default function HairNotes({
 
   const latest = intakes[0] ?? null;
   const flag = latest ? timingFlag(latest) : null;
-  const offers = latest ? offersFor(latest.struggles ?? []) : [];
 
   return (
     <div className="mt-4 grid gap-6">
@@ -206,13 +207,13 @@ export default function HairNotes({
             From the client
           </h3>
           <span className="h-px flex-1 bg-foreground/10" />
-          {latest && (
-            <span className="shrink-0 text-xs text-muted">
-              {whenLabel(latest.created_at)}
-            </span>
-          )}
         </div>
 
+        {/* Every form, not just the newest. One booking can be for someone
+            else -- a parent booking their child under their own name fills in
+            the form twice, once per appointment, and the answers describe two
+            different heads of hair. Showing only the latest hid the other.
+            Each is labelled with the visit it came from. */}
         {!latest ? (
           <p className="mt-2 text-sm text-muted">
             Nothing yet. Clients are offered the hair-notes form after booking —
@@ -235,53 +236,56 @@ export default function HairNotes({
               </div>
             )}
 
-            <div className="rounded-xl border border-foreground/15 bg-white">
-              <p className="border-b border-foreground/10 px-4 py-3 text-sm">
-                {hairSummary(latest).join(" · ") || "Not much detail given."}
-              </p>
-
-              {offers.length > 0 && (
-                <div className="border-b border-foreground/10 px-4 py-3">
-                  <p className="text-xs uppercase tracking-wider text-muted">
-                    Struggling with — worth offering
+            {intakes.map((it) => {
+              const offers = offersFor(it.struggles ?? []);
+              const visit = it.appointments;
+              return (
+                <div key={it.appointment_id} className="rounded-xl border border-foreground/15 bg-white">
+                  <p className="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-foreground/10 px-4 py-2 text-xs text-muted">
+                    <span>
+                      For{" "}
+                      <span className="text-foreground">
+                        {visit?.services?.name ?? "a visit"}
+                        {visit ? ` · ${whenLabel(visit.starts_at)}` : ""}
+                      </span>
+                    </span>
+                    <span>filled in {whenLabel(it.created_at)}</span>
                   </p>
-                  <div className="mt-2 grid gap-1.5">
-                    {offers.map((o) => (
-                      <p key={o.problem} className="flex gap-2 text-sm">
-                        <span className="font-medium">{o.offer}</span>
-                        <span className="text-muted">— {o.problem}</span>
+                  <p className="border-b border-foreground/10 px-4 py-3 text-sm">
+                    {hairSummary(it).join(" · ") || "Not much detail given."}
+                  </p>
+
+                  {offers.length > 0 && (
+                    <div className="border-b border-foreground/10 px-4 py-3">
+                      <p className="text-xs uppercase tracking-wider text-muted">
+                        Struggling with — worth offering
                       </p>
-                    ))}
-                  </div>
+                      <div className="mt-2 grid gap-1.5">
+                        {offers.map((o) => (
+                          <p key={o.problem} className="flex gap-2 text-sm">
+                            <span className="font-medium">{o.offer}</span>
+                            <span className="text-muted">— {o.problem}</span>
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {it.allergies && (
+                    <p
+                      className="border-b border-foreground/10 px-4 py-3 text-sm"
+                      style={{ boxShadow: "inset 4px 0 0 #8f3f4a" }}
+                    >
+                      <span className="text-xs uppercase tracking-wider text-muted">Allergies</span>
+                      <br />
+                      {it.allergies}
+                    </p>
+                  )}
+
+                  {it.note && <p className="px-4 py-3 font-display text-sm italic">“{it.note}”</p>}
                 </div>
-              )}
-
-              {latest.allergies && (
-                <p
-                  className="border-b border-foreground/10 px-4 py-3 text-sm"
-                  style={{ boxShadow: "inset 4px 0 0 #8f3f4a" }}
-                >
-                  <span className="text-xs uppercase tracking-wider text-muted">
-                    Allergies
-                  </span>
-                  <br />
-                  {latest.allergies}
-                </p>
-              )}
-
-              {latest.note && (
-                <p className="px-4 py-3 font-display text-sm italic">
-                  “{latest.note}”
-                </p>
-              )}
-            </div>
-
-            {intakes.length > 1 && (
-              <p className="text-xs text-muted">
-                {intakes.length - 1} earlier{" "}
-                {intakes.length === 2 ? "answer" : "answers"} on file.
-              </p>
-            )}
+              );
+            })}
           </div>
         )}
       </section>

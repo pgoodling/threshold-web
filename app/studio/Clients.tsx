@@ -1,5 +1,6 @@
 "use client";
 
+import { tidyName } from "../../lib/tidyName";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarPlus,
@@ -437,6 +438,8 @@ export async function saveClient(
     op === "insert"
       ? supabase.from("clients").insert(payload).select().single()
       : supabase.from("clients").update(payload).eq("id", id!).select().single();
+  // "emma jackowski" typed on a phone is saved as "Emma Jackowski".
+  if (typeof vals.full_name === "string") vals = { ...vals, full_name: tidyName(vals.full_name) };
   let res = await run(vals);
   if (res.error && /hair_formula|column/i.test(res.error.message)) {
     const rest = { ...vals };
