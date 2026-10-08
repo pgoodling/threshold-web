@@ -600,3 +600,25 @@ assumes it, so this could be revived without touching anything above it.
   (products and their movements) on 2026-10-08.
 - The Style Intro package ($585) was entered the same day as 21 products × 3,
   its price spread by Keune's US prices.
+
+## Year-end summary (2026-10-08)
+
+Money → Taxes → **Year-end summary**: the year on Schedule C lines for her
+tax preparer (`lib/yearEnd.ts`, `MoneyYearEnd.tsx`).
+
+- Same rows as the Taxes estimate: business bank rows posted in the year,
+  grouped by each category's `schedule_c_line` (0036). Line names as printed
+  on the form; 24b takes half of what was spent.
+- Line 1 is deposits plus cash/other entered, **less sales tax collected**
+  (`retail_sales.tax_cents`) — it arrives in card deposits but isn't income.
+  Taxes now subtracts it too, so the estimate and the summary agree.
+- Setting-up purchases (capital) are listed item by item and counted in full
+  in net profit, as Taxes assumes; the preparer chooses the line.
+- For the preparer: retail stock on the shelf at cost (today's count — take
+  it on 31 Dec), card and other takings recorded at check-out against what
+  reached the bank as income (flags cash not entered), rows still to sort,
+  and owner money that isn't on the form.
+- Every line opens onto its transactions; **Download for preparer** writes
+  the same as a CSV.
+- First run on her data (8 Oct): $295 of cash taken at check-out had not
+  been entered as income.

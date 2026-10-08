@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import MoneyYearEnd from "./MoneyYearEnd";
 import { PiggyBank, CircleAlert, ExternalLink, CalendarClock, ChevronDown } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
@@ -50,6 +51,8 @@ export default function MoneyTax() {
   const [reloadKey, setReloadKey] = useState(0);
   const [showWorking, setShowWorking] = useState(false);
   const [salesTax, setSalesTax] = useState<SalesTax>({ monthName: "", monthCents: 0, yearCents: 0 });
+  // The year laid out on Schedule C lines, for her preparer.
+  const [yearEndOpen, setYearEndOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -110,6 +113,10 @@ export default function MoneyTax() {
           savedCents += Math.abs(amt);
       }
 
+      // Sales tax she collected arrives inside the card deposits, but it's the
+      // state's money, not income -- the year-end summary takes it out too.
+      revenueCents -= yearCents;
+
       setTotals({ revenueCents, costCents, savedCents });
 
       const filing = (s.data?.filing_status as FilingStatus | null) ?? null;
@@ -138,6 +145,7 @@ export default function MoneyTax() {
     setReloadKey((k) => k + 1);
   }
 
+  if (yearEndOpen) return <MoneyYearEnd onBack={() => setYearEndOpen(false)} />;
   if (loading) return <p className="mt-6 text-sm text-muted">Loading…</p>;
   if (!est || !totals) return null;
 
@@ -168,6 +176,17 @@ export default function MoneyTax() {
 
   return (
     <div className="max-w-xl">
+      <button
+        onClick={() => setYearEndOpen(true)}
+        className="mb-4 flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-foreground/15 bg-white px-4 text-left text-sm hover:border-foreground/30"
+      >
+        <span>
+          Year-end summary
+          <span className="block text-xs text-muted">Schedule C lines and a download, for your tax preparer</span>
+        </span>
+        <span className="text-muted" aria-hidden="true">›</span>
+      </button>
+
       {/* ---- Income tax: one number, then where it goes ---------------------- */}
       <p className="text-sm text-muted">Set aside for income tax so far</p>
       <p className="mt-0.5 text-3xl font-medium tabular-nums">

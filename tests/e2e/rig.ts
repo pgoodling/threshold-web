@@ -89,6 +89,8 @@ export const EXPECT = {
   highlightPerHour: "$83.47",
   highlightProduct: "$7.63",
   lastMonthSalesTaxCents: 418,
+  // Year-end summary (Schedule C): see the walk -- last month's bank rows,
+  // with the year's sales tax read from the database.
 };
 
 export async function seed(r: Rig) {

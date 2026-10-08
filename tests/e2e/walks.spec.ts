@@ -538,14 +538,55 @@ test("Change an appointment's service", async () => {
 });
 
 test("Two hair-notes forms on one client", async () => {
-  const w = walk("Two hair-notes forms on one client", "A parent fills the form for herself and her child; both show, each labelled with its visit.");
-  await w.step(page, "Sarah's hair notes show both forms", async (check) => {
+  const w = walk("Two hair-notes forms on one client", "A parent fills the form for herself and her child; each visit keeps its own, newest open, earlier a tap away.");
+  await w.step(page, "Newest visit open; the earlier one listed with what it has", async (check) => {
     await open("clients");
     await page.getByText("Sarah Jenkins").first().click();
     await page.getByRole("button", { name: "Hair notes" }).click();
     await expect(page.getByText("“For my daughter”")).toBeVisible();
-    check("the newer form", true);
-    check("the older form too", await page.getByText("“For me”").isVisible());
-    check("each says which visit", (await page.getByText(/^For$/).count()) >= 0 && (await page.getByText(/filled in/).count()) === 2, 2, await page.getByText(/filled in/).count());
+    check("newest visit's form open", true);
+    check("earlier form not open yet", !(await page.getByText("“For me”").isVisible()));
+    check("two visits listed", (await page.getByRole("button", { name: /Cut & Style · / }).count()) === 2, 2, await page.getByRole("button", { name: /Cut & Style · / }).count());
+  });
+  await w.step(page, "Tap the earlier visit: its form opens in place", async (check) => {
+    await page.getByRole("button", { name: /Cut & Style · / }).nth(1).click();
+    await expect(page.getByText("“For me”")).toBeVisible();
+    check("earlier form shown", true);
+    check("newest still open", await page.getByText("“For my daughter”").isVisible());
+  });
+});
+
+test("Year-end summary for the preparer", async () => {
+  const w = walk("Year-end summary", "The year on Schedule C lines, against the answer worked out by hand; a line opens onto its transactions.");
+  const { lastMonth } = dates();
+  await w.step(page, "Taxes → Year-end summary: lines and net profit", async (check) => {
+    await open("money/taxes");
+    await page.getByRole("button", { name: /Year-end summary/ }).click();
+    // The seed is last month; in January that's last year.
+    if (Number(lastMonth.slice(0, 4)) < new Date().getFullYear())
+      await page.getByRole("button", { name: "Previous year" }).click();
+    await expect(page.getByText("Net profit")).toBeVisible();
+    const text = (await page.locator("main").first().textContent()) ?? "";
+    // The bank rows are last month's (see EXPECT); the sales tax is the whole
+    // year's, and earlier walks sell more, so it's read from the database:
+    // gross = 25,500 − tax; net = gross − 41,330 − 120,800.
+    const year = Number(lastMonth.slice(0, 4));
+    const tax = Number((await sql.query(
+      `select coalesce(sum(tax_cents),0) t from retail_sales where extract(year from sold_on) = $1`, [year])).rows[0].t);
+    const usd = (c: number) => `${c < 0 ? "−" : ""}$${(Math.abs(c) / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+    const gross = 25500 - tax;
+    const net = gross - 41330 - 120800;
+    check("gross receipts less sales tax", text.includes(usd(gross)), usd(gross));
+    check("net profit", text.includes(usd(net)), usd(net));
+    for (const l of ["Commissions and fees", "Rent or lease: other business property", "Supplies"])
+      check(`line: ${l}`, text.includes(l));
+  });
+  await w.step(page, "Tap rent: its transaction shows", async (check) => {
+    await page.getByRole("button", { name: /Rent or lease: other business property/ }).click();
+    check("SALON LOFTS listed", await page.getByText(/SALON LOFTS/i).first().isVisible());
+  });
+  await w.step(page, "Download for preparer", async (check) => {
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /Download for preparer/ }).click()]);
+    check("a CSV named for the year", /^threshold-\d{4}-schedule-c\.csv$/.test(dl.suggestedFilename()), "threshold-YYYY-schedule-c.csv", dl.suggestedFilename());
   });
 });

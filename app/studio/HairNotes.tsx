@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { whenLabel } from "../../lib/format";
+import { whenLabel, dateLabel } from "../../lib/format";
 import {
   hairSummary,
   offersFor,
@@ -10,6 +10,7 @@ import {
   type Intake,
 } from "../../lib/hairNotes";
 import Button from "./Button";
+import AppointmentPhotos from "./AppointmentPhotos";
 
 // Everything about this client's hair, on her record: what Evelyn mixes, and
 // what the client told her before the visit.
@@ -34,6 +35,16 @@ type IntakeRow = Intake & {
   appointments: { starts_at: string; services: { name: string } | null } | null;
 };
 
+// One visit's worth of what the client sent: the form (if filled in) and how
+// many photos are in the appointment's folder.
+type Visit = {
+  id: string;
+  starts_at: string;
+  service: string | null;
+  intake: IntakeRow | null;
+  photos: number;
+};
+
 export default function HairNotes({
   clientId,
   currentFormula,
@@ -45,11 +56,51 @@ export default function HairNotes({
 }) {
   const [history, setHistory] = useState<FormulaRow[]>([]);
   const [intakes, setIntakes] = useState<IntakeRow[]>([]);
+  // Every visit with a form or photos, newest first; and which are open.
+  const [visits, setVisits] = useState<Visit[] | null>(null);
+  const [opened, setOpened] = useState<Set<string>>(new Set());
   const [unavailable, setUnavailable] = useState(false);
   const [formula, setFormula] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Photos live in storage under each appointment's id, so finding a client's
+  // photos means asking each of her visits. A client has a handful of visits;
+  // the folders are listed in parallel.
+  async function loadVisits(forms: IntakeRow[]) {
+    const { data } = await supabase
+      .from("appointments")
+      .select("id,starts_at,status,services(name)")
+      .eq("client_id", clientId)
+      .neq("status", "cancelled")
+      .order("starts_at", { ascending: false });
+    const appts = (data ?? []) as unknown as {
+      id: string;
+      starts_at: string;
+      services: { name: string } | null;
+    }[];
+    const counts = await Promise.all(
+      appts.map((a) =>
+        supabase.storage
+          .from("booking-photos")
+          .list(a.id, { limit: 20 })
+          .then(({ data: files }) => (files ?? []).filter((f) => f.id && !f.name.startsWith(".")).length),
+      ),
+    );
+    const list = appts
+      .map((a, n) => ({
+        id: a.id,
+        starts_at: a.starts_at,
+        service: a.services?.name ?? null,
+        intake: forms.find((x) => x.appointment_id === a.id) ?? null,
+        photos: counts[n],
+      }))
+      .filter((v) => v.intake || v.photos > 0);
+    setVisits(list);
+    // The newest opens on its own; the rest wait to be asked for.
+    setOpened(new Set(list.length ? [list[0].id] : []));
+  }
 
   const load = useCallback(() => {
     Promise.all([
@@ -69,9 +120,19 @@ export default function HairNotes({
         return;
       }
       setHistory((f.data ?? []) as FormulaRow[]);
-      setIntakes((i.data ?? []) as unknown as IntakeRow[]);
+      const forms = (i.data ?? []) as unknown as IntakeRow[];
+      setIntakes(forms);
+      loadVisits(forms);
     });
-  }, [clientId]);
+  }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggle = (id: string) =>
+    setOpened((o) => {
+      const n = new Set(o);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   useEffect(load, [load]);
 
@@ -209,15 +270,17 @@ export default function HairNotes({
           <span className="h-px flex-1 bg-foreground/10" />
         </div>
 
-        {/* Every form, not just the newest. One booking can be for someone
-            else -- a parent booking their child under their own name fills in
-            the form twice, once per appointment, and the answers describe two
-            different heads of hair. Showing only the latest hid the other.
-            Each is labelled with the visit it came from. */}
-        {!latest ? (
+        {/* One card per visit -- the form and the photos the client sent for
+            it -- in calendar order, newest first. The newest is open; earlier
+            ones are a line each until tapped. A parent booking a child under
+            their own name fills the form once per visit, and the answers
+            describe two heads of hair, so every visit is kept, never merged. */}
+        {visits === null ? (
+          <p className="mt-2 text-sm text-muted">Loading…</p>
+        ) : visits.length === 0 ? (
           <p className="mt-2 text-sm text-muted">
-            Nothing yet. Clients are offered the hair-notes form after booking —
-            it&apos;s optional, so not everyone fills it in.
+            Nothing yet. Clients are offered the hair-notes form and photos after
+            booking — it&apos;s optional, so not everyone fills it in.
           </p>
         ) : (
           <div className="mt-2 grid gap-3">
@@ -236,56 +299,69 @@ export default function HairNotes({
               </div>
             )}
 
-            {intakes.map((it) => {
-              const offers = offersFor(it.struggles ?? []);
-              const visit = it.appointments;
-              return (
-                <div key={it.appointment_id} className="rounded-xl border border-foreground/15 bg-white">
-                  <p className="flex flex-wrap items-baseline justify-between gap-x-3 border-b border-foreground/10 px-4 py-2 text-xs text-muted">
-                    <span>
-                      For{" "}
-                      <span className="text-foreground">
-                        {visit?.services?.name ?? "a visit"}
-                        {visit ? ` · ${whenLabel(visit.starts_at)}` : ""}
-                      </span>
-                    </span>
-                    <span>filled in {whenLabel(it.created_at)}</span>
-                  </p>
-                  <p className="border-b border-foreground/10 px-4 py-3 text-sm">
-                    {hairSummary(it).join(" · ") || "Not much detail given."}
-                  </p>
-
-                  {offers.length > 0 && (
-                    <div className="border-b border-foreground/10 px-4 py-3">
-                      <p className="text-xs uppercase tracking-wider text-muted">
-                        Struggling with — worth offering
-                      </p>
-                      <div className="mt-2 grid gap-1.5">
-                        {offers.map((o) => (
-                          <p key={o.problem} className="flex gap-2 text-sm">
-                            <span className="font-medium">{o.offer}</span>
-                            <span className="text-muted">— {o.problem}</span>
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {it.allergies && (
-                    <p
-                      className="border-b border-foreground/10 px-4 py-3 text-sm"
-                      style={{ boxShadow: "inset 4px 0 0 #8f3f4a" }}
+            <div className="overflow-hidden rounded-xl border border-foreground/15 bg-white">
+              {visits.map((v, n) => {
+                const open = opened.has(v.id);
+                const it = v.intake;
+                const what = [it ? "form" : null, v.photos ? `${v.photos} photo${v.photos === 1 ? "" : "s"}` : null]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <div key={v.id} className={n > 0 ? "border-t border-foreground/10" : ""}>
+                    <button
+                      onClick={() => toggle(v.id)}
+                      aria-expanded={open}
+                      className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2 text-left"
                     >
-                      <span className="text-xs uppercase tracking-wider text-muted">Allergies</span>
-                      <br />
-                      {it.allergies}
-                    </p>
-                  )}
+                      <span className="min-w-0">
+                        <span className={open ? "font-medium" : ""}>
+                          {v.service ?? "A visit"} · {dateLabel(v.starts_at)}
+                        </span>
+                        <span className="block text-xs text-muted">{what}</span>
+                      </span>
+                      <span className="shrink-0 text-muted" aria-hidden="true">
+                        {open ? "–" : "+"}
+                      </span>
+                    </button>
 
-                  {it.note && <p className="px-4 py-3 font-display text-sm italic">“{it.note}”</p>}
-                </div>
-              );
-            })}
+                    {open && (
+                      <div className="px-4 pb-3">
+                        {it && (
+                          <>
+                            <p className="text-sm">{hairSummary(it).join(" · ") || "Not much detail given."}</p>
+                            {offersFor(it.struggles ?? []).length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-xs uppercase tracking-wider text-muted">
+                                  Struggling with — worth offering
+                                </p>
+                                <div className="mt-1 grid gap-1">
+                                  {offersFor(it.struggles ?? []).map((o) => (
+                                    <p key={o.problem} className="flex gap-2 text-sm">
+                                      <span className="font-medium">{o.offer}</span>
+                                      <span className="text-muted">— {o.problem}</span>
+                                    </p>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {it.allergies && (
+                              <p className="mt-2 py-1 pl-3 text-sm" style={{ boxShadow: "inset 3px 0 0 #8f3f4a" }}>
+                                <span className="text-xs uppercase tracking-wider text-muted">Allergies</span>
+                                <br />
+                                {it.allergies}
+                              </p>
+                            )}
+                            {it.note && <p className="mt-2 font-display text-sm italic">“{it.note}”</p>}
+                            <p className="mt-1 text-xs text-muted">Filled in {whenLabel(it.created_at)}</p>
+                          </>
+                        )}
+                        {v.photos > 0 && <AppointmentPhotos appointmentId={v.id} />}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </section>
