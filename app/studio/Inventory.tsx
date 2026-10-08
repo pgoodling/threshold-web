@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Segments } from "./ui";
 import { Package, History, type LucideIcon } from "lucide-react";
 import MoneyInventory from "./MoneyInventory";
 import MoneyActivity from "./MoneyActivity";
@@ -49,22 +50,12 @@ export default function Inventory() {
     <div>
       <h2 className="mb-4 font-display text-2xl leading-none sm:text-3xl">Inventory</h2>
 
-      <div className="-mx-1 flex items-center gap-1 border-b border-foreground/15">
-        {TABS.map(([key, label, Icon]) => (
-          <button
-            key={key}
-            onClick={() => select(key)}
-            className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition ${
-              tab === key
-                ? "border-foreground font-medium"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            <Icon size={15} />
-            {label}
-          </button>
-        ))}
-      </div>
+      <Segments
+        label="View"
+        options={TABS.map(([key, label]) => [key, label] as const)}
+        value={tab}
+        onChange={select}
+      />
 
       <div className="mt-6">
         {tab === "stock" && <MoneyInventory onChanged={() => setDataKey((k) => k + 1)} />}

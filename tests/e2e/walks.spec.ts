@@ -409,7 +409,7 @@ test("Menu: eight items, nothing lost", async () => {
   await w.step(page, "Open the menu: eight items", async (check) => {
     await open("overview");
     await page.getByRole("button", { name: "Menu" }).click();
-    const names = (await page.locator("div.absolute.z-20 > button").allTextContents())
+    const names = (await page.locator("div.absolute.z-20 button").allTextContents())
       .map((t) => t.replace(/\d+$/, "").trim())
       .filter((t) => t !== "Sign out");
     check("the eight, in order", names.join(",") === ITEMS.join(","), ITEMS.join(", "), names.join(", "));
@@ -438,7 +438,7 @@ test("Menu: eight items, nothing lost", async () => {
     for (const [hash, tab, heading] of OLD) {
       await open(hash);
       await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
-      const tabBtn = page.locator("main button.border-foreground", { hasText: tab });
+      const tabBtn = page.locator('main button[aria-pressed="true"]', { hasText: tab });
       check(`#${hash} → ${tab}`, (await tabBtn.count()) === 1, "its tab marked", `${await tabBtn.count()} marked`);
     }
   });
@@ -649,6 +649,8 @@ test("Paid by Evelyn, owed back", async () => {
   await w.step(page, "Record all 2: both saved, and owed back", async (check) => {
     await page.getByRole("button", { name: "Record all 2" }).click();
     await expect(page.getByText("2 recorded · $498.20")).toBeVisible();
+    // The list reloads after the save; wait for it rather than reading too early.
+    await expect(page.getByText("Still hers to take back").locator("..")).toContainText("$798.20");
     const row = (await page.getByText("Still hers to take back").locator("..").textContent()) ?? "";
     // $300 put in + $498.20 of receipts, nothing paid back yet.
     check("still hers $798.20", row.includes("$798.20"), "$798.20", row);
@@ -759,4 +761,30 @@ test("A client books, sends hair notes, and cancels", async () => {
     check("cancelled", true, "cancelled", "cancelled");
   });
   await page.unroute("**/api/stripe/setup-intent");
+});
+
+test("Day view scrolls when the swipe starts on an appointment", async () => {
+  const w = walk("Swipe the day", "A finger swipe that starts on an appointment scrolls the page; a long press still drags.");
+  await w.step(page, "Swipe up from Sarah's 2pm", async (check) => {
+    await open("calendar");
+    await page.getByRole("button", { name: "day", exact: true }).click();
+    const appt = page.getByText("2:00 PM Sarah");
+    await appt.scrollIntoViewIfNeeded();
+    const box = (await appt.boundingBox())!;
+    const before = await page.evaluate(() => window.scrollY);
+    const cdp = await page.context().newCDPSession(page);
+    const x = box.x + box.width / 2;
+    let y = box.y + box.height / 2;
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+    for (let i = 0; i < 12; i++) {
+      y -= 25;
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y }] });
+      await page.waitForTimeout(16);
+    }
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await page.waitForTimeout(600);
+    const after = await page.evaluate(() => window.scrollY);
+    // Before the fix this was 0 → 0: the appointment swallowed the swipe.
+    check("the page scrolled", after > before + 50, `more than ${before + 50}`, after);
+  });
 });

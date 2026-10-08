@@ -19,6 +19,7 @@ import ClientPicker from "./ClientPicker";
 import BlockTimePanel, { type BlockRow } from "./BlockTimePanel";
 import { layoutLanes, salonMinutes } from "../../lib/dayLayout";
 import DayHoursPanel from "./DayHoursPanel";
+import { Segments } from "./ui";
 import {
   resolveHours,
   hoursLabel,
@@ -374,29 +375,20 @@ export default function Calendar({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex overflow-hidden rounded-md border border-foreground/15 text-sm">
-            {(["month", "week", "day"] as View[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                aria-pressed={view === v}
-                className={`min-h-11 border-l border-foreground/15 px-4 text-sm capitalize transition first:border-l-0 ${
-                  view === v
-                    ? "bg-foreground text-background"
-                    : "text-muted hover:bg-foreground/5 hover:text-accent-dark"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
+          <Segments
+            label="Calendar view"
+            className="w-56"
+            options={(["month", "week", "day"] as View[]).map((v) => [v, <span key={v} className="capitalize">{v}</span>] as const)}
+            value={view}
+            onChange={setView}
+          />
           {/* + New offers both things a day can need. Whichever day she's
               looking at comes along; in month view, the day last selected. */}
           <div className="relative">
             <button
               onClick={() => setNewMenu((o) => !o)}
               aria-expanded={newMenu}
-              className="rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-white transition hover:bg-accent-dark"
+              className="inline-flex min-h-11 items-center rounded-[10px] bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-dark"
             >
               + New
             </button>
@@ -926,8 +918,31 @@ function TimeGrid({
     pressOrigin.current = null;
   };
 
+  // Scrolling the day used to fight her (Paul, 2026-10-08): every appointment
+  // had touch-action:none so a long press could drag it, which meant any swipe
+  // starting on an appointment didn't scroll -- and on a full day that's most
+  // of the screen. Now the page scrolls as normal, and only once a long press
+  // has actually started a drag does a non-passive touchmove stop the page
+  // moving under her finger.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const draggingNow = useRef(false);
+  useEffect(() => {
+    draggingNow.current = drag !== null;
+  }, [drag]);
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const stop = (e: TouchEvent) => {
+      if (draggingNow.current) e.preventDefault();
+    };
+    el.addEventListener("touchmove", stop, { passive: false });
+    return () => el.removeEventListener("touchmove", stop);
+  }, []);
+
   return (
-    <div className="overflow-x-auto">
+    // Only the week needs to scroll sideways; a scrolling box around the day
+    // view was one more thing for a swipe to get caught in.
+    <div ref={gridRef} className={wide ? "" : "overflow-x-auto"}>
       <div style={{ minWidth: wide ? undefined : days.length * 100 + 56 }}>
         {/* Day headers */}
         <div className="flex">
@@ -1177,11 +1192,13 @@ function TimeGrid({
                           ? "0 8px 20px rgba(50,37,31,0.28)"
                           : undefined,
                         opacity: dim ? 0.55 : 1,
-                        // The browser must not claim this gesture for scrolling,
-                        // or the drag never gets its pointermove events. Cost:
-                        // a swipe that starts on an appointment won't scroll —
-                        // she scrolls from empty grid or the time gutter.
-                        touchAction: onMove ? "none" : undefined,
+                        // Scrolling allowed; a started drag stops it (see gridRef).
+                        touchAction: onMove ? "manipulation" : undefined,
+                        // A long press is a drag, not a text selection or the
+                        // iPhone's link menu.
+                        userSelect: onMove ? "none" : undefined,
+                        WebkitUserSelect: onMove ? "none" : undefined,
+                        WebkitTouchCallout: onMove ? "none" : undefined,
                         zIndex: isDragging ? 20 : undefined,
                         cursor: onMove ? "grab" : undefined,
                       }}

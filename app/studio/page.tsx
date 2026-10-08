@@ -18,6 +18,7 @@ import Outreach from "./Outreach";
 import Texts from "./Texts";
 import SettingsPanel from "./Settings";
 import ApptDetailModal from "./ApptDetailModal";
+import { Tile, Tiles, Segments } from "./ui";
 import DayHoursPanel, { DayHoursList } from "./DayHoursPanel";
 import {
   LayoutDashboard,
@@ -485,7 +486,7 @@ function Dashboard() {
             onClick={() => setMenuOpen((o) => !o)}
             aria-expanded={menuOpen}
             aria-label="Menu"
-            className="relative flex h-9 w-9 items-center justify-center text-foreground"
+            className="relative -mr-2 flex h-11 w-11 items-center justify-center text-foreground"
           >
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
             {unread > 0 && !menuOpen && (
@@ -499,31 +500,27 @@ function Dashboard() {
               className="fixed inset-0 z-10"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute left-0 right-0 z-20 overflow-hidden border-b border-foreground/10 bg-white shadow-lg">
-              {NAV.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
+            {/* The eight as tiles (direction B, 2026-10-08): big enough to hit
+                without looking, the current one outlined, unread on Messages. */}
+            <div className="absolute left-0 right-0 z-20 border-b border-foreground/10 bg-background p-4 shadow-lg">
+              <Tiles cols={2}>
+                {NAV.map((item) => (
+                  <Tile
                     key={item.label}
+                    icon={item.icon}
+                    label={item.label}
+                    tone={item === group ? "selected" : "default"}
+                    badge={item.label === "Messages" && unread > 0 ? unread : undefined}
                     onClick={() => go(item.tabs[0][0])}
-                    className={`flex w-full items-center gap-3 px-5 py-3 text-left text-sm transition ${
-                      item === group
-                        ? "bg-accent/10 font-medium text-accent-dark"
-                        : "text-foreground hover:bg-foreground/5"
-                    }`}
-                  >
-                    <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
-                    <span className="flex-1">{item.label}</span>
-                    {item.label === "Messages" && badge(unread)}
-                  </button>
-                );
-              })}
+                  />
+                ))}
+              </Tiles>
               <button
                 onClick={() => {
                   setMenuOpen(false);
                   supabase.auth.signOut();
                 }}
-                className="flex w-full items-center gap-3 border-t border-foreground/10 px-5 py-3 text-left text-sm text-muted"
+                className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 text-sm text-muted"
               >
                 <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
                 Sign out
@@ -537,24 +534,13 @@ function Dashboard() {
       <main className="min-w-0 flex-1 px-5 py-6 sm:px-10 sm:py-10">
         <div className="mx-auto max-w-4xl">
           {group.tabs.length > 1 && !group.tabs.some(([p]) => p.includes("/")) && (
-            <div className="-mx-1 mb-6 flex flex-wrap items-center gap-1 border-b border-foreground/15">
-              {group.tabs.map(([path, label]) => (
-                <button
-                  key={path}
-                  onClick={() => select(path as Tab)}
-                  className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm transition ${
-                    path === tab
-                      ? "border-foreground font-medium"
-                      : "border-transparent text-muted hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                  {count(path) > 0 && (
-                    <span className="tabular-nums text-accent-dark">{count(path)}</span>
-                  )}
-                </button>
-              ))}
-            </div>
+            <Segments
+              className="mb-6"
+              label={group.label}
+              options={group.tabs.map(([path, label]) => [path as Tab, label, count(path)] as const)}
+              value={tab}
+              onChange={(v) => select(v)}
+            />
           )}
           {tab === "overview" && (
             <Overview
@@ -1098,93 +1084,85 @@ function TimeOff() {
         or a stretch of days. Clients can&apos;t book across it.
       </p>
 
+      {/* A stack, not a wrapping row -- the row ran past the card on an
+          iPhone, where Safari gives date boxes a fixed minimum width (Paul,
+          2026-10-08). Every field may shrink (min-w-0). */}
       <form
         ref={formRef}
         onSubmit={add}
-        className={`mt-5 flex flex-wrap items-end gap-3 rounded-xl border bg-white p-5 ${
+        className={`mt-5 grid gap-3 rounded-xl border bg-white p-4 sm:p-5 ${
           editingId ? "border-accent/50 ring-2 ring-accent/15" : "border-foreground/15"
         }`}
       >
         {editingId && (
-          <p className="basis-full text-xs uppercase tracking-[0.12em] text-accent-dark">
-            Editing a block
-          </p>
+          <p className="text-xs uppercase tracking-[0.12em] text-accent-dark">Editing a block</p>
         )}
-        <label className="block">
-          <span className="mb-1 block text-sm">From</span>
-          <input
-            type="date"
-            required
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="input w-auto"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm">To (optional)</span>
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            onChange={(e) => setToDate(e.target.value)}
-            className="input w-auto"
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block min-w-0">
+            <span className="mb-1 block text-sm">From</span>
+            <input
+              type="date"
+              required
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="input w-full min-w-0"
+            />
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1 block text-sm">To (optional)</span>
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate || undefined}
+              onChange={(e) => setToDate(e.target.value)}
+              className="input w-full min-w-0"
+            />
+          </label>
+        </div>
         {multiDay ? (
-          <span className="pb-3 text-sm text-muted">Full days blocked</span>
+          <span className="text-sm text-muted">Full days blocked</span>
         ) : (
           <>
-            <label className="flex items-center gap-2 pb-3 text-sm">
+            <label className="flex min-h-11 items-center gap-2.5 text-sm">
               <input
                 type="checkbox"
                 checked={allDay}
                 onChange={(e) => setAllDay(e.target.checked)}
+                className="h-5 w-5 accent-[#bd6b4d]"
               />
               All day
             </label>
             {!allDay && (
-              <div className="flex items-center gap-2 pb-1 text-sm">
-                <input
-                  type="time"
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  className="input w-auto"
-                />
-                <span className="text-muted">to</span>
-                <input
-                  type="time"
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  className="input w-auto"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block min-w-0">
+                  <span className="mb-1 block text-sm">From</span>
+                  <input type="time" value={start} onChange={(e) => setStart(e.target.value)} className="input w-full min-w-0" />
+                </label>
+                <label className="block min-w-0">
+                  <span className="mb-1 block text-sm">To</span>
+                  <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} className="input w-full min-w-0" />
+                </label>
               </div>
             )}
           </>
         )}
-        <label className="block flex-1">
+        <label className="block min-w-0">
           <span className="mb-1 block text-sm">Reason (optional)</span>
-          <input
-            type="text"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="input"
-          />
+          <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} className="input w-full min-w-0" />
         </label>
-        <button
-          type="submit"
-          className="rounded-md bg-accent px-6 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark"
-        >
-          {editingId ? "Save changes" : "Add"}
-        </button>
-        {editingId && (
+        <div className="flex items-center gap-3">
           <button
-            type="button"
-            onClick={resetForm}
-            className="px-2 py-2.5 text-sm text-muted transition hover:text-foreground"
+            type="submit"
+            className="min-h-11 rounded-[10px] bg-accent px-6 text-[15px] font-medium text-white transition hover:bg-accent-dark"
           >
-            Cancel
+            {editingId ? "Save changes" : "Add"}
           </button>
-        )}
+          {editingId && (
+            <button type="button" onClick={resetForm} className="min-h-11 px-2 text-sm text-muted transition hover:text-foreground">
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
 
       {error && <ErrorNote>{error}</ErrorNote>}
