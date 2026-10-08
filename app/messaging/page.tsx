@@ -55,7 +55,7 @@ export default function MessagingPage() {
               className="h-10 w-auto"
             />
           </a>
-          <a href="/" className="text-sm text-muted hover:text-accent">
+          <a href="/" className="inline-flex min-h-11 items-center text-sm text-muted hover:text-accent">
             ← Back to site
           </a>
         </nav>
@@ -262,7 +262,7 @@ export default function MessagingPage() {
 
       <footer className="border-t border-foreground/10">
         <div className="mx-auto flex max-w-3xl flex-wrap gap-x-5 gap-y-2 px-6 py-8 text-sm text-muted">
-          <a href="/" className="hover:text-accent">
+          <a href="/" className="inline-flex min-h-11 items-center hover:text-accent">
             ← Back to Threshold
           </a>
           <a href="/privacy" className="hover:text-accent">

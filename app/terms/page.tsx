@@ -48,7 +48,7 @@ export default function TermsPage() {
               className="h-10 w-auto"
             />
           </a>
-          <a href="/" className="text-sm text-muted hover:text-accent">
+          <a href="/" className="inline-flex min-h-11 items-center text-sm text-muted hover:text-accent">
             ← Back to site
           </a>
         </nav>
@@ -177,7 +177,7 @@ export default function TermsPage() {
 
       <footer className="border-t border-foreground/10">
         <div className="mx-auto max-w-3xl px-6 py-8 text-sm text-muted">
-          <a href="/" className="hover:text-accent">
+          <a href="/" className="inline-flex min-h-11 items-center hover:text-accent">
             ← Back to Threshold
           </a>
         </div>

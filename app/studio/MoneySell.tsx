@@ -90,7 +90,7 @@ export default function MoneySell({ onSold }: { onSold?: () => void }) {
         <div className="flex items-center gap-2 rounded-lg border border-foreground/15 bg-white px-3 py-2 text-sm">
           <User size={15} className="text-muted" />
           <span className="flex-1">{client.full_name}</span>
-          <button onClick={() => setClient(null)} aria-label="Remove client" className="text-muted">
+          <button onClick={() => setClient(null)} aria-label="Remove client" className="min-h-11 inline-flex items-center text-muted">
             <X size={15} />
           </button>
         </div>
@@ -114,7 +114,7 @@ export default function MoneySell({ onSold }: { onSold?: () => void }) {
                 <button
                   key={c.id}
                   onClick={() => setClient(c)}
-                  className="block w-full border-t border-foreground/10 px-3 py-2 text-left text-sm first:border-t-0 hover:bg-foreground/[0.03]"
+                  className="min-h-11 inline-flex items-center block w-full border-t border-foreground/10 px-3 text-left text-sm first:border-t-0 hover:bg-foreground/[0.03]"
                 >
                   {c.full_name}
                   {c.phone && <span className="ml-2 text-xs text-muted">{c.phone}</span>}
@@ -171,7 +171,7 @@ export default function MoneySell({ onSold }: { onSold?: () => void }) {
       <button
         onClick={sell}
         disabled={busy || !ctx}
-        className="mt-4 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
+        className="inline-flex min-h-11 items-center justify-center mt-4 w-full rounded-[10px] bg-accent px-4 .5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
       >
         {busy ? "Saving…" : lines.length ? `Sell · ${usd(t.total)}` : "Sell"}
       </button>

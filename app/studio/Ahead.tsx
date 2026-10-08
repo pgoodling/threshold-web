@@ -1,4 +1,5 @@
 "use client";
+import { Segments } from "./ui";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
@@ -142,21 +143,13 @@ export default function Ahead({ rows }: { rows: ApptLike[] }) {
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <h3 className="font-display text-lg">On the books</h3>
         {/* One control row, above everything it scopes. */}
-        <div className="flex gap-4 text-sm">
-          {GRAINS.map(([g, , label]) => (
-            <button
-              key={g}
-              onClick={() => setGrain(g)}
-              className={`border-b-2 pb-0.5 transition ${
-                grain === g
-                  ? "border-accent font-medium text-accent-dark"
-                  : "border-transparent text-muted hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segments
+          className="w-full sm:w-auto"
+          label="How far ahead"
+          options={GRAINS.map(([g, , label]) => [g, label] as const)}
+          value={grain}
+          onChange={setGrain}
+        />
       </div>
 
       {/* Hero figure: same sans as everything else, proportional figures. It's
@@ -210,7 +203,7 @@ export default function Ahead({ rows }: { rows: ApptLike[] }) {
               <Button onClick={saveTarget}>Save</Button>
               <button
                 onClick={() => setEditing(false)}
-                className="pb-2 text-sm text-muted hover:text-foreground"
+                className="min-h-11 inline-flex items-center pb-2 text-sm text-muted hover:text-foreground"
               >
                 Cancel
               </button>
@@ -225,7 +218,7 @@ export default function Ahead({ rows }: { rows: ApptLike[] }) {
                   setDraft("");
                   setEditing(true);
                 }}
-                className="font-medium text-accent-dark underline decoration-accent underline-offset-4"
+                className="min-h-11 inline-flex items-center font-medium text-accent-dark underline decoration-accent underline-offset-4"
               >
                 Set a monthly target
               </button>{" "}
@@ -386,7 +379,7 @@ function MonthProgress({
         </span>
         <button
           onClick={onEdit}
-          className="ml-auto text-xs text-muted underline underline-offset-4 hover:text-foreground"
+          className="min-h-11 inline-flex items-center ml-auto text-xs text-muted underline underline-offset-4 hover:text-foreground"
         >
           Change target
         </button>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Plus, ClipboardList, Search, X, PackageOpen, Undo2, Receipt } from "lucide-react";
+import { Plus, ClipboardList, Search, X, PackageOpen, Undo2, Receipt, RotateCcw, CheckCheck, CheckSquare, Square, Trash2 } from "lucide-react";
+import { Tile, Tiles, Segments } from "./ui";
 import MoneyInvoice from "./MoneyInvoice";
 import MoneyAddStock from "./MoneyAddStock";
 import MoneyCount from "./MoneyCount";
@@ -197,7 +198,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
 
   const TABS: [Filter, string][] = [
     ["all", "All"],
-    ["bar", "On back bar"],
+    ["bar", "Back bar"],
     ["sale", "For sale"],
   ];
 
@@ -229,7 +230,7 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
   );
 
   const buttons = (
-    <div className="flex gap-2 lg:justify-end">
+    <Tiles cols={3}>
       {(
         [
           ["sell", "Sell", Receipt],
@@ -237,22 +238,18 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
           ["count", "Count", ClipboardList],
         ] as const
       ).map(([key, label, Icon]) => (
-        <button
+        <Tile
           key={key}
+          icon={Icon}
+          label={label}
+          tone={key === "sell" ? "primary" : panel === key ? "selected" : "default"}
           onClick={() => {
             setPanel(key);
             setOpenId(null);
           }}
-          className={`inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border px-2 py-2.5 text-sm font-medium shadow-sm transition sm:px-3 lg:flex-none lg:px-4 ${
-            key === "sell"
-              ? "border-accent bg-accent text-white hover:bg-accent-dark"
-              : `bg-white hover:border-foreground/30 ${panel === key ? "border-accent" : "border-foreground/15"}`
-          }`}
-        >
-          <Icon size={16} /> {label}
-        </button>
+        />
       ))}
-    </div>
+    </Tiles>
   );
 
   const list = (
@@ -267,41 +264,17 @@ export default function MoneyInventory({ onChanged }: { onChanged?: () => void }
         />
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-b border-foreground/10 text-sm">
-        {TABS.map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => pickFilter(key)}
-            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 transition ${
-              filter === key
-                ? "border-accent font-medium"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-        {priceCount > 0 && (
-          <button
-            onClick={() => pickFilter("price")}
-            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 text-red-700 transition ${
-              filter === "price" ? "border-accent font-medium" : "border-transparent"
-            }`}
-          >
-            Needs price {priceCount}
-          </button>
-        )}
-        {removedCount > 0 && (
-          <button
-            onClick={() => pickFilter("removed")}
-            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 transition ${
-              filter === "removed" ? "border-accent font-medium" : "border-transparent text-muted"
-            }`}
-          >
-            Removed {removedCount}
-          </button>
-        )}
-      </div>
+      <Segments
+        className="mt-3"
+        label="Show"
+        options={[
+          ...TABS.map(([key, label]) => [key, label] as const),
+          ...(priceCount > 0 ? ([["price", "Needs price", priceCount]] as const) : []),
+          ...(removedCount > 0 ? ([["removed", "Removed", removedCount]] as const) : []),
+        ]}
+        value={filter}
+        onChange={pickFilter}
+      />
 
       {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
@@ -476,7 +449,7 @@ function Product({
       <div className={`min-w-0 flex-1 ${open ? "bg-foreground/[0.03]" : ""}`}>
         <button
           onClick={onToggle}
-          className="flex w-full items-center gap-3 px-3 py-2.5 text-left"
+          className="min-h-11 flex w-full items-center gap-3 px-3 .5 text-left"
           aria-expanded={open}
         >
           <span className="min-w-0 flex-1">
@@ -684,12 +657,7 @@ function Detail({
     return (
       <div className="px-3 pb-3">
         <p className="text-sm text-muted">Removed from inventory. Its history is kept.</p>
-        <button
-          onClick={() => onPatch({ active: true })}
-          className="mt-2 rounded-lg border border-foreground/20 bg-white px-3 py-2 text-sm font-medium hover:border-foreground/40"
-        >
-          Bring it back
-        </button>
+        <Tile row icon={RotateCcw} label="Bring it back" className="mt-2 w-full" onClick={() => onPatch({ active: true })} />
         <History history={history} mine={mine} onUndo={undo} />
       </div>
     );
@@ -698,61 +666,43 @@ function Detail({
   return (
     <div className="px-3 pb-3">
       {(r.used_at_backbar || bar > 0) && (
-        <div className="flex gap-2">
+        <Tiles cols={2}>
           {/* Nothing on the shelf, nothing to open. Only a sale may take the
               shelf below zero — a bottle in her hand at the till means the
               count is wrong — but opening one she doesn't have is a mis-tap. */}
           {r.used_at_backbar &&
             (shelf > 0 ? (
-              <button
-                onClick={() => record("used")}
-                disabled={busy}
-                className="flex-1 rounded-lg bg-accent px-3 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
-              >
-                Put one on bar
-              </button>
+              <Tile icon={PackageOpen} label="Put one on bar" tone="primary" disabled={busy} onClick={() => record("used")} />
             ) : (
-              <button
-                disabled
-                className="flex-1 cursor-not-allowed rounded-lg border border-foreground/10 bg-foreground/[0.04] px-3 py-2.5 text-sm text-muted"
-              >
-                None on the shelf
-              </button>
+              <Tile icon={PackageOpen} label="None on the shelf" disabled />
             ))}
-          {bar > 0 && (
-            <button
-              onClick={() => record("finished")}
-              disabled={busy}
-              className="flex-1 rounded-lg border border-foreground/20 bg-white px-3 py-2.5 text-sm font-medium transition hover:border-foreground/40 disabled:opacity-60"
-            >
-              Finished one
-            </button>
-          )}
-        </div>
+          {bar > 0 && <Tile icon={CheckCheck} label="Finished one" disabled={busy} onClick={() => record("finished")} />}
+        </Tiles>
       )}
 
       <div className="mt-3">
         <PriceField row={r} onPatch={onPatch} />
       </div>
 
-      <div className="mt-3 flex gap-5 text-sm">
-        <label className="flex min-h-11 items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={r.sells_retail}
-            onChange={(e) => onPatch({ sells_retail: e.target.checked })}
-          />
-          Sell
-        </label>
-        <label className="flex min-h-11 items-center gap-1.5">
-          <input
-            type="checkbox"
-            checked={r.used_at_backbar}
-            onChange={(e) => onPatch({ used_at_backbar: e.target.checked })}
-          />
-          Back bar
-        </label>
-      </div>
+      {/* Tap anywhere on the tile to change it; a tick says it's on. */}
+      <Tiles cols={2} className="mt-3">
+        <Tile
+          row
+          icon={r.sells_retail ? CheckSquare : Square}
+          label="For sale"
+          aria-pressed={r.sells_retail}
+          tone={r.sells_retail ? "selected" : "default"}
+          onClick={() => onPatch({ sells_retail: !r.sells_retail })}
+        />
+        <Tile
+          row
+          icon={r.used_at_backbar ? CheckSquare : Square}
+          label="Back bar"
+          aria-pressed={r.used_at_backbar}
+          tone={r.used_at_backbar ? "selected" : "default"}
+          onClick={() => onPatch({ used_at_backbar: !r.used_at_backbar })}
+        />
+      </Tiles>
 
       {looksLikeKit(r) && (
         <div className="mt-3">
@@ -769,42 +719,29 @@ function Detail({
               }}
             />
           ) : (
-            <button
-              onClick={() => setSplitting(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/5 px-3 py-1.5 text-sm font-medium text-accent"
-            >
-              <PackageOpen size={14} /> What was in it?
-            </button>
+            <Tile row icon={PackageOpen} label="What was in it?" className="w-full" onClick={() => setSplitting(true)} />
           )}
         </div>
       )}
 
       <History history={history} mine={mine} onUndo={undo} />
 
-      {/* Rare, so a quiet link rather than a button, and one confirm. */}
-      <div className="mt-3 text-xs">
+      {/* Rare, so last, in wine, and one confirm. */}
+      <div className="mt-3">
         {confirming ? (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="text-muted">
+          <div className="rounded-xl border border-[#8f3f4a]/30 bg-[#8f3f4a]/5 p-3">
+            <p className="text-sm text-[#8f3f4a]">
               {history && history.length === 0
                 ? "Delete this product? It has no history."
                 : "Remove from the list? Its history is kept."}
-            </span>
-            <button
-              onClick={remove}
-              disabled={busy}
-              className="rounded-md border border-red-300 px-2.5 py-1 font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-            >
-              {history && history.length === 0 ? "Delete" : "Remove"}
-            </button>
-            <button onClick={() => setConfirming(false)} className="text-muted hover:text-foreground">
-              Cancel
-            </button>
+            </p>
+            <Tiles cols={2} className="mt-2">
+              <Tile row tone="danger" label={history && history.length === 0 ? "Delete" : "Remove"} disabled={busy} onClick={remove} />
+              <Tile row label="Cancel" onClick={() => setConfirming(false)} />
+            </Tiles>
           </div>
         ) : (
-          <button onClick={() => setConfirming(true)} className="-my-3 inline-flex min-h-11 items-center text-muted underline hover:text-foreground">
-            Remove from inventory
-          </button>
+          <Tile row icon={Trash2} tone="danger" label="Remove from inventory" className="w-full" onClick={() => setConfirming(true)} />
         )}
       </div>
     </div>

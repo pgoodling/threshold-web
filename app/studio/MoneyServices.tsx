@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+
 import { supabase } from "../../lib/supabase";
+import { BackHeader } from "./ui";
 import {
   cardFeeRate,
   serviceRows,
@@ -175,12 +176,7 @@ export default function MoneyServices() {
 
     return (
       <div className="max-w-xl">
-        <button
-          onClick={() => setOpen(null)}
-          className="-ml-1 inline-flex min-h-11 items-center gap-1 text-left font-display text-xl"
-        >
-          <ChevronLeft size={20} className="shrink-0" /> {r.name}
-        </button>
+        <BackHeader onBack={() => setOpen(null)} backLabel="Services" title={r.name} />
         <p className="mt-1 text-sm text-muted">
           {n} paid visit{n === 1 ? "" : "s"}
         </p>
@@ -304,7 +300,7 @@ export default function MoneyServices() {
               <button
                 key={x.name}
                 onClick={() => setOpen(x.name)}
-                className="flex w-full items-center gap-3 border-t border-foreground/10 px-3 py-2.5 text-left first:border-t-0 hover:bg-foreground/[0.02]"
+                className="min-h-11 flex w-full items-center gap-3 border-t border-foreground/10 px-3 .5 text-left first:border-t-0 hover:bg-foreground/[0.02]"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] leading-snug">{x.name}</span>
@@ -335,7 +331,7 @@ export default function MoneyServices() {
                 <button
                   key={x.name}
                   onClick={() => setOpen(x.name)}
-                  className="flex w-full justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-left first:border-t-0"
+                  className="min-h-11 flex w-full justify-between gap-3 border-t border-foreground/10 px-3 text-left first:border-t-0"
                 >
                   <span className="min-w-0">{x.name}</span>
                   <span className="shrink-0 tabular-nums text-muted">{whole(rate(x))}/h</span>

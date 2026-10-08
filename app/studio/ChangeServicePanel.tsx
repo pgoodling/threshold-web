@@ -111,7 +111,7 @@ export default function ChangeServicePanel({
           <button
             onClick={() => save(clash !== null)}
             disabled={busy}
-            className="rounded-md bg-accent px-6 py-2 text-white transition hover:bg-accent-dark disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-6 text-white transition hover:bg-accent-dark disabled:opacity-60"
           >
             {busy ? "Saving…" : clash ? "Change anyway" : "Change service"}
           </button>

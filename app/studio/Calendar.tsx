@@ -400,7 +400,7 @@ export default function Calendar({
                     setSelected(null);
                     setNewAppt({ date: view === "month" ? selectedDay : anchor, time: "" });
                   }}
-                  className="block w-full px-3 py-2.5 text-left hover:bg-foreground/[0.04]"
+                  className="min-h-11 inline-flex items-center block w-full px-3 .5 text-left hover:bg-foreground/[0.04]"
                 >
                   Appointment
                 </button>
@@ -410,7 +410,7 @@ export default function Calendar({
                     setSelected(null);
                     setBlockForm({ date: view === "month" ? selectedDay : anchor, time: "" });
                   }}
-                  className="block w-full border-t border-foreground/10 px-3 py-2.5 text-left hover:bg-foreground/[0.04]"
+                  className="min-h-11 inline-flex items-center block w-full border-t border-foreground/10 px-3 .5 text-left hover:bg-foreground/[0.04]"
                 >
                   Block time
                 </button>
@@ -420,7 +420,7 @@ export default function Calendar({
                     setSelected(null);
                     setHoursDay(view === "month" ? selectedDay : anchor);
                   }}
-                  className="block w-full border-t border-foreground/10 px-3 py-2.5 text-left hover:bg-foreground/[0.04]"
+                  className="min-h-11 inline-flex items-center block w-full border-t border-foreground/10 px-3 .5 text-left hover:bg-foreground/[0.04]"
                 >
                   Hours for this day
                 </button>
@@ -535,7 +535,7 @@ export default function Calendar({
                   setNewAppt(choice);
                   setChoice(null);
                 }}
-                className="rounded-md bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-dark"
+                className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-4 .5 text-sm font-medium text-white hover:bg-accent-dark"
               >
                 Book an appointment
               </button>
@@ -544,7 +544,7 @@ export default function Calendar({
                   setBlockForm(choice);
                   setChoice(null);
                 }}
-                className="rounded-md border border-foreground/20 px-4 py-2.5 text-sm font-medium hover:border-foreground/40"
+                className="min-h-11 inline-flex items-center rounded-md border border-foreground/20 px-4 .5 text-sm font-medium hover:border-foreground/40"
               >
                 Block this time
               </button>
@@ -1444,14 +1444,14 @@ function NewClientForm({
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {busy ? "Adding…" : "Add client"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="text-sm text-muted hover:text-accent"
+          className="min-h-11 inline-flex items-center text-sm text-muted hover:text-accent"
         >
           Cancel
         </button>

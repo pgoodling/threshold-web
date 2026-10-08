@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { Segments } from "./ui";
 import {
   dateLabel,
   money,
@@ -186,21 +187,13 @@ export default function Reports() {
         <p className="text-sm text-muted">
           Revenue counts checked-out (paid) visits.
         </p>
-        <div className="flex gap-1 text-xs">
-          {RANGES.map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setRange(key)}
-              className={`rounded-md border px-3 py-1 transition ${
-                range === key
-                  ? "border-accent bg-accent text-white"
-                  : "border-foreground/15 hover:border-accent"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segments
+          className="w-full sm:w-auto"
+          label="Range"
+          options={RANGES.map(([key, label]) => [key, label] as const)}
+          value={range}
+          onChange={setRange}
+        />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

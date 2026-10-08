@@ -65,7 +65,7 @@ export default function SaleLines({
       ) : (
         <button
           onClick={() => setPicking(true)}
-          className="inline-flex items-center gap-1.5 py-2 text-sm text-accent hover:text-accent-dark"
+          className="min-h-11 inline-flex items-center inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent-dark"
         >
           <Plus size={15} /> Add a product
         </button>
@@ -176,7 +176,7 @@ function Picker({
           />
           <button
             onClick={addCustom}
-            className="rounded-lg border border-foreground/20 bg-white px-4 text-sm font-medium hover:border-foreground/40"
+            className="min-h-11 inline-flex items-center rounded-lg border border-foreground/20 bg-white px-4 text-sm font-medium hover:border-foreground/40"
           >
             Add
           </button>
@@ -209,7 +209,7 @@ function Picker({
                         quantity: 1,
                       })
                     }
-                    className="flex w-full items-center gap-2 border-b border-foreground/10 py-2 text-left text-sm disabled:text-muted"
+                    className="min-h-11 flex w-full items-center gap-2 border-b border-foreground/10 text-left text-sm disabled:text-muted"
                   >
                     <span className="min-w-0 flex-1 leading-snug">
                       {short}

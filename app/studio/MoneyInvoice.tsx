@@ -135,13 +135,13 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
                 <button
                   onClick={() => send(pending.file, true)}
                   disabled={busy}
-                  className="rounded-lg border border-foreground/15 px-3 py-1.5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
+                  className="min-h-11 inline-flex items-center rounded-lg border border-foreground/15 px-3 .5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
                 >
                   Add it anyway
                 </button>
                 <button
                   onClick={() => setPending(null)}
-                  className="rounded-lg px-3 py-1.5 text-sm text-muted transition hover:text-foreground"
+                  className="min-h-11 inline-flex items-center rounded-lg px-3 .5 text-sm text-muted transition hover:text-foreground"
                 >
                   Cancel
                 </button>
@@ -171,7 +171,7 @@ export default function MoneyInvoice({ onImported }: { onImported?: () => void }
               <button
                 onClick={() => send(lastFile, false, true)}
                 disabled={busy}
-                className="mt-2 rounded-lg border border-foreground/15 px-3 py-1.5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
+                className="min-h-11 inline-flex items-center mt-2 rounded-lg border border-foreground/15 px-3 .5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
               >
                 Read it again
               </button>

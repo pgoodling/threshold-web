@@ -152,9 +152,7 @@ export default function ClientPicker({
                   choose(c);
                 }}
                 onMouseEnter={() => setActive(i)}
-                className={`flex w-full items-baseline gap-2 border-t border-foreground/10 px-3 py-2.5 text-left text-sm first:border-t-0 ${
-                  i === active ? "bg-accent/5" : ""
-                }`}
+                className={`min-h-11 flex w-full items-baseline gap-2 border-t border-foreground/10 px-3 .5 text-left text-sm first:border-t-0 ${ i === active ? "bg-accent/5" : "" }`}
               >
                 <span className="min-w-0 flex-1 truncate">{c.full_name}</span>
                 {c.phone && (

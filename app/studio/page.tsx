@@ -162,7 +162,7 @@ function Login() {
           <button
             type="submit"
             disabled={busy}
-            className="rounded-md bg-accent px-8 py-3 text-white transition hover:bg-accent-dark disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-8 text-white transition hover:bg-accent-dark disabled:opacity-60"
           >
             {busy ? "Signing in…" : "Sign in"}
           </button>
@@ -474,7 +474,7 @@ function Dashboard() {
       {/* Mobile top bar + slide-down menu */}
       <div className="relative sm:hidden">
         <div className="flex items-center justify-between border-b border-foreground/10 bg-background/90 px-5 py-3 backdrop-blur">
-          <a href="/" aria-label="Threshold home">
+          <a href="/" aria-label="Threshold home" className="inline-flex min-h-11 items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/threshold-logos/threshold-wordmark-terracotta-transparent.svg"
@@ -627,7 +627,7 @@ function Appointments({
         <h2 className="font-display text-2xl leading-none sm:text-3xl">Upcoming</h2>
         <button
           onClick={() => setAdding(true)}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-dark"
         >
           + New appointment
         </button>
@@ -834,7 +834,7 @@ function Hours() {
               i > 0 ? "border-t border-foreground/10" : ""
             } ${r.open ? "" : "bg-background/40"}`}
           >
-            <label className="flex w-36 shrink-0 items-center gap-2.5">
+            <label className="flex min-h-11 w-36 shrink-0 items-center gap-2.5">
               <input
                 type="checkbox"
                 checked={r.open}
@@ -878,7 +878,7 @@ function Hours() {
         <button
           onClick={save}
           disabled={saving}
-          className="rounded-md bg-accent px-6 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-6 .5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save hours"}
         </button>
@@ -1201,13 +1201,13 @@ function TimeOff() {
           <div className="mt-3 flex flex-wrap gap-2 border-t border-[#8f3f4a]/20 px-4 py-3">
             <button
               onClick={() => write(pending.startsISO, pending.endsISO)}
-              className="rounded-md bg-[#8f3f4a] px-4 py-2 text-sm font-medium text-white transition hover:brightness-110"
+              className="min-h-11 inline-flex items-center rounded-md bg-[#8f3f4a] px-4 text-sm font-medium text-white transition hover:brightness-110"
             >
               Block it anyway
             </button>
             <button
               onClick={() => setPending(null)}
-              className="rounded-md px-4 py-2 text-sm text-muted transition hover:text-foreground"
+              className="min-h-11 inline-flex items-center rounded-md px-4 text-sm text-muted transition hover:text-foreground"
             >
               Cancel
             </button>
@@ -1259,9 +1259,7 @@ function TimeOff() {
                 {!over && (
                   <button
                     onClick={() => startEdit(b)}
-                    className={`text-sm transition hover:text-accent-dark ${
-                      editingId === b.id ? "font-medium text-accent-dark" : "text-muted"
-                    }`}
+                    className={`min-h-11 inline-flex items-center text-sm transition hover:text-accent-dark ${ editingId === b.id ? "font-medium text-accent-dark" : "text-muted" }`}
                   >
                     {editingId === b.id ? "Editing" : "Edit"}
                   </button>
@@ -1271,7 +1269,7 @@ function TimeOff() {
                     if (editingId === b.id) resetForm();
                     remove(b.id);
                   }}
-                  className="text-sm text-muted transition hover:text-accent-dark"
+                  className="min-h-11 inline-flex items-center text-sm text-muted transition hover:text-accent-dark"
                 >
                   Remove
                 </button>

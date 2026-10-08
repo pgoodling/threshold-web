@@ -29,6 +29,22 @@ export function BackButton({ onClick, label }: { onClick: () => void; label: str
   );
 }
 
+/** The round ‹ with where it goes beside it, all one 44-point target. */
+export function BackLink({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="-ml-1 inline-flex min-h-11 items-center gap-2.5 pr-3 text-sm text-muted transition hover:text-foreground"
+    >
+      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-foreground/15 bg-white text-foreground">
+        <ChevronLeft size={18} aria-hidden="true" />
+      </span>
+      {label}
+    </button>
+  );
+}
+
 /** A title with the round back button beside it. */
 export function BackHeader({
   onBack,

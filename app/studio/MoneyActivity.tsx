@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { Segments } from "./ui";
 import { nameProduct } from "../../lib/productLine";
 import {
   describe,
@@ -188,21 +189,12 @@ export default function MoneyActivity() {
 
   return (
     <div className="max-w-xl">
-      <div className="flex gap-5 border-b border-foreground/10 text-sm">
-        {RANGES.map(([key, label]) => (
-          <button
-            key={key}
-            onClick={() => setRange(key)}
-            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 transition ${
-              range === key
-                ? "border-accent font-medium"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <Segments
+        label="When"
+        options={RANGES.map(([key, label]) => [key, label] as const)}
+        value={range}
+        onChange={setRange}
+      />
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 

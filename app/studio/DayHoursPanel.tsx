@@ -190,7 +190,7 @@ export default function DayHoursPanel({
             </span>
           </button>
           <div className={option("different")} onClick={() => mode !== "different" && pick("different")}>
-            <button onClick={() => pick("different")} className="w-full text-left">
+            <button onClick={() => pick("different")} className="min-h-11 inline-flex items-center w-full text-left">
               Different hours
             </button>
             {mode === "different" && (
@@ -243,7 +243,7 @@ export default function DayHoursPanel({
             <button
               onClick={() => save(Boolean(stranded && stranded.length))}
               disabled={busy}
-              className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+              className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
             >
               {busy ? "Saving…" : stranded && stranded.length ? "Save anyway" : "Save"}
             </button>

@@ -134,7 +134,7 @@ export default function MoneyManual({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mt-4 inline-flex items-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition hover:border-foreground/30"
+        className="min-h-11 inline-flex items-center mt-4 inline-flex items-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 .5 text-sm font-medium shadow-sm transition hover:border-foreground/30"
       >
         <Plus size={16} />
         Add a purchase the bank doesn&rsquo;t show
@@ -240,7 +240,7 @@ export default function MoneyManual({
         <button
           onClick={save}
           disabled={busy}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {busy ? "Saving…" : check.ready.length > 1 ? `Record all ${check.ready.length}` : "Record it"}
         </button>
@@ -251,7 +251,7 @@ export default function MoneyManual({
             setError(null);
             onClose?.();
           }}
-          className="rounded-lg px-3 py-2 text-sm text-muted transition hover:text-foreground"
+          className="min-h-11 inline-flex items-center rounded-lg px-3 text-sm text-muted transition hover:text-foreground"
         >
           Done
         </button>

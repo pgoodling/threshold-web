@@ -108,3 +108,8 @@ First run, 2026-10-08: 263 distinct controls, 181 under 44 points. Worst: back
 links 17–20 tall, text actions 15–20, main buttons anywhere from 22 to 48 in
 three shapes, tabs 24–30, icon buttons 28–36, Settings switches 38×22. The
 booking step bar also runs off a phone's right edge.
+
+After direction B (2026-10-08): studio down to 12 distinct controls under 44
+points (the reorder grip, 36 wide, and a few one-offs), from over 100. Booking
+and the website keep their look by Paul's choice; only their back links grew.
+The booking calendar's day cells are 41 wide because seven fit a phone.

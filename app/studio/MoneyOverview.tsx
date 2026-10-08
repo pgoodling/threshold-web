@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { Segments, BackHeader } from "./ui";
 import { readableTxn } from "../../lib/bankNames";
 import {
   salonDay,
@@ -138,12 +139,7 @@ export default function MoneyOverview() {
     const c = detail.cats.get(category);
     return (
       <div className="max-w-xl">
-        <button
-          onClick={() => setCategory(null)}
-          className="-ml-1 inline-flex min-h-11 items-center gap-1 font-display text-xl"
-        >
-          <ChevronLeft size={20} /> {category}
-        </button>
+        <BackHeader onBack={() => setCategory(null)} backLabel="Overview" title={category} />
         <p className="mt-1 text-sm text-muted">
           {label(selected, grain, true)} · {whole(c?.cents ?? 0)}
         </p>
@@ -195,22 +191,15 @@ export default function MoneyOverview() {
 
   return (
     <div className="max-w-xl">
-      <div className="flex gap-5 border-b border-foreground/10 text-sm">
-        {GRAINS.map(([g, l]) => (
-          <button
-            key={g}
-            onClick={() => {
-              setGrain(g);
-              setPicked(null);
-            }}
-            className={`-mb-px min-h-11 min-w-11 border-b-2 pb-2 pt-3 transition ${
-              grain === g ? "border-accent font-medium" : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
+      <Segments
+        label="Period"
+        options={GRAINS.map(([g, l]) => [g, l] as const)}
+        value={grain}
+        onChange={(g) => {
+          setGrain(g);
+          setPicked(null);
+        }}
+      />
 
       {/* Bars: revenue green, expenses terracotta with setting-up lighter on
           top. Tap a period to see it below. The current one is faded and says
@@ -328,7 +317,7 @@ export default function MoneyOverview() {
               <button
                 key={name}
                 onClick={() => setCategory(name)}
-                className="block w-full border-b border-foreground/10 py-2 text-left text-sm last:border-b-0"
+                className="min-h-11 inline-flex items-center block w-full border-b border-foreground/10 text-left text-sm last:border-b-0"
               >
                 <span className="flex justify-between gap-3">
                   <span className="min-w-0">{name}</span>
@@ -358,7 +347,7 @@ export default function MoneyOverview() {
               <button
                 key={name}
                 onClick={() => setCategory(name)}
-                className="flex w-full justify-between gap-3 border-b border-foreground/10 py-2 text-left text-sm last:border-b-0"
+                className="min-h-11 flex w-full justify-between gap-3 border-b border-foreground/10 text-left text-sm last:border-b-0"
               >
                 <span className="min-w-0">{name}</span>
                 <span className="shrink-0 tabular-nums">{whole(v.cents)}</span>

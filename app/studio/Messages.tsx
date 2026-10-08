@@ -211,7 +211,7 @@ export default function Messages({
       <div>
         <button
           onClick={() => setOpenKey(null)}
-          className="text-sm text-muted hover:text-accent"
+          className="min-h-11 inline-flex items-center text-sm text-muted hover:text-accent"
         >
           ← All messages
         </button>
@@ -269,7 +269,7 @@ export default function Messages({
             <button
               onClick={send}
               disabled={sending || !reply.trim()}
-              className="rounded-md bg-accent px-5 py-2.5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+              className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 .5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
             >
               {sending ? "Sending…" : "Send"}
             </button>
@@ -331,7 +331,7 @@ export default function Messages({
                   ? onOpenClient(c.clientId)
                   : openConvo(c)
               }
-              className="flex min-w-0 flex-1 items-stretch text-left"
+              className="min-h-11 flex min-w-0 flex-1 items-stretch text-left"
             >
               <span
                 aria-hidden="true"
@@ -374,7 +374,7 @@ export default function Messages({
               onClick={() => setArchived(c, !c.archived)}
               aria-label={c.archived ? "Move back to inbox" : "Archive"}
               title={c.archived ? "Move back to inbox" : "Archive"}
-              className="shrink-0 px-4 text-muted transition hover:text-accent-dark"
+              className="min-h-11 inline-flex items-center shrink-0 px-4 text-muted transition hover:text-accent-dark"
             >
               {c.archived ? (
                 <ArchiveRestore className="h-4 w-4" />

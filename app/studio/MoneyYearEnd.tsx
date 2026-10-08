@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { BackLink } from "./ui";
 import { readableTxn } from "../../lib/bankNames";
 import { yearEnd, compareCard, toCsv, type YearRow, type CheckOuts } from "../../lib/yearEnd";
 import { offBankTakings } from "../../lib/takings";
@@ -132,9 +133,7 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="max-w-xl">
-      <button onClick={onBack} className="-ml-1 inline-flex min-h-11 items-center gap-1 text-sm text-muted hover:text-foreground">
-        <ChevronLeft size={18} /> Taxes
-      </button>
+      <BackLink onClick={onBack} label="Taxes" />
 
       <div className="mt-1 flex items-center justify-between gap-3">
         <h3 className="font-display text-2xl">{year} for your tax preparer</h3>

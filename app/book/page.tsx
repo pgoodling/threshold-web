@@ -368,7 +368,7 @@ export default function BookPage() {
               className="h-10 w-auto"
             />
           </a>
-          <a href="/" className="text-sm text-muted hover:text-accent">
+          <a href="/" className="inline-flex min-h-11 items-center text-sm text-muted hover:text-accent">
             ← Back to site
           </a>
         </nav>
@@ -557,7 +557,7 @@ export default function BookPage() {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="mt-8 text-sm text-muted hover:text-accent"
+              className="inline-flex min-h-11 items-center mt-8 text-sm text-muted hover:text-accent"
             >
               ← Change service
             </button>
@@ -669,7 +669,7 @@ export default function BookPage() {
                     setCardStage("details");
                     setClientSecret(null);
                   }}
-                  className="text-sm text-muted hover:text-accent"
+                  className="inline-flex min-h-11 items-center text-sm text-muted hover:text-accent"
                 >
                   ← Change time
                 </button>
@@ -752,7 +752,7 @@ export default function BookPage() {
                 <button
                   type="button"
                   onClick={() => setCardStage("details")}
-                  className="mt-4 text-sm text-muted hover:text-accent"
+                  className="inline-flex min-h-11 items-center mt-4 text-sm text-muted hover:text-accent"
                 >
                   ← Back to details
                 </button>
@@ -819,7 +819,7 @@ export default function BookPage() {
 function Stepper({ step }: { step: number }) {
   const labels = ["Service", "Time", "Details", "Done"];
   return (
-    <ol className="mb-10 flex items-center gap-2 text-xs">
+    <ol className="mb-10 flex items-center gap-3 text-xs sm:gap-2">
       {labels.map((label, i) => {
         const n = i + 1;
         const done = step > n;
@@ -838,7 +838,9 @@ function Stepper({ step }: { step: number }) {
             <span className={active ? "text-foreground" : "text-muted"}>
               {label}
             </span>
-            {n < labels.length && <span className="mx-1 text-foreground/20">—</span>}
+            {/* The dashes pushed "Done" off a phone's edge; on a phone the
+                steps sit close enough to read in order without them. */}
+            {n < labels.length && <span className="mx-1 hidden text-foreground/20 sm:inline">—</span>}
           </li>
         );
       })}

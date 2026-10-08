@@ -63,7 +63,7 @@ export default function VoicemailPlayer({
     <button
       onClick={load}
       disabled={loading}
-      className="mb-1 flex items-center gap-2 text-accent-dark disabled:opacity-60"
+      className="min-h-11 mb-1 flex items-center gap-2 text-accent-dark disabled:opacity-60"
     >
       <Play className="h-4 w-4" />
       <span className="text-xs">

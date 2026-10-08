@@ -141,7 +141,7 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
 
       <p className="mt-2 text-xs text-muted">
         Supplier order?{" "}
-        <a href="#inventory" className="text-accent underline">
+        <a href="#inventory" className="-my-3 inline-flex min-h-11 items-center text-accent underline">
           Upload it in Inventory → Add stock
         </a>
       </p>
@@ -185,13 +185,13 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
                 <button
                   onClick={() => send(pending.csv, pending.name, true)}
                   disabled={busy}
-                  className="rounded-lg border border-foreground/15 px-3 py-1.5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
+                  className="min-h-11 inline-flex items-center rounded-lg border border-foreground/15 px-3 .5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
                 >
                   Import it anyway
                 </button>
                 <button
                   onClick={() => setPending(null)}
-                  className="rounded-lg px-3 py-1.5 text-sm text-muted transition hover:text-foreground"
+                  className="min-h-11 inline-flex items-center rounded-lg px-3 .5 text-sm text-muted transition hover:text-foreground"
                 >
                   Cancel
                 </button>

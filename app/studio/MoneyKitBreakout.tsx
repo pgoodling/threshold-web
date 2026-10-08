@@ -202,13 +202,13 @@ export default function MoneyKitBreakout({
         <button
           onClick={save}
           disabled={busy || lines.length === 0}
-          className="rounded-lg border border-foreground/15 px-3 py-1.5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-40"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-foreground/15 px-3 .5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-40"
         >
           {busy ? "Splitting…" : `Split into ${lines.length || ""} ${lines.length === 1 ? "product" : "products"}`}
         </button>
         <button
           onClick={() => onDone()}
-          className="rounded-lg px-3 py-1.5 text-sm text-muted transition hover:text-foreground"
+          className="min-h-11 inline-flex items-center rounded-lg px-3 .5 text-sm text-muted transition hover:text-foreground"
         >
           Cancel
         </button>

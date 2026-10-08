@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import MoneyStatement from "./MoneyStatement";
 import MoneyReview from "./MoneyReview";
 import MoneyReimburse from "./MoneyReimburse";
 import { supabase } from "../../lib/supabase";
+import { BackHeader } from "./ui";
 import { readableTxn as readable } from "../../lib/bankNames";
 
 // Bank: what came in from her statements, month by month.
@@ -186,15 +187,7 @@ export default function MoneyBank({ onChanged }: { onChanged?: () => void }) {
 
     return (
       <div className="max-w-xl">
-        <button
-          onClick={() => {
-            setOpen(null);
-            setEditing(null);
-          }}
-          className="-ml-1 inline-flex min-h-11 items-center gap-1 font-display text-xl"
-        >
-          <ChevronLeft size={20} /> {monthName(opened.key)}
-        </button>
+        <BackHeader onBack={() => { setOpen(null); setEditing(null); }} backLabel="Bank" title={monthName(opened.key)} />
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-foreground/[0.04] px-3 py-2.5">
@@ -224,7 +217,7 @@ export default function MoneyBank({ onChanged }: { onChanged?: () => void }) {
                 <div key={t.id} className="border-t border-foreground/10 first:border-t-0">
                   <button
                     onClick={() => setEditing(editing === t.id ? null : t.id)}
-                    className="flex w-full items-start gap-3 px-3 py-2.5 text-left"
+                    className="min-h-11 flex w-full items-start gap-3 px-3 .5 text-left"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block text-[15px] leading-snug">{readable(t)}</span>

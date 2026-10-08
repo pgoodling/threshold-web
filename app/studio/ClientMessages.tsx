@@ -163,7 +163,7 @@ export default function ClientMessages({
               starting position, not a script. */}
           <button
             onClick={() => setReply(reviewRequestText(clientName ?? null))}
-            className="mt-2 text-xs text-muted underline underline-offset-4 transition hover:text-accent-dark"
+            className="min-h-11 inline-flex items-center mt-2 text-xs text-muted underline underline-offset-4 transition hover:text-accent-dark"
           >
             Ask for a Google review
           </button>

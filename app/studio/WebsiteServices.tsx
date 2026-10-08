@@ -161,14 +161,14 @@ export default function WebsiteServices() {
                   <button
                     onClick={() => move(s, -1)}
                     aria-label={`Move ${s.name} up`}
-                    className="text-muted transition hover:text-accent-dark"
+                    className="min-h-11 inline-flex items-center text-muted transition hover:text-accent-dark"
                   >
                     ↑
                   </button>
                   <button
                     onClick={() => move(s, 1)}
                     aria-label={`Move ${s.name} down`}
-                    className="text-muted transition hover:text-accent-dark"
+                    className="min-h-11 inline-flex items-center text-muted transition hover:text-accent-dark"
                   >
                     ↓
                   </button>
@@ -182,13 +182,13 @@ export default function WebsiteServices() {
                         price_label: s.price_label ?? "",
                       });
                     }}
-                    className="text-accent-dark underline decoration-accent underline-offset-4"
+                    className="min-h-11 inline-flex items-center text-accent-dark underline decoration-accent underline-offset-4"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => setActive(s, !s.active)}
-                    className="text-muted transition hover:text-accent-dark"
+                    className="min-h-11 inline-flex items-center text-muted transition hover:text-accent-dark"
                   >
                     {s.active ? "Hide" : "Show"}
                   </button>

@@ -225,7 +225,7 @@ export default function BlockTimePanel({
           <button
             onClick={() => save(Boolean(clashes && clashes.length))}
             disabled={busy}
-            className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
           >
             {busy ? "Saving…" : clashes && clashes.length ? "Block anyway" : block ? "Save" : "Block it"}
           </button>
@@ -233,7 +233,7 @@ export default function BlockTimePanel({
             <button
               onClick={unblock}
               disabled={busy}
-              className="rounded-md border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50 disabled:opacity-60"
+              className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-red-300 px-4 text-sm text-red-700 hover:bg-red-50 disabled:opacity-60"
             >
               Unblock
             </button>

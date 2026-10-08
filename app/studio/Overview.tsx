@@ -348,9 +348,7 @@ export default function Overview({
               <button
                 key={a.id}
                 onClick={() => setOpenId(a.id)}
-                className={`flex w-full items-stretch text-left text-sm text-accent-dark transition hover:bg-accent/10 ${
-                  i > 0 ? "border-t border-accent/20" : ""
-                }`}
+                className={`min-h-11 flex w-full items-stretch text-left text-sm text-accent-dark transition hover:bg-accent/10 ${ i > 0 ? "border-t border-accent/20" : "" }`}
               >
                 <span
                   aria-hidden="true"
@@ -374,9 +372,7 @@ export default function Overview({
               <button
                 key={m.id}
                 onClick={() => onGoto?.("messages")}
-                className={`flex w-full items-stretch text-left text-sm text-accent-dark transition hover:bg-accent/10 ${
-                  i > 0 || lateList.length > 0 ? "border-t border-accent/20" : ""
-                }`}
+                className={`min-h-11 flex w-full items-stretch text-left text-sm text-accent-dark transition hover:bg-accent/10 ${ i > 0 || lateList.length > 0 ? "border-t border-accent/20" : "" }`}
               >
                 <span
                   aria-hidden="true"
@@ -400,7 +396,7 @@ export default function Overview({
             {unread > waiting.length && (
               <button
                 onClick={() => onGoto?.("messages")}
-                className="w-full border-t border-accent/20 px-5 py-2.5 text-left text-xs text-accent-dark transition hover:bg-accent/10"
+                className="min-h-11 inline-flex items-center w-full border-t border-accent/20 px-5 .5 text-left text-xs text-accent-dark transition hover:bg-accent/10"
               >
                 {unread - waiting.length} more unread → open messages
               </button>
@@ -431,9 +427,7 @@ export default function Overview({
                 <button
                   key={b.id}
                   onClick={() => setOpenId(b.id)}
-                  className={`flex w-full items-stretch text-left text-sm transition hover:bg-foreground/5 ${
-                    i > 0 ? "border-t border-foreground/10" : ""
-                  }`}
+                  className={`min-h-11 flex w-full items-stretch text-left text-sm transition hover:bg-foreground/5 ${ i > 0 ? "border-t border-foreground/10" : "" }`}
                 >
                   <span
                     aria-hidden="true"
@@ -460,7 +454,7 @@ export default function Overview({
             })}
             <button
               onClick={markBookingsSeen}
-              className="w-full border-t border-foreground/10 px-4 py-2.5 text-left text-xs text-accent transition hover:bg-accent/5"
+              className="min-h-11 inline-flex items-center w-full border-t border-foreground/10 px-4 .5 text-left text-xs text-accent transition hover:bg-accent/5"
             >
               Mark all as seen
             </button>
@@ -528,11 +522,7 @@ export default function Overview({
               <button
                 key={a.id}
                 onClick={() => setOpenId(a.id)}
-                className={`flex w-full items-stretch text-left transition hover:bg-background/60 ${
-                  i > 0 || todayBlocks.length > 0
-                    ? "border-t border-foreground/10"
-                    : ""
-                }`}
+                className={`min-h-11 flex w-full items-stretch text-left transition hover:bg-background/60 ${ i > 0 || todayBlocks.length > 0 ? "border-t border-foreground/10" : "" }`}
                 style={{
                   // Status on the left edge, service on the right — the same
                   // two signals the calendar carries, so a day reads the same
@@ -590,13 +580,13 @@ export default function Overview({
                   <button
                     onClick={() => markDone(t)}
                     aria-label={`Mark "${t.title}" done`}
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
+                    className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded border before:absolute before:-inset-3 before:content-[''] border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
                   >
                     ✓
                   </button>
                   <button
                     onClick={() => onGoto?.("tasks")}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    className="min-h-11 flex min-w-0 flex-1 items-center gap-2 text-left"
                   >
                     <span className="truncate font-medium">{t.title}</span>
                     {t.clients?.full_name && (

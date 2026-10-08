@@ -35,6 +35,7 @@ import DayPicker from "./DayPicker";
 import ApptDetailModal from "./ApptDetailModal";
 import ClientMessages from "./ClientMessages";
 import HairNotes from "./HairNotes";
+import { BackLink, Segments } from "./ui";
 import Rail from "./Rail";
 import Button from "./Button";
 import ActionStrip, { type Action } from "./ActionStrip";
@@ -312,9 +313,7 @@ export default function Clients({
             <button
               key={t.key}
               onClick={() => setStageFilter(t.key)}
-              className={`flex items-stretch border-l border-foreground/10 text-left transition first:border-l-0 ${
-                stageFilter === t.key ? "bg-accent/5" : "hover:bg-background/60"
-              }`}
+              className={`min-h-11 flex items-stretch border-l border-foreground/10 text-left transition first:border-l-0 ${ stageFilter === t.key ? "bg-accent/5" : "hover:bg-background/60" }`}
             >
               {t.state ? (
                 <Rail state={t.state} width={3} />
@@ -394,7 +393,7 @@ export default function Clients({
               <button
                 key={v.c.id}
                 onClick={() => setSelected(v.c)}
-                className="flex w-full items-stretch border-t border-foreground/10 text-left transition first:border-t-0 hover:bg-background/60"
+                className="min-h-11 flex w-full items-stretch border-t border-foreground/10 text-left transition first:border-t-0 hover:bg-background/60"
               >
                 <Rail
                   state={v.state}
@@ -616,9 +615,7 @@ function ClientDetail({
       {/* Back where she came from. Arriving from Messages and being offered
           only "All clients" left her stranded — the way out was the browser's
           Back button, which on an installed app she may not have. */}
-      <Button variant="ghost" onClick={onBack}>
-        ← {backLabel ?? "All clients"}
-      </Button>
+      <BackLink onClick={onBack} label={backLabel ?? "All clients"} />
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
@@ -769,7 +766,7 @@ function ClientDetail({
               <button
                 key={label as string}
                 onClick={() => snooze(months as number)}
-                className="text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
+                className="min-h-11 inline-flex items-center text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
               >
                 Snooze {label}
               </button>
@@ -786,7 +783,7 @@ function ClientDetail({
           </span>
           <button
             onClick={() => snooze(0)}
-            className="text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
+            className="min-h-11 inline-flex items-center text-accent-dark underline decoration-accent underline-offset-4 transition hover:decoration-accent-dark"
           >
             Wake them up
           </button>
@@ -797,28 +794,20 @@ function ClientDetail({
           off the screen — and a long conversation pushed everything below it
           out of reach entirely. They're tabs now: one at a time, in a fixed
           place, whatever their length. */}
-      <div className="mt-6 flex gap-5 border-b border-foreground/15">
-        {(
+      <Segments
+        className="mt-6"
+        label="About this client"
+        options={
           [
             ["appointments", "Appointments"],
             ["hair", "Hair notes"],
             ["conversation", "Conversation"],
             ["tasks", "Tasks"],
           ] as const
-        ).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setPane(k)}
-            className={`-mb-px border-b-2 pb-2 text-sm transition ${
-              pane === k
-                ? "border-accent font-medium text-accent-dark"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+        }
+        value={pane}
+        onChange={setPane}
+      />
 
       {pane === "hair" && (
         <HairNotes
@@ -909,9 +898,7 @@ function VisitList({
         <button
           key={v.id}
           onClick={() => onSelect(v.id)}
-          className={`flex w-full items-stretch text-left text-sm transition hover:bg-background/60 ${
-            i > 0 ? "border-t border-foreground/10" : ""
-          }`}
+          className={`min-h-11 flex w-full items-stretch text-left text-sm transition hover:bg-background/60 ${ i > 0 ? "border-t border-foreground/10" : "" }`}
         >
           <Rail
             color={
@@ -1051,7 +1038,7 @@ function ClientTasks({ clientId }: { clientId: string }) {
               <button
                 onClick={() => complete(t.id)}
                 aria-label="Mark done"
-                className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
+                className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded border before:absolute before:-inset-3 before:content-[''] border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
               >
                 ✓
               </button>

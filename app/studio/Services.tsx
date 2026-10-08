@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { Segments } from "./ui";
 import { ChevronUp, ChevronDown, GripVertical } from "lucide-react";
 import WebsiteServices from "./WebsiteServices";
 import {
@@ -155,7 +156,7 @@ function MoveBtn({
       aria-label={label}
       onClick={onClick}
       disabled={!onClick || disabled}
-      className="flex h-9 w-9 items-center justify-center rounded-md text-muted transition hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-25"
+      className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted transition hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-25"
     >
       {children}
     </button>
@@ -234,26 +235,18 @@ export default function Services() {
         Services
       </h2>
 
-      <div className="mt-4 flex gap-5 border-b border-foreground/15">
-        {(
+      <Segments
+        className="mt-4"
+        label="Which list"
+        options={
           [
             ["booking", "Booking"],
             ["website", "Website"],
           ] as const
-        ).map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setArea(k)}
-            className={`-mb-px border-b-2 pb-2 text-sm transition ${
-              area === k
-                ? "border-accent font-medium text-accent-dark"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+        }
+        value={area}
+        onChange={setArea}
+      />
 
       {/* One description, from the tab. There used to be two stacked paragraphs
           of grey text here — this one and another inside the booking list. */}
@@ -408,7 +401,7 @@ function BookingServices() {
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="mt-8 rounded-md border border-foreground/15 px-6 py-2.5 text-sm transition hover:border-accent hover:text-accent"
+          className="min-h-11 inline-flex items-center mt-8 rounded-md border border-foreground/15 px-6 .5 text-sm transition hover:border-accent hover:text-accent"
         >
           + Add service
         </button>
@@ -564,7 +557,7 @@ function CategoryManager({
         <button
           type="submit"
           disabled={busy || !name.trim()}
-          className="rounded-md border border-foreground/15 px-5 py-2.5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-foreground/15 px-5 .5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
         >
           + Add category
         </button>
@@ -589,14 +582,14 @@ function CategoryManager({
                     type="button"
                     disabled={busy}
                     onClick={() => rename(c.id)}
-                    className="rounded-md bg-accent px-4 py-1.5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-4 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
                     Save
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditingId(null)}
-                    className="text-sm text-muted hover:text-accent"
+                    className="min-h-11 inline-flex items-center text-sm text-muted hover:text-accent"
                   >
                     Cancel
                   </button>
@@ -637,7 +630,7 @@ function CategoryManager({
                       setEditingId(c.id);
                       setEditName(c.name);
                     }}
-                    className="text-sm text-muted hover:text-accent"
+                    className="min-h-11 inline-flex items-center text-sm text-muted hover:text-accent"
                   >
                     Rename
                   </button>
@@ -648,14 +641,14 @@ function CategoryManager({
                         type="button"
                         disabled={busy}
                         onClick={() => remove(c.id)}
-                        className="text-accent-dark hover:underline"
+                        className="min-h-11 inline-flex items-center text-accent-dark hover:underline"
                       >
                         Yes
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDelete(null)}
-                        className="text-muted hover:text-accent"
+                        className="min-h-11 inline-flex items-center text-muted hover:text-accent"
                       >
                         No
                       </button>
@@ -664,7 +657,7 @@ function CategoryManager({
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(c.id)}
-                      className="text-sm text-muted hover:text-accent-dark"
+                      className="min-h-11 inline-flex items-center text-sm text-muted hover:text-accent-dark"
                     >
                       Delete
                     </button>
@@ -784,7 +777,7 @@ function ServiceRow({
           aria-label={`Reorder ${service.name}`}
           {...attributes}
           {...listeners}
-          className="-ml-1 flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center self-center rounded text-muted transition hover:text-accent active:cursor-grabbing"
+          className="-ml-2 flex h-11 w-9 shrink-0 cursor-grab touch-none items-center justify-center self-center rounded text-muted transition hover:text-accent active:cursor-grabbing"
         >
           <GripVertical size={16} />
         </button>
@@ -839,13 +832,13 @@ function ServiceRow({
         <div className="flex gap-2 text-xs">
           <button
             onClick={() => setEditing(true)}
-            className="rounded-md border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
+            className="min-h-11 inline-flex items-center rounded-md border border-foreground/15 px-3 transition hover:border-accent hover:text-accent"
           >
             Edit
           </button>
           <button
             onClick={toggleActive}
-            className="rounded-md border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
+            className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-foreground/15 px-3 transition hover:border-accent hover:text-accent"
           >
             {service.active ? "Hide" : "Show"}
           </button>
@@ -1067,14 +1060,14 @@ function ServiceForm({
         <button
           type="submit"
           disabled={busy}
-          className="rounded-md bg-accent px-6 py-2 text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-6 text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {busy ? "Saving…" : submitLabel}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="text-sm text-muted hover:text-accent"
+          className="min-h-11 inline-flex items-center text-sm text-muted hover:text-accent"
         >
           Cancel
         </button>
@@ -1082,7 +1075,7 @@ function ServiceForm({
           <button
             type="button"
             onClick={onDelete}
-            className="ml-auto text-sm text-accent-dark/70 hover:text-accent-dark"
+            className="min-h-11 inline-flex items-center ml-auto text-sm text-accent-dark/70 hover:text-accent-dark"
           >
             Delete
           </button>

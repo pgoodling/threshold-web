@@ -141,7 +141,7 @@ export default function MoneyAddStock({
       {picked ? (
         <button
           onClick={() => setPicked(null)}
-          className="mt-1 w-full rounded-lg border border-foreground/15 bg-white px-3 py-2 text-left"
+          className="min-h-11 inline-flex items-center mt-1 w-full rounded-lg border border-foreground/15 bg-white px-3 text-left"
         >
           <span className="block text-[15px]">{label(picked).title}</span>
           <span className="block text-xs text-muted">{label(picked).sub}</span>
@@ -181,7 +181,7 @@ export default function MoneyAddStock({
                 <button
                   key={p.product_id}
                   onClick={() => pick(p)}
-                  className="block w-full border-t border-foreground/10 px-3 py-2 text-left first:border-t-0 hover:bg-foreground/[0.03]"
+                  className="min-h-11 inline-flex items-center block w-full border-t border-foreground/10 px-3 text-left first:border-t-0 hover:bg-foreground/[0.03]"
                 >
                   <span className="block text-[15px]">{label(p).title}</span>
                   <span className="block text-xs text-muted">{label(p).sub}</span>
@@ -189,7 +189,7 @@ export default function MoneyAddStock({
               ))}
               <button
                 onClick={() => setIsNew(true)}
-                className="block w-full border-t border-foreground/10 px-3 py-2 text-left text-sm text-muted first:border-t-0 hover:bg-foreground/[0.03]"
+                className="min-h-11 inline-flex items-center block w-full border-t border-foreground/10 px-3 text-left text-sm text-muted first:border-t-0 hover:bg-foreground/[0.03]"
               >
                 Add &ldquo;{q.trim()}&rdquo; as a new product
               </button>
@@ -262,7 +262,7 @@ export default function MoneyAddStock({
       <button
         onClick={save}
         disabled={busy}
-        className="mt-4 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
+        className="inline-flex min-h-11 items-center justify-center mt-4 w-full rounded-[10px] bg-accent px-4 .5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
       >
         {busy ? "Adding…" : `Add ${Number(qty) > 0 ? qty : ""}`.trim()}
       </button>

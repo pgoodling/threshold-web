@@ -277,7 +277,7 @@ function ToDos() {
                       <button
                         onClick={() => complete(t)}
                         aria-label="Mark done"
-                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
+                        className="min-h-11 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-foreground/25 text-xs transition hover:border-accent hover:text-accent"
                       >
                         ✓
                       </button>
@@ -302,7 +302,7 @@ function ToDos() {
                       <button
                         onClick={() => remove(t.id)}
                         aria-label="Delete"
-                        className="shrink-0 text-sm text-muted transition hover:text-accent-dark"
+                        className="min-h-11 inline-flex items-center shrink-0 text-sm text-muted transition hover:text-accent-dark"
                       >
                         ✕
                       </button>

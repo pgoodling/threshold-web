@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Link as LinkIcon,
   Mail,
@@ -30,6 +30,8 @@ import ActionStrip, { type Action } from "./ActionStrip";
 import { appointmentUrl } from "../../lib/policy";
 import { insertStudioAppointment } from "../../lib/appointments";
 import ChangeServicePanel from "./ChangeServicePanel";
+import { Tile, Tiles } from "./ui";
+import { CheckCircle2, Undo2, Pencil, CalendarClock, Timer, Scissors, Hourglass, CalendarPlus, UserX, Ban } from "lucide-react";
 import SlotStatus from "./SlotStatus";
 import DayPicker from "./DayPicker";
 import SaleLines from "./SaleLines";
@@ -669,13 +671,13 @@ export default function ApptDetailModal({
                 </label>
                 <button
                   onClick={reschedule}
-                  className="rounded-md bg-accent px-4 py-2 text-white hover:bg-accent-dark"
+                  className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-4 text-white hover:bg-accent-dark"
                 >
                   {moveOverlaps > 0 ? "Move anyway" : "Save"}
                 </button>
                 <button
                   onClick={() => setMode("view")}
-                  className="text-muted hover:text-accent"
+                  className="min-h-11 inline-flex items-center text-muted hover:text-accent"
                 >
                   Cancel
                 </button>
@@ -764,7 +766,7 @@ export default function ApptDetailModal({
                   <button
                     onClick={checkOut}
                     disabled={busy || !method}
-                    className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
                     {busy
                       ? "Saving…"
@@ -828,7 +830,7 @@ export default function ApptDetailModal({
                                 : "",
                             });
                           }}
-                          className="text-accent hover:underline"
+                          className="min-h-11 inline-flex items-center text-accent hover:underline"
                         >
                           reset to default
                         </button>
@@ -889,7 +891,7 @@ export default function ApptDetailModal({
                   <button
                     onClick={() => saveTiming(timingClash !== null)}
                     disabled={busy}
-                    className="rounded-md bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-6 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
                     {busy ? "Saving…" : timingClash ? "Save anyway" : "Save timing"}
                   </button>
@@ -936,7 +938,7 @@ export default function ApptDetailModal({
                   <button
                     onClick={chargeNoShowFee}
                     disabled={busy}
-                    className="rounded-md bg-accent px-6 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+                    className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-6 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
                   >
                     {busy ? "Charging…" : "Charge this card"}
                   </button>
@@ -989,33 +991,20 @@ export default function ApptDetailModal({
                 )}
               </div>
 
-              {/* Grouped and ordered by what she's actually doing: correcting
-                  the record, changing when it happens, or setting up the next
-                  one. A flat row made her read all eight to find the one. */}
-              <div className="mt-3 divide-y divide-foreground/10 border-y border-foreground/10">
-                <ActionGroup label="Status" show>
-                  {appt.status === "booked" && (
-                    <ActionBtn onClick={() => setStatus("confirmed")}>
-                      Confirm
-                    </ActionBtn>
-                  )}
-                  {appt.status === "checked_in" && (
-                    <ActionBtn onClick={() => setStatus("confirmed")}>
-                      Undo check-in
-                    </ActionBtn>
-                  )}
-                  {settled && (
-                    <>
-                      <ActionBtn onClick={openCheckout}>Edit payment</ActionBtn>
-                      <ActionBtn onClick={() => setStatus("checked_in")}>
-                        Undo check-out
-                      </ActionBtn>
-                    </>
-                  )}
-                </ActionGroup>
-
-                <ActionGroup label="When" show={!settled}>
-                  <ActionBtn
+              {/* Everything else as tiles (direction B, 2026-10-08): one grid,
+                  each action an icon and a word, at least 56 points tall. Same
+                  words as before, so nothing has to be relearned. The two she
+                  rarely means to press come last, in wine, and Cancel asks
+                  first. */}
+              <Tiles cols={3} className="mt-3">
+                {appt.status === "booked" && <Tile icon={CheckCircle2} label="Confirm" onClick={() => setStatus("confirmed")} />}
+                {appt.status === "checked_in" && <Tile icon={Undo2} label="Undo check-in" onClick={() => setStatus("confirmed")} />}
+                {settled && <Tile icon={Pencil} label="Edit payment" onClick={openCheckout} />}
+                {settled && <Tile icon={Undo2} label="Undo check-out" onClick={() => setStatus("checked_in")} />}
+                {!settled && (
+                  <Tile
+                    icon={CalendarClock}
+                    label="Reschedule"
                     onClick={() => {
                       // Start from the current appointment time. This used to
                       // clear the field: desktop renders an empty
@@ -1025,86 +1014,50 @@ export default function ApptDetailModal({
                       setWhen(salonDateTimeLocal(appt.starts_at));
                       setMode("reschedule");
                     }}
-                  >
-                    Reschedule
-                  </ActionBtn>
-                  {appt.status !== "cancelled" && (
-                    <ActionBtn onClick={openTiming}>Adjust timing</ActionBtn>
-                  )}
-                  {appt.status !== "cancelled" && (
-                    <ActionBtn
+                  />
+                )}
+                {!settled && appt.status !== "cancelled" && <Tile icon={Timer} label="Adjust timing" onClick={openTiming} />}
+                {!settled && appt.status !== "cancelled" && (
+                  <Tile
+                    icon={Scissors}
+                    label="Change service"
+                    onClick={() => {
+                      setError(null);
+                      setMode("service");
+                    }}
+                  />
+                )}
+                {/* One-tap guard for the common case: she wants this gap back. */}
+                {!settled && effectiveSegments(appt).process > 0 && (
+                  <Tile
+                    icon={Hourglass}
+                    label={appt.block_processing ? "Free up processing" : "Block processing"}
+                    onClick={() => toggleBlockGap(!appt.block_processing)}
+                  />
+                )}
+                <Tile icon={CalendarPlus} label="Book again" onClick={() => setMode("rebook")} />
+                {canNoShow && <Tile icon={UserX} label="Mark no-show" tone="danger" onClick={() => setStatus("no_show")} />}
+                {canCancel && !confirmCancel && (
+                  <Tile icon={Ban} label="Cancel appointment" tone="danger" onClick={() => setConfirmCancel(true)} />
+                )}
+              </Tiles>
+              {/* Cancelling frees the slot and drops the client off the day --
+                  too destructive for a single mistaken tap. */}
+              {canCancel && confirmCancel && (
+                <div className="mt-2 rounded-xl border border-[#8f3f4a]/30 bg-[#8f3f4a]/5 p-3">
+                  <p className="text-sm text-[#8f3f4a]">Cancel this appointment?</p>
+                  <Tiles cols={2} className="mt-2">
+                    <Tile
+                      row
+                      label="Yes, cancel it"
+                      tone="danger"
                       onClick={() => {
-                        setError(null);
-                        setMode("service");
+                        setConfirmCancel(false);
+                        setStatus("cancelled");
                       }}
-                    >
-                      Change service
-                    </ActionBtn>
-                  )}
-                  {/* One-tap guard for the common case: she wants this gap back. */}
-                  {effectiveSegments(appt).process > 0 && (
-                    <ActionBtn
-                      onClick={() => toggleBlockGap(!appt.block_processing)}
-                    >
-                      {appt.block_processing
-                        ? "Free up processing"
-                        : "Block processing"}
-                    </ActionBtn>
-                  )}
-                </ActionGroup>
-
-                <ActionGroup label="Next" show>
-                  <ActionBtn onClick={() => setMode("rebook")}>
-                    Book again
-                  </ActionBtn>
-                </ActionGroup>
-              </div>
-
-              {/* The two she rarely means to press, kept apart from the rest
-                  and quiet — on a phone these used to sit a thumb's width from
-                  "Check in". */}
-              {(canNoShow || canCancel) && (
-                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-foreground/10 pt-3 text-xs">
-                  {canNoShow && (
-                    <button
-                      onClick={() => setStatus("no_show")}
-                      className="text-muted transition hover:text-accent-dark"
-                    >
-                      Mark no-show
-                    </button>
-                  )}
-                  {canCancel &&
-                    (confirmCancel ? (
-                      // Cancelling frees the slot and drops the client off the
-                      // day — too destructive for a single mistaken tap.
-                      <span className="flex flex-wrap items-center gap-3">
-                        <span className="text-muted">
-                          Cancel this appointment?
-                        </span>
-                        <button
-                          onClick={() => {
-                            setConfirmCancel(false);
-                            setStatus("cancelled");
-                          }}
-                          className="font-medium text-[#8f3f4a] underline decoration-[#8f3f4a]/40 underline-offset-4"
-                        >
-                          Yes, cancel it
-                        </button>
-                        <button
-                          onClick={() => setConfirmCancel(false)}
-                          className="text-muted transition hover:text-foreground"
-                        >
-                          Keep it
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => setConfirmCancel(true)}
-                        className="text-muted transition hover:text-[#8f3f4a]"
-                      >
-                        Cancel appointment
-                      </button>
-                    ))}
+                    />
+                    <Tile row label="Keep it" onClick={() => setConfirmCancel(false)} />
+                  </Tiles>
                 </div>
               )}
             </>
@@ -1228,7 +1181,7 @@ export function RebookForm({
               key={wk}
               type="button"
               onClick={() => setWhen(plusWeeksLocal(baseISO, wk))}
-              className="rounded-md border border-foreground/15 px-3 py-1 transition hover:border-accent hover:text-accent"
+              className="min-h-11 inline-flex items-center rounded-md border border-foreground/15 px-3 transition hover:border-accent hover:text-accent"
             >
               +{wk} weeks
             </button>
@@ -1263,7 +1216,7 @@ export function RebookForm({
         <button
           onClick={submit}
           disabled={busy}
-          className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {busy ? "Booking…" : overlaps > 0 ? "Book anyway" : "Book it"}
         </button>
@@ -1278,29 +1231,6 @@ export function RebookForm({
   );
 }
 
-// A labelled row of related actions. The label sits in a fixed column so the
-// actions line up down the left across every group, and a group with nothing to
-// show doesn't leave an empty heading behind.
-function ActionGroup({
-  label,
-  show,
-  children,
-}: {
-  label: string;
-  show?: boolean;
-  children: React.ReactNode;
-}) {
-  const items = Children.toArray(children).filter(Boolean);
-  if (!show || items.length === 0) return null;
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 py-2.5 text-xs">
-      <span className="w-14 shrink-0 uppercase tracking-wider text-muted">
-        {label}
-      </span>
-      {items}
-    </div>
-  );
-}
 
 // The one thing she opened this appointment to do. Full width, because at any
 // point in the lifecycle there is exactly one of these and it shouldn't have to
@@ -1315,37 +1245,10 @@ function NextStep({
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-md bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark"
+      className="inline-flex min-h-11 items-center justify-center w-full rounded-[10px] bg-accent px-5 .5 text-sm font-medium text-white transition hover:bg-accent-dark"
     >
       {children}
     </button>
   );
 }
 
-// Everything she sometimes does: underlined text rather than an outlined box,
-// so a row of them reads as a list of options instead of a wall of buttons.
-function ActionBtn({
-  children,
-  onClick,
-  danger,
-  primary,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-  primary?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      // 44 points tall to the finger, the same line-height to the eye.
-      className={`-my-3 inline-flex min-h-11 items-center underline decoration-accent/50 underline-offset-4 transition hover:decoration-accent ${
-        primary || danger
-          ? "font-medium text-accent-dark"
-          : "text-foreground hover:text-accent-dark"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}

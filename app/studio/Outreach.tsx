@@ -133,7 +133,7 @@ export default function Outreach() {
           <p className="font-medium">Your message</p>
           <button
             onClick={() => setEditing((v) => !v)}
-            className="text-sm text-accent hover:text-accent-dark"
+            className="-mr-2 inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm text-accent hover:text-accent-dark"
           >
             {editing ? "Done" : "Edit"}
           </button>
@@ -173,17 +173,13 @@ export default function Outreach() {
         <div className="flex rounded-md border border-foreground/15 p-0.5 text-sm">
           <button
             onClick={() => setShowDone(false)}
-            className={`rounded px-4 py-1 transition ${
-              !showDone ? "bg-accent text-white" : "text-muted hover:text-accent"
-            }`}
+            className={`min-h-11 inline-flex items-center rounded px-4 transition ${ !showDone ? "bg-accent text-white" : "text-muted hover:text-accent" }`}
           >
             To do ({pending.length})
           </button>
           <button
             onClick={() => setShowDone(true)}
-            className={`rounded px-4 py-1 transition ${
-              showDone ? "bg-accent text-white" : "text-muted hover:text-accent"
-            }`}
+            className={`min-h-11 inline-flex items-center rounded px-4 transition ${ showDone ? "bg-accent text-white" : "text-muted hover:text-accent" }`}
           >
             Done ({done.length})
           </button>
@@ -221,14 +217,14 @@ export default function Outreach() {
                   // pleasant evening and a chore. "Undo" covers the case where
                   // she changes her mind in Messages.
                   onClick={() => mark(r, true)}
-                  className="rounded-md bg-accent px-5 py-2 text-sm text-white transition hover:bg-accent-dark"
+                  className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 text-sm text-white transition hover:bg-accent-dark"
                 >
                   Text
                 </a>
               )}
               <button
                 onClick={() => mark(r, !r.outreach_texted_at)}
-                className="rounded-md border border-foreground/15 px-4 py-2 text-sm transition hover:border-accent hover:text-accent"
+                className="min-h-11 inline-flex items-center rounded-md border border-foreground/15 px-4 text-sm transition hover:border-accent hover:text-accent"
               >
                 {r.outreach_texted_at ? "Undo" : "Sent"}
               </button>

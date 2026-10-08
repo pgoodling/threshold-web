@@ -158,7 +158,7 @@ export default function MoneyCount({ onSaved }: { onSaved?: () => void }) {
         )}
         <button
           onClick={() => setResult(null)}
-          className="mt-4 rounded-lg border border-foreground/15 bg-white px-3 py-1.5 text-sm font-medium shadow-sm transition hover:border-foreground/30"
+          className="min-h-11 inline-flex items-center mt-4 rounded-lg border border-foreground/15 bg-white px-3 .5 text-sm font-medium shadow-sm transition hover:border-foreground/30"
         >
           Count more
         </button>
@@ -208,7 +208,7 @@ export default function MoneyCount({ onSaved }: { onSaved?: () => void }) {
       <button
         onClick={save}
         disabled={busy}
-        className="mt-4 w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
+        className="inline-flex min-h-11 items-center justify-center mt-4 w-full rounded-[10px] bg-accent px-4 .5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
       >
         {busy ? "Saving…" : "Save the count"}
       </button>

@@ -235,7 +235,7 @@ export default function MoneyReview({
       <p className="flex-1">{flash}</p>
       <button
         onClick={() => setFlash(null)}
-        className="text-xs text-muted transition hover:text-foreground"
+        className="min-h-11 inline-flex items-center text-xs text-muted transition hover:text-foreground"
       >
         Dismiss
       </button>
@@ -270,7 +270,7 @@ export default function MoneyReview({
         {undo && (
           <button
             onClick={undoLast}
-            className="inline-flex items-center gap-1.5 text-xs text-muted transition hover:text-foreground"
+            className="min-h-11 inline-flex items-center inline-flex items-center gap-1.5 text-xs text-muted transition hover:text-foreground"
           >
             <Undo2 size={13} />
             Undo — {undo.label}
@@ -336,14 +336,14 @@ export default function MoneyReview({
                     onClick={() => decide(row, true)}
                     disabled={busyId === row.id || !row.category_id}
                     title={row.category_id ? undefined : "Pick a category first"}
-                    className="rounded-lg border border-foreground/15 px-3 py-1.5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-40"
+                    className="min-h-11 inline-flex items-center rounded-lg border border-foreground/15 px-3 .5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-40"
                   >
                     Business
                   </button>
                   <button
                     onClick={() => decide(row, false)}
                     disabled={busyId === row.id}
-                    className="rounded-lg px-3 py-1.5 text-sm text-muted transition hover:text-foreground disabled:opacity-40"
+                    className="min-h-11 inline-flex items-center rounded-lg px-3 .5 text-sm text-muted transition hover:text-foreground disabled:opacity-40"
                   >
                     Personal
                   </button>
@@ -352,7 +352,7 @@ export default function MoneyReview({
                     <button
                       onClick={() => always(row)}
                       disabled={busyId === row.id}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent/5 px-3 py-1.5 text-sm font-medium text-accent transition hover:bg-accent/10 disabled:opacity-40"
+                      className="inline-flex min-h-11 items-center justify-center items-center gap-1.5 rounded-[10px] border border-accent/30 bg-accent/5 px-3 text-sm font-medium text-accent transition hover:bg-accent/10 disabled:opacity-40"
                     >
                       <Wand2 size={14} />
                       Always, for {row.merchant}

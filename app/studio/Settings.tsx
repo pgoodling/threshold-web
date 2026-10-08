@@ -86,32 +86,36 @@ function Row({
   );
 }
 
-function Toggle({
+
+// A setting that's on or off: the whole row is the switch (2026-10-08). The
+// old 38 × 22 switch was the smallest thing in the studio; now anywhere on the
+// row flips it, and the switch itself is drawn bigger.
+function ToggleRow({
+  label,
+  hint,
   on,
   onChange,
-  label,
 }: {
+  label: string;
+  hint?: string;
   on: boolean;
   onChange: (v: boolean) => void;
-  label: string;
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
-      aria-label={label}
       onClick={() => onChange(!on)}
-      className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition ${
-        on ? "bg-accent" : "bg-foreground/20"
-      }`}
+      className="flex min-h-14 w-full items-center gap-4 border-t border-foreground/10 px-4 py-3 text-left first-of-type:border-t-0 hover:bg-foreground/[0.02]"
     >
-      <span
-        aria-hidden="true"
-        className={`absolute top-[2px] h-[18px] w-[18px] rounded-full bg-white transition-all ${
-          on ? "left-[18px]" : "left-[2px]"
-        }`}
-      />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{label}</span>
+        {hint && <span className="mt-0.5 block text-xs text-muted">{hint}</span>}
+      </span>
+      <span aria-hidden="true" className={`relative h-7 w-12 shrink-0 rounded-full transition ${on ? "bg-accent" : "bg-foreground/20"}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? "left-6" : "left-1"}`} />
+      </span>
     </button>
   );
 }
@@ -240,7 +244,7 @@ export default function Settings({ onGoto }: { onGoto?: (tab: string) => void })
           >
             <button
               onClick={() => onGoto?.("hours")}
-              className="text-sm text-accent hover:underline"
+              className="-my-2 inline-flex min-h-11 items-center px-2 text-sm text-accent hover:underline"
             >
               Edit →
             </button>
@@ -251,7 +255,7 @@ export default function Settings({ onGoto }: { onGoto?: (tab: string) => void })
           >
             <button
               onClick={() => onGoto?.("timeoff")}
-              className="text-sm text-accent hover:underline"
+              className="-my-2 inline-flex min-h-11 items-center px-2 text-sm text-accent hover:underline"
             >
               Edit →
             </button>
@@ -259,16 +263,7 @@ export default function Settings({ onGoto }: { onGoto?: (tab: string) => void })
         </Group>
 
         <Group title="Your morning email">
-          <Row
-            label="Send me my day"
-            hint="The whole schedule, in the email — it works even if the site is down."
-          >
-            <Toggle
-              on={draft.digestEnabled}
-              onChange={(v) => set("digestEnabled", v)}
-              label="Send my daily schedule email"
-            />
-          </Row>
+          <ToggleRow label="Send me my day" hint="The whole schedule, in the email — it works even if the site is down." on={draft.digestEnabled} onChange={(v) => set("digestEnabled", v)} />
           <Row label="Arrives at" hint="Give or take a few minutes.">
             <select
               value={draft.digestHour}
@@ -283,29 +278,11 @@ export default function Settings({ onGoto }: { onGoto?: (tab: string) => void })
               ))}
             </select>
           </Row>
-          <Row
-            label="Include expected takings"
-            hint="The day's total, if you'd rather not see it first thing."
-          >
-            <Toggle
-              on={draft.digestIncludeMoney}
-              onChange={(v) => set("digestIncludeMoney", v)}
-              label="Include expected takings"
-            />
-          </Row>
+          <ToggleRow label="Include expected takings" hint="The day's total, if you'd rather not see it first thing." on={draft.digestIncludeMoney} onChange={(v) => set("digestIncludeMoney", v)} />
         </Group>
 
         <Group title="When someone books">
-          <Row
-            label="Text me about short-notice bookings"
-            hint="To your mobile, the moment it happens."
-          >
-            <Toggle
-              on={draft.bookingAlertEnabled}
-              onChange={(v) => set("bookingAlertEnabled", v)}
-              label="Text me about short-notice bookings"
-            />
-          </Row>
+          <ToggleRow label="Text me about short-notice bookings" hint="To your mobile, the moment it happens." on={draft.bookingAlertEnabled} onChange={(v) => set("bookingAlertEnabled", v)} />
           <Row
             label="Short notice means within"
             hint="Anything further out waits on your home screen instead."
@@ -364,36 +341,9 @@ export default function Settings({ onGoto }: { onGoto?: (tab: string) => void })
         </Group>
 
         <Group title="What clients get">
-          <Row
-            label="Automated texts"
-            hint="Master switch. Off means confirmations and reminders both stop."
-          >
-            <Toggle
-              on={draft.smsAutomationEnabled}
-              onChange={(v) => set("smsAutomationEnabled", v)}
-              label="Automated texts"
-            />
-          </Row>
-          <Row
-            label="Booking confirmations"
-            hint="Sent the moment someone books."
-          >
-            <Toggle
-              on={draft.confirmationsEnabled}
-              onChange={(v) => set("confirmationsEnabled", v)}
-              label="Booking confirmations"
-            />
-          </Row>
-          <Row
-            label="Day-before reminders"
-            hint="Sent each morning, to everyone due soon."
-          >
-            <Toggle
-              on={draft.remindersEnabled}
-              onChange={(v) => set("remindersEnabled", v)}
-              label="Day-before reminders"
-            />
-          </Row>
+          <ToggleRow label="Automated texts" hint="Master switch. Off means confirmations and reminders both stop." on={draft.smsAutomationEnabled} onChange={(v) => set("smsAutomationEnabled", v)} />
+          <ToggleRow label="Booking confirmations" hint="Sent the moment someone books." on={draft.confirmationsEnabled} onChange={(v) => set("confirmationsEnabled", v)} />
+          <ToggleRow label="Day-before reminders" hint="Sent each morning, to everyone due soon." on={draft.remindersEnabled} onChange={(v) => set("remindersEnabled", v)} />
           <Row
             label="Reminders look ahead"
             hint="How far forward the morning sweep reaches. 36 hours catches tomorrow plus tonight's late bookings."
@@ -444,7 +394,7 @@ export default function Settings({ onGoto }: { onGoto?: (tab: string) => void })
         <button
           onClick={save}
           disabled={busy || !dirty}
-          className="rounded-full bg-accent px-6 py-2.5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50"
+          className="min-h-11 inline-flex items-center rounded-full bg-accent px-6 .5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50"
         >
           {busy ? "Saving…" : "Save"}
         </button>

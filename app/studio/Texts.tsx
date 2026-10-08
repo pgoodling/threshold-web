@@ -7,6 +7,7 @@ import { whenLabel } from "../../lib/format";
 import { welcomeConfirmText, reminderText } from "../../lib/smsTemplates";
 import Rail from "./Rail";
 import Button from "./Button";
+import { Segments } from "./ui";
 import { textsDue, REMIND_AHEAD_HOURS, DEFAULT_CONFIRM_FROM } from "../../lib/textsDue";
 
 // The texts that need a human to decide, not a schedule.
@@ -210,27 +211,18 @@ export default function Texts() {
         yourself.
       </p>
 
-      <div className="mt-4 flex gap-5 border-b border-foreground/15">
-        {(
+      <Segments
+        className="mt-4"
+        label="Which texts"
+        options={
           [
             ["confirm", "To confirm", toConfirm.length],
             ["remind", "Reminders due", toRemind.length],
           ] as const
-        ).map(([k, label, count]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className={`-mb-px border-b-2 pb-2 text-sm transition ${
-              tab === k
-                ? "border-accent font-medium text-accent-dark"
-                : "border-transparent text-muted hover:text-foreground"
-            }`}
-          >
-            {label}
-            <span className="ml-2 tabular-nums text-muted">{count}</span>
-          </button>
-        ))}
-      </div>
+        }
+        value={tab}
+        onChange={setTab}
+      />
 
       {/* The date floor, and the bulk send it protects. Both live above the
           list, because she needs to see what the run covers before starting
@@ -309,7 +301,7 @@ export default function Texts() {
                       }
                       setSending(null);
                     }}
-                    className="font-medium text-accent-dark underline decoration-accent underline-offset-4 disabled:opacity-50"
+                    className="min-h-11 inline-flex items-center font-medium text-accent-dark underline decoration-accent underline-offset-4 disabled:opacity-50"
                   >
                     {sending === r.id ? "Sending…" : "Send"}
                   </button>
@@ -324,7 +316,7 @@ export default function Texts() {
                   </a>
                   <button
                     onClick={() => mark(r, tab, true)}
-                    className="text-xs text-muted transition hover:text-accent-dark"
+                    className="min-h-11 inline-flex items-center text-xs text-muted transition hover:text-accent-dark"
                   >
                     Skip
                   </button>

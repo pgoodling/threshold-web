@@ -70,7 +70,7 @@ export default function AppointmentPhotos({
             type="button"
             onClick={() => setZoomed(u)}
             aria-label={`Enlarge client photo ${i + 1}`}
-            className="rounded-lg"
+            className="min-h-11 inline-flex items-center rounded-lg"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
