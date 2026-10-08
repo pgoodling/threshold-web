@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase";
 import { readableTxn } from "../../lib/bankNames";
 import { yearEnd, compareCard, toCsv, type YearRow, type CheckOuts } from "../../lib/yearEnd";
 import { offBankTakings } from "../../lib/takings";
+import { GROUP_LABEL } from "../../lib/costGroups";
 
 // The year on Schedule C lines, for her tax preparer. Opened from Money →
 // Taxes. The arithmetic is lib/yearEnd.ts; this lays it out and lets each line
@@ -18,6 +19,7 @@ const day = (d: string) =>
 
 type Loaded = {
   rows: YearRow[];
+  openedOn: string | null;
   offBankCents: number;
   offBank: { method: string; cents: number }[];
   salesTaxCents: number;
@@ -42,7 +44,6 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
         .from("bank_transactions")
         .select("id,posted_on,amount_cents,merchant,description,expense_categories(name,kind,schedule_c_line)")
         .eq("is_business", true)
-        .gte("posted_on", from)
         .lt("posted_on", to),
       supabase.from("retail_sales").select("tax_cents,total_cents,payment_method").gte("sold_on", from).lt("sold_on", to),
       supabase
@@ -52,7 +53,8 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
         .gte("starts_at", `${from}T05:00:00Z`)
         .lt("starts_at", `${to}T05:00:00Z`),
       supabase.from("product_stock").select("on_hand,unit_cost_cents").eq("active", true).eq("sells_retail", true),
-    ]).then(([b, s, a, p]) => {
+      supabase.from("salon_settings").select("opened_on").limit(1).maybeSingle(),
+    ]).then(([b, s, a, p, o]) => {
       if (!alive) return;
       if (b.error) return setError(b.error.message);
       const one = <T,>(x: T | T[] | null): T | null => (Array.isArray(x) ? (x[0] ?? null) : x);
@@ -80,6 +82,7 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
           description: r.description as string | null,
           category: one(r.expense_categories as unknown as YearRow["category"] | YearRow["category"][]),
         })),
+        openedOn: (o.data?.opened_on as string | null) ?? null,
         salesTaxCents: (s.data ?? []).reduce((t, r) => t + (Number(r.tax_cents) || 0), 0),
         offBankCents: off.cents,
         offBank: off.byMethod,
@@ -94,8 +97,16 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
   }, [year]);
 
   const y = useMemo(
-    () => (data ? yearEnd(data.rows, { salesTaxCents: data.salesTaxCents, offBankCents: data.offBankCents }) : null),
-    [data],
+    () =>
+      data
+        ? yearEnd(data.rows, {
+            salesTaxCents: data.salesTaxCents,
+            offBankCents: data.offBankCents,
+            year,
+            openedOn: data.openedOn,
+          })
+        : null,
+    [data, year],
   );
   const takings = useMemo(() => {
     if (!data || !y) return null;
@@ -114,6 +125,10 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
   }
 
   const lastPosted = data?.rows.map((r) => r.posted_on).sort().slice(-1)[0];
+  const pre = y?.preOpening ?? null;
+  const opened = pre
+    ? new Date(`${pre.openedOn}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
+    : "";
 
   return (
     <div className="max-w-xl">
@@ -193,8 +208,69 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
                 rows={y.setup}
               />
             )}
+            {pre?.claimedHere && (
+              <Row label="Before opening, deducted this year" sub="see below" value={money(pre.deductedCents)} />
+            )}
+            {pre && !pre.claimedHere && pre.startup.cents > 0 && (
+              <Row
+                label="Startup costs, this year's share"
+                sub={`${pre.startup.months} months of the 180 (§ 195)`}
+                value={money(pre.startup.cents)}
+              />
+            )}
             <Row line="31" label="Net profit" sub="setting up counted in full, as on Taxes" value={money(y.netCents)} strong />
           </Section>
+
+          {pre && (pre.claimedHere || Number(pre.openedOn.slice(0, 4)) > year) && (
+            <Section title={`Before opening · ${opened}`}>
+              {!pre.claimedHere ? (
+                <p className="px-4 py-3 text-muted">
+                  Bought before she opened, so it&apos;s claimed in {pre.openedOn.slice(0, 4)}, the year the
+                  business began — not here.
+                </p>
+              ) : (
+                <>
+                  {(["equipment", "product", "other"] as const).map((g) => {
+                    const grp = pre.groups[g];
+                    if (grp.rows.length === 0) return null;
+                    const key = `pre-${g}`;
+                    return (
+                      <Row
+                        key={g}
+                        label={g === "other" ? "Startup costs" : GROUP_LABEL[g]}
+                        sub={
+                          g === "equipment"
+                            ? "deducted as equipment, not a startup cost"
+                            : g === "product"
+                              ? "a cost as it's used or sold, not a startup cost"
+                              : "everything else bought before opening"
+                        }
+                        value={money(grp.cents)}
+                        open={open === key}
+                        onToggle={() => setOpen(open === key ? null : key)}
+                        rows={grp.rows}
+                      />
+                    );
+                  })}
+                  {pre.groups.other.cents > 0 && (
+                    <Row
+                      label="Startup costs deducted this year"
+                      sub={
+                        pre.startup.cents >= pre.groups.other.cents
+                          ? "all of it: under the $5,000 first-year allowance"
+                          : `$5,000 allowance, then ${money(Math.round(pre.startup.monthlyCents))} a month over 15 years`
+                      }
+                      value={money(pre.startup.cents)}
+                    />
+                  )}
+                  <p className="border-t border-foreground/10 px-4 py-2 text-xs text-muted">
+                    Includes anything paid in earlier years. Which bucket each item belongs in is the
+                    preparer&apos;s call; tap a group to see what&apos;s in it.
+                  </p>
+                </>
+              )}
+            </Section>
+          )}
 
           <Section title="For the preparer">
             <Row

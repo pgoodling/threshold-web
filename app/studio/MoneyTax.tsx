@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import MoneyYearEnd from "./MoneyYearEnd";
 import { offBankTakings } from "../../lib/takings";
+import { yearEnd, type YearRow } from "../../lib/yearEnd";
 import { PiggyBank, CircleAlert, ExternalLink, CalendarClock, ChevronDown } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
@@ -63,10 +64,11 @@ export default function MoneyTax() {
       supabase.from("tax_rates").select("*"),
       supabase
         .from("bank_transactions")
-        .select("amount_cents,expense_categories(name,kind)")
-        .eq("is_business", true)
-        .gte("posted_on", yearStart),
-      supabase.from("salon_settings").select("filing_status,other_income_cents").limit(1).maybeSingle(),
+        // Everything up to now, not just this year: costs from before she
+        // opened are claimed in the opening year (lib/yearEnd.ts).
+        .select("id,posted_on,amount_cents,merchant,description,expense_categories(name,kind,schedule_c_line)")
+        .eq("is_business", true),
+      supabase.from("salon_settings").select("filing_status,other_income_cents,opened_on").limit(1).maybeSingle(),
       // Shown by month and for the year until we know how often she files.
       supabase.from("retail_sales").select("sold_on,tax_cents,total_cents,payment_method").gte("sold_on", yearStart),
       // Cash taken at check-out never reaches the bank; it's counted from here.
@@ -100,33 +102,36 @@ export default function MoneyTax() {
       const rateRows = (r.data ?? []) as RateRow[];
       setRates(rateRows);
 
-      let revenueCents = 0;
-      let costCents = 0;
-      let savedCents = 0;
-
-      for (const row of t.data ?? []) {
-        const c = row.expense_categories as unknown as { name?: string; kind?: string } | null;
-        const kind = c?.kind ?? null;
-        const amt = Number(row.amount_cents);
-        if (kind === "revenue") revenueCents += Math.abs(amt);
-        // Capital counts as deductible on the assumption she makes the de
-        // minimis election, which at her amounts is near-automatic. Owner
-        // draws, contributions and personal spending never touch profit.
-        else if (["fixed", "product", "variable", "resale", "capital"].includes(kind ?? ""))
-          costCents += Math.abs(amt);
-        // Money moved into savings, as a proxy for "put by". Imperfect — she
-        // might be saving for something else — so it's shown, not assumed.
-        if ((c?.name ?? "") === "Transfer between accounts" && amt < 0)
-          savedCents += Math.abs(amt);
-      }
-
-      // Sales tax she collected arrives inside the card deposits, but it's the
-      // state's money, not income -- the year-end summary takes it out too.
-      revenueCents -= yearCents;
-      revenueCents += offBankTakings(
-        (ap.data ?? []) as { paid_cents: number | null; payment_method: string | null }[],
-        (st.data ?? []) as { total_cents: number | null; payment_method: string | null }[],
-      ).cents;
+      // Profit is worked out exactly as the year-end summary does it -- the same
+      // function -- so the estimate and the summary can't drift apart: sales tax
+      // out of income, cash from check-outs in, setting-up counted in full, and
+      // pre-opening spending split three ways with startup costs per § 195.
+      const one = <X,>(x: X | X[] | null): X | null => (Array.isArray(x) ? (x[0] ?? null) : x);
+      const rows: YearRow[] = (t.data ?? []).map((row) => ({
+        id: row.id as string,
+        posted_on: row.posted_on as string,
+        amount_cents: Number(row.amount_cents),
+        merchant: row.merchant as string | null,
+        description: row.description as string | null,
+        category: one(row.expense_categories as unknown as YearRow["category"] | YearRow["category"][]),
+      }));
+      const year = Number(yearStart.slice(0, 4));
+      const y = yearEnd(rows, {
+        salesTaxCents: yearCents,
+        offBankCents: offBankTakings(
+          (ap.data ?? []) as { paid_cents: number | null; payment_method: string | null }[],
+          (st.data ?? []) as { total_cents: number | null; payment_method: string | null }[],
+        ).cents,
+        year,
+        openedOn: (s.data?.opened_on as string | null) ?? null,
+      });
+      const revenueCents = y.grossCents;
+      const costCents = y.grossCents - y.netCents;
+      // Money moved into savings this year, as a proxy for "put by". Imperfect
+      // -- she might be saving for something else -- so it's shown, not assumed.
+      const savedCents = rows
+        .filter((r) => r.posted_on >= yearStart && r.category?.name === "Transfer between accounts" && r.amount_cents < 0)
+        .reduce((t2, r) => t2 + Math.abs(r.amount_cents), 0);
 
       setTotals({ revenueCents, costCents, savedCents });
 

@@ -592,7 +592,32 @@ test("Year-end summary for the preparer", async () => {
     await page.getByRole("button", { name: /Rent or lease: other business property/ }).click();
     check("SALON LOFTS listed", await page.getByText(/SALON LOFTS/i).first().isVisible());
   });
+  await w.step(page, "Opened on the 22nd: rent and IKEA move to Before opening, split", async (check) => {
+    // The seed's IKEA (21st) and rent (11th) fall before a 22nd opening;
+    // SalonCentric (24th) and the card fee (28th) after.
+    const { lm } = dates();
+    const was = (await sql.query(`select opened_on::text o from salon_settings limit 1`)).rows[0]?.o ?? null;
+    await sql.query(`update salon_settings set opened_on = $1`, [lm(22)]);
+    try {
+      await open("money/taxes");
+      await page.getByRole("button", { name: /Year-end summary/ }).click();
+      if (Number(lastMonth.slice(0, 4)) < new Date().getFullYear())
+        await page.getByRole("button", { name: "Previous year" }).click();
+      await expect(page.getByText(/^Before opening ·/)).toBeVisible();
+      const text = (await page.locator("main").first().textContent()) ?? "";
+      check("furniture and equipment $1,208.00", /Furniture and equipment[^$]*\$1,208\.00/.test(text));
+      check("startup costs $250.00 (the rent)", /Startup costs[^$]*\$250\.00/.test(text));
+      check("all of it deducted: under $5,000", text.includes("all of it: under the $5,000 first-year allowance"));
+      // Rent is no longer on the ordinary rent line.
+      check("no ordinary rent line", !text.includes("Rent or lease: other business property"));
+    } finally {
+      await sql.query(`update salon_settings set opened_on = $1`, [was]);
+    }
+  });
   await w.step(page, "Download for preparer", async (check) => {
+    await open("money/taxes");
+    await page.getByRole("button", { name: /Year-end summary/ }).click();
+    await expect(page.getByText("Net profit")).toBeVisible();
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /Download for preparer/ }).click()]);
     check("a CSV named for the year", /^threshold-\d{4}-schedule-c\.csv$/.test(dl.suggestedFilename()), "threshold-YYYY-schedule-c.csv", dl.suggestedFilename());
   });

@@ -640,3 +640,28 @@ tax preparer (`lib/yearEnd.ts`, `MoneyYearEnd.tsx`).
   when paid. Relay paying her back is filed **Reimbursement to Evelyn** (0050,
   kind owner: not a second expense, not a draw). Money → Bank shows paid,
   paid back and still owed (`lib/reimburse.ts`, `MoneyReimburse.tsx`).
+
+## Before opening: startup costs, equipment, product (2026-10-08)
+
+Spending dated before `salon_settings.opened_on` (7 Sep 2026) — including
+anything paid in 2025 — is taken out of the year it was paid and shown in the
+**opening year's** summary under "Before opening", split three ways
+(`lib/costGroups.ts`):
+
+- **Furniture and equipment** (capital kinds, plus "Tools and equipment") —
+  deducted as equipment, in full on the de minimis assumption Taxes already
+  makes.
+- **Product** (back bar, colour, retail stock) — a cost as used or sold;
+  counted in full.
+- **Startup costs** (everything else) — 26 U.S.C. § 195: up to $5,000 in the
+  opening year, less any excess over $50,000; the rest over 180 months from
+  the opening month (`startupDeduction`). Her total on 8 Oct: $350.43, all
+  deductible in 2026.
+
+Taxes now gets its profit from the same `yearEnd()` function, so the estimate
+and the summary can't disagree. The purchase form's category dropdown is
+grouped the same three ways and leaves out income, owner money and personal.
+
+The § 195 split depends on the amount, not on profit. What the preparer
+decides with profit in mind — equipment by de minimis, Section 179 or
+depreciation; whether to elect out of the startup deduction — isn't automated.

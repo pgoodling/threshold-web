@@ -88,3 +88,59 @@ test("the CSV opens with the summary and lists every row, commas quoted", () => 
   assert.match(csv, /"Smith, Jones & Co"/);
   assert.match(csv, /To sort/);
 });
+
+import { startupDeduction } from "../../lib/yearEnd";
+
+test("startup costs, § 195: under $5,000 all in the opening year", () => {
+  // Her pre-opening startup costs as of 8 Oct: 20.00 + 74.90 + 175.14 + 80.39 = 350.43.
+  assert.equal(startupDeduction(35043, "2026-09-07", 2026).cents, 35043);
+  assert.equal(startupDeduction(35043, "2026-09-07", 2027).cents, 0);
+  assert.equal(startupDeduction(35043, "2026-09-07", 2025).cents, 0);
+});
+
+test("startup costs over $5,000: $5,000 now, the rest over 180 months from opening", () => {
+  // $41,000: $5,000 first year; $36,000 ÷ 180 = $200 a month. Opened September,
+  // so 2026 has 4 months (Sep–Dec): 5,000 + 800 = $5,800. 2027: 12 × 200 = $2,400.
+  const s = startupDeduction(4_100_000, "2026-09-07", 2026);
+  assert.equal(s.firstYearCents, 500_000);
+  assert.equal(s.months, 4);
+  assert.equal(s.cents, 580_000);
+  assert.equal(startupDeduction(4_100_000, "2026-09-07", 2027).cents, 240_000);
+  // 180 months from Sep 2026 end Aug 2041: 2041 has 8 months, 2042 none.
+  assert.equal(startupDeduction(4_100_000, "2026-09-07", 2041).months, 8);
+  assert.equal(startupDeduction(4_100_000, "2026-09-07", 2042).cents, 0);
+});
+
+test("startup costs in the phase-out: $54,500 leaves $500 for the first year", () => {
+  assert.equal(startupDeduction(5_450_000, "2026-09-07", 2026).firstYearCents, 50_000);
+});
+
+test("before opening: split three ways, 2025 receipts land in 2026, not in the ordinary lines", () => {
+  const pre = (name: string, kind: string, line: string | null, cents: number, d: string) => row(name, kind, line, cents, d);
+  const rows = [
+    pre("Furniture and fixtures", "capital", null, -74906, "2026-08-26"),
+    pre("Tools and equipment", "product", "22", -5000, "2026-08-20"),
+    pre("Back bar and supplies", "product", "22", -34621, "2026-08-11"),
+    pre("Professional services", "variable", "17", -17514, "2025-12-15"), // paid the year before
+    pre("Studio rent", "fixed", "20b", -25000, "2026-09-01"),
+    row("Studio rent", "fixed", "20b", -25000, "2026-10-01"), // after opening: ordinary
+    row("Card revenue (Intuit)", "revenue", "1", 100000, "2026-09-20"),
+  ];
+  const y = yearEnd(rows, { salesTaxCents: 0, year: 2026, openedOn: "2026-09-07" });
+  const p = y.preOpening!;
+  // Equipment: furniture 749.06 + tools 50.00 = 799.06. Product 346.21.
+  // Startup: professional 175.14 (paid 2025) + rent 250.00 = 425.14, all deductible.
+  assert.equal(p.groups.equipment.cents, 79906);
+  assert.equal(p.groups.product.cents, 34621);
+  assert.equal(p.groups.other.cents, 42514);
+  assert.equal(p.deductedCents, 79906 + 34621 + 42514);
+  // Only October's rent is on the ordinary rent line.
+  assert.equal(y.lines.find((l) => l.line === "20b")!.cents, 25000);
+  // 1,000.00 − 250.00 − 1,570.41 = −820.41
+  assert.equal(y.netCents, 100000 - 25000 - 157041);
+  // The 2025 summary doesn't take the 2025 receipt as an expense; it says it went to 2026.
+  const y25 = yearEnd(rows, { salesTaxCents: 0, year: 2025, openedOn: "2026-09-07" });
+  assert.equal(y25.lines.length, 0);
+  assert.equal(y25.preOpening!.claimedHere, false);
+  assert.equal(y25.preOpening!.deductedCents, 0);
+});

@@ -46,3 +46,15 @@ test("a new line carries the date and category of the one above", () => {
   assert.equal(next.payee, "");
   assert.equal(next.amount, "");
 });
+
+import { costGroup } from "../../lib/costGroups";
+
+test("the dropdown's groups: furniture and equipment, product, other; no income or owner money", () => {
+  assert.equal(costGroup({ name: "Furniture and fixtures", kind: "capital" }), "equipment");
+  assert.equal(costGroup({ name: "Tools and equipment", kind: "product" }), "equipment");
+  assert.equal(costGroup({ name: "Back bar and supplies", kind: "product" }), "product");
+  assert.equal(costGroup({ name: "Retail stock for resale", kind: "resale" }), "product");
+  assert.equal(costGroup({ name: "Studio rent", kind: "fixed" }), "other");
+  for (const [name, kind] of [["Card revenue (Intuit)", "revenue"], ["Owner draw", "owner"], ["Owner contribution", "contribution"], ["Personal", "excluded"]])
+    assert.equal(costGroup({ name, kind }), null, name);
+});

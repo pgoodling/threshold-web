@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, Check, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { PAID_PERSONALLY_ACCOUNT, checkLines, blankLine, type DraftLine } from "../../lib/reimburse";
+import { costGroup, GROUP_LABEL } from "../../lib/costGroups";
 
 // Purchases the bank feed will never show.
 //
@@ -184,10 +185,19 @@ export default function MoneyManual({
               Category
               <select value={l.categoryId} onChange={(e) => set(l.key, { categoryId: e.target.value })} className={field}>
                 <option value="">Choose…</option>
-                {cats.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
+                {/* Grouped the way the year-end summary splits pre-opening
+                    spending, and only things that are spending -- no income,
+                    owner money or personal in a list of purchases. */}
+                {(["equipment", "product", "other"] as const).map((g) => (
+                  <optgroup key={g} label={GROUP_LABEL[g]}>
+                    {cats
+                      .filter((c) => costGroup(c) === g)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                  </optgroup>
                 ))}
               </select>
             </label>
