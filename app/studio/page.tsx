@@ -878,7 +878,7 @@ function Hours() {
         <button
           onClick={save}
           disabled={saving}
-          className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-6 .5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-6 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save hours"}
         </button>

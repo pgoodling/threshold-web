@@ -102,3 +102,31 @@ export const handRate = (r: ServiceRow, productPerVisitCents = 0) =>
     sumVisits(r.visits, "paidCents") - sumVisits(r.visits, "feeCents") - productPerVisitCents * r.visits.length,
     sumVisits(r.visits, "handMinutes"),
   );
+
+// ---- The fixed-cost line (2026-10-08) --------------------------------------
+//
+// Rent and the other fixed costs (kind = fixed) over the last four weeks of
+// bank statements, divided by the hours of her hands in the same four weeks.
+// Drawn on Money → Services as a line: a service below it earns less per hour
+// than its share of the overhead. Not taken off any service -- an hour of rent
+// costs the same whichever service fills it, so it wouldn't change the ranking.
+
+export type FixedRow = { posted_on: string; amount_cents: number; kind: string | null };
+
+export const LINE_WINDOW_DAYS = 28;
+
+export function fixedCostLine(rows: FixedRow[], visits: { day: string; handMinutes: number }[]) {
+  // The window ends at the last day the statements reach, not today: a month
+  // not yet uploaded would otherwise look like a month with no rent.
+  const end = rows.map((r) => r.posted_on).sort().slice(-1)[0];
+  if (!end) return null;
+  const startDate = new Date(`${end}T12:00:00Z`);
+  startDate.setUTCDate(startDate.getUTCDate() - (LINE_WINDOW_DAYS - 1));
+  const from = startDate.toISOString().slice(0, 10);
+  const costCents = rows
+    .filter((r) => r.kind === "fixed" && r.posted_on >= from && r.posted_on <= end)
+    .reduce((t, r) => t - r.amount_cents, 0);
+  const minutes = visits.filter((v) => v.day >= from && v.day <= end).reduce((t, v) => t + v.handMinutes, 0);
+  if (minutes <= 0 || costCents <= 0) return null;
+  return { from, to: end, costCents, hours: minutes / 60, perHourCents: (costCents / minutes) * 60 };
+}

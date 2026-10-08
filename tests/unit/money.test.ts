@@ -300,3 +300,34 @@ test("no profit, no tax", () => {
   assert.equal(est.totalCents, 0);
   assert.equal(est.lines.length, 0);
 });
+
+import { fixedCostLine } from "../../lib/serviceEarnings";
+
+test("fixed-cost line: last 4 weeks of statements ÷ hands hours in them", () => {
+  // Statements end 30 Sep, so the window is 3–30 Sep. Rent 4 × $250 + software $20
+  // = $1,020 inside it; May's rent and 2 Sep's licence fall outside. Hands time
+  // inside: 5,010 min = 83.5 h → 102,000 ÷ 83.5 = 1,221.56¢ ≈ $12.22 an hour.
+  const rows = [
+    { posted_on: "2026-05-20", amount_cents: -55000, kind: "fixed" },
+    { posted_on: "2026-09-02", amount_cents: -9900, kind: "fixed" },
+    ...["2026-09-04", "2026-09-11", "2026-09-18", "2026-09-25"].map((d) => ({ posted_on: d, amount_cents: -25000, kind: "fixed" })),
+    { posted_on: "2026-09-05", amount_cents: -2000, kind: "fixed" },
+    { posted_on: "2026-09-30", amount_cents: 50000, kind: "revenue" },
+  ];
+  const visits = [
+    { day: "2026-09-01", handMinutes: 600 }, // before the window
+    { day: "2026-09-10", handMinutes: 3000 },
+    { day: "2026-09-28", handMinutes: 2010 },
+  ];
+  const l = fixedCostLine(rows, visits)!;
+  assert.equal(l.from, "2026-09-03");
+  assert.equal(l.to, "2026-09-30");
+  assert.equal(l.costCents, 102000);
+  assert.equal(l.hours, 83.5);
+  assert.ok(Math.abs(l.perHourCents - 1221.56) < 0.01);
+});
+
+test("fixed-cost line: nothing to say without hours or costs", () => {
+  assert.equal(fixedCostLine([], []), null);
+  assert.equal(fixedCostLine([{ posted_on: "2026-09-04", amount_cents: -25000, kind: "fixed" }], []), null);
+});

@@ -401,7 +401,7 @@ function BookingServices() {
       ) : (
         <button
           onClick={() => setAdding(true)}
-          className="min-h-11 inline-flex items-center mt-8 rounded-md border border-foreground/15 px-6 .5 text-sm transition hover:border-accent hover:text-accent"
+          className="min-h-11 inline-flex items-center mt-8 rounded-md border border-foreground/15 px-6 text-sm transition hover:border-accent hover:text-accent"
         >
           + Add service
         </button>
@@ -557,7 +557,7 @@ function CategoryManager({
         <button
           type="submit"
           disabled={busy || !name.trim()}
-          className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-foreground/15 px-5 .5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
+          className="inline-flex min-h-11 items-center justify-center rounded-[10px] border border-foreground/15 px-5 text-sm transition hover:border-accent hover:text-accent disabled:opacity-40"
         >
           + Add category
         </button>

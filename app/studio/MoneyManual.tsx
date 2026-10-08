@@ -134,7 +134,7 @@ export default function MoneyManual({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="min-h-11 inline-flex items-center mt-4 inline-flex items-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 .5 text-sm font-medium shadow-sm transition hover:border-foreground/30"
+        className="min-h-11 mt-4 inline-flex items-center gap-2 rounded-xl border border-foreground/15 bg-white px-4 text-sm font-medium shadow-sm transition hover:border-foreground/30"
       >
         <Plus size={16} />
         Add a purchase the bank doesn&rsquo;t show

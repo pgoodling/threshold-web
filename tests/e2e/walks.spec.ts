@@ -167,16 +167,21 @@ test("Money: Services", async () => {
   });
   await w.step(page, "Open it: the sum is written out", async (check) => {
     await page.getByRole("button", { name: /Cut & Style/ }).click();
-    const sum = page.getByText(/an hour$/);
+    const sum = page.getByText(/^\(.*an hour$/);
     const t = (await sum.textContent()) ?? "";
     check("written-out sum", t.includes(`= ${EXPECT.cutPerHour} an hour`), EXPECT.cutPerHour, t);
     check("visits listed", (await page.locator("tbody tr").count()) === 3, "2 visits + total", await page.locator("tbody tr").count());
+    // The fixed-cost line: last month's rent $250 ÷ 4.25 hours of hands (Liz
+    // 135 + Sarah 60 + Mike 60 min, inside the four weeks the statements end on).
+    await open("money/services");
+    const lineText = (await page.getByText(/Your fixed costs come to/).textContent()) ?? "";
+    check("fixed costs $59 an hour", lineText.includes("$59 an hour"), "$59 an hour", lineText);
   });
   await w.step(page, "A highlight: product measured from her amounts, taken off", async (check) => {
     await open("money/services");
     await page.getByText("1 with only one visit so far").click();
     await page.getByRole("button", { name: /Custom Cut & Partial Highlight/ }).click();
-    const sum = (await page.getByText(/an hour$/).textContent()) ?? "";
+    const sum = (await page.getByText(/^\(.*an hour$/).textContent()) ?? "";
     check("per hour after product", sum.includes(`= ${EXPECT.highlightPerHour} an hour`), EXPECT.highlightPerHour, sum);
     check("product per visit", sum.includes(`1 × ${EXPECT.highlightProduct} product`), EXPECT.highlightProduct, sum);
     for (const [label, amount] of [["Lightener 30 g", "$1.38"], ["Developer 60 ml", "$0.45"], ["32.5 foils", "$1.56"], ["Toner 30 ml", "$3.70"], ["Toner activator 60 ml", "$0.54"]])

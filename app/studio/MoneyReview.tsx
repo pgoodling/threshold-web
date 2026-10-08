@@ -336,14 +336,14 @@ export default function MoneyReview({
                     onClick={() => decide(row, true)}
                     disabled={busyId === row.id || !row.category_id}
                     title={row.category_id ? undefined : "Pick a category first"}
-                    className="min-h-11 inline-flex items-center rounded-lg border border-foreground/15 px-3 .5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-40"
+                    className="min-h-11 inline-flex items-center rounded-lg border border-foreground/15 px-3 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-40"
                   >
                     Business
                   </button>
                   <button
                     onClick={() => decide(row, false)}
                     disabled={busyId === row.id}
-                    className="min-h-11 inline-flex items-center rounded-lg px-3 .5 text-sm text-muted transition hover:text-foreground disabled:opacity-40"
+                    className="min-h-11 inline-flex items-center rounded-lg px-3 text-sm text-muted transition hover:text-foreground disabled:opacity-40"
                   >
                     Personal
                   </button>

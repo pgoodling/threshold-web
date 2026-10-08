@@ -449,7 +449,7 @@ function Product({
       <div className={`min-w-0 flex-1 ${open ? "bg-foreground/[0.03]" : ""}`}>
         <button
           onClick={onToggle}
-          className="min-h-11 flex w-full items-center gap-3 px-3 .5 text-left"
+          className="min-h-11 flex w-full items-center gap-3 px-3 text-left"
           aria-expanded={open}
         >
           <span className="min-w-0 flex-1">

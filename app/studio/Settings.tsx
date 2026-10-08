@@ -394,7 +394,7 @@ export default function Settings({ onGoto }: { onGoto?: (tab: string) => void })
         <button
           onClick={save}
           disabled={busy || !dirty}
-          className="min-h-11 inline-flex items-center rounded-full bg-accent px-6 .5 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50"
+          className="min-h-11 inline-flex items-center rounded-full bg-accent px-6 text-sm font-medium text-white transition hover:bg-accent-dark disabled:opacity-50"
         >
           {busy ? "Saving…" : "Save"}
         </button>

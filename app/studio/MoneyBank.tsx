@@ -217,7 +217,7 @@ export default function MoneyBank({ onChanged }: { onChanged?: () => void }) {
                 <div key={t.id} className="border-t border-foreground/10 first:border-t-0">
                   <button
                     onClick={() => setEditing(editing === t.id ? null : t.id)}
-                    className="min-h-11 flex w-full items-start gap-3 px-3 .5 text-left"
+                    className="min-h-11 flex w-full items-start gap-3 px-3 text-left"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block text-[15px] leading-snug">{readable(t)}</span>

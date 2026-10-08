@@ -1245,7 +1245,7 @@ function NextStep({
   return (
     <button
       onClick={onClick}
-      className="inline-flex min-h-11 items-center justify-center w-full rounded-[10px] bg-accent px-5 .5 text-sm font-medium text-white transition hover:bg-accent-dark"
+      className="inline-flex min-h-11 items-center justify-center w-full rounded-[10px] bg-accent px-5 text-sm font-medium text-white transition hover:bg-accent-dark"
     >
       {children}
     </button>

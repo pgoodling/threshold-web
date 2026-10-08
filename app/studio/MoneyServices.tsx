@@ -10,6 +10,7 @@ import {
   sumVisits as sum,
   perHour,
   handRate,
+  fixedCostLine,
   type EarningsAppt,
   type ServiceRow,
 } from "../../lib/serviceEarnings";
@@ -69,6 +70,7 @@ export default function MoneyServices() {
   const [open, setOpen] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [products, setProducts] = useState<InvProduct[]>([]);
+  const [line, setLine] = useState<ReturnType<typeof fixedCostLine>>(null);
   const [moves, setMoves] = useState<Movement[]>([]);
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export default function MoneyServices() {
         .in("status", ["checked_out", "completed"]),
       supabase
         .from("bank_transactions")
-        .select("amount_cents,expense_categories(name)")
+        .select("posted_on,amount_cents,expense_categories(name,kind)")
         .eq("is_business", true)
         .not("reviewed_at", "is", null),
       supabase.from("products").select("name,size,unit_cost_cents").eq("active", true),
@@ -101,7 +103,18 @@ export default function MoneyServices() {
           category: one(r.expense_categories as unknown as { name: string } | null)?.name ?? "",
         })),
       );
-      setRows(serviceRows((a.data ?? []) as unknown as EarningsAppt[], rate));
+      const built = serviceRows((a.data ?? []) as unknown as EarningsAppt[], rate);
+      setRows(built);
+      setLine(
+        fixedCostLine(
+          (t.data ?? []).map((r) => ({
+            posted_on: r.posted_on as string,
+            amount_cents: Number(r.amount_cents),
+            kind: one(r.expense_categories as unknown as { kind: string } | null)?.kind ?? null,
+          })),
+          built.flatMap((r) => r.visits),
+        ),
+      );
       setFeeRate(rate);
       setProducts((p.data ?? []) as InvProduct[]);
       setMoves(
@@ -196,6 +209,22 @@ export default function MoneyServices() {
           )}
         </div>
 
+        {line && (
+          <p className="mt-2 text-sm text-muted">
+            {perHour(net, hands) >= line.perHourCents ? (
+              <>
+                After its share of fixed costs ({whole(line.perHourCents)} an hour):{" "}
+                <span className="font-medium text-foreground">{whole(perHour(net, hands) - line.perHourCents)} an hour</span>
+              </>
+            ) : (
+              <span className="text-[#8f3f4a]">
+                Under the fixed-cost line of {whole(line.perHourCents)} an hour, by{" "}
+                {whole(line.perHourCents - perHour(net, hands))}
+              </span>
+            )}
+          </p>
+        )}
+
         <div className="mt-5 overflow-hidden rounded-xl border border-foreground/15 bg-white text-sm shadow-sm">
           <Line label="Average paid" value={exact(paid / n)} />
           <Line
@@ -289,6 +318,21 @@ export default function MoneyServices() {
       <p className="text-sm text-muted">What each service earns</p>
       <p className="text-[15px]">per hour of your hands, after product so far</p>
 
+      {/* The fixed-cost line (lib/serviceEarnings.ts): rent and other fixed
+          costs per hour she works. A service under it isn't covering its share
+          of the overhead -- the one to think about raising. */}
+      {line && (
+        <div className="mt-3 rounded-r-xl border border-l-[3px] border-foreground/15 border-l-[#8f3f4a] bg-white px-3 py-2">
+          <p className="text-sm">
+            Your fixed costs come to <span className="font-medium">{whole(line.perHourCents)} an hour</span> you work
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            {exact(line.costCents)} of rent and other fixed costs, {dayShort(line.from)}–{dayShort(line.to)}, ÷{" "}
+            {Math.round(line.hours * 10) / 10} hours of your hands
+          </p>
+        </div>
+      )}
+
       {ranked.length === 0 ? (
         <p className="mt-4 text-sm text-muted">Not enough paid visits yet.</p>
       ) : (
@@ -300,17 +344,26 @@ export default function MoneyServices() {
               <button
                 key={x.name}
                 onClick={() => setOpen(x.name)}
-                className="min-h-11 flex w-full items-center gap-3 border-t border-foreground/10 px-3 .5 text-left first:border-t-0 hover:bg-foreground/[0.02]"
+                className="min-h-11 flex w-full items-center gap-3 border-t border-foreground/10 px-3 text-left first:border-t-0 hover:bg-foreground/[0.02]"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] leading-snug">{x.name}</span>
                   <span className="block text-xs text-muted">
                     {x.visits.length} visits · avg {whole(sum(x.visits, "paidCents") / x.visits.length)}
                   </span>
-                  <span
-                    className={`mt-1 block h-1.5 rounded-r-full ${low ? "bg-red-400/70" : "bg-[#1D9E75]/55"}`}
-                    style={{ width: `${Math.max(3, (ph / top) * 100)}%` }}
-                  />
+                  <span className="relative mt-1 block h-1.5">
+                    <span
+                      className={`block h-1.5 rounded-r-full ${low ? "bg-red-400/70" : "bg-[#1D9E75]/55"}`}
+                      style={{ width: `${Math.max(3, (ph / top) * 100)}%` }}
+                    />
+                    {line && line.perHourCents < top && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -bottom-1 -top-1 border-l-2 border-dashed border-[#8f3f4a]"
+                        style={{ left: `${(line.perHourCents / top) * 100}%` }}
+                      />
+                    )}
+                  </span>
                 </span>
                 <span className={`shrink-0 text-base font-medium tabular-nums ${low ? "text-red-700" : ""}`}>
                   {whole(ph)}
@@ -455,3 +508,6 @@ function ProductWorking({
     </div>
   );
 }
+
+const dayShort = (d: string) =>
+  new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });

@@ -317,7 +317,7 @@ export default function MoneyOverview() {
               <button
                 key={name}
                 onClick={() => setCategory(name)}
-                className="min-h-11 inline-flex items-center block w-full border-b border-foreground/10 text-left text-sm last:border-b-0"
+                className="min-h-11 flex w-full items-center border-b border-foreground/10 text-left text-sm last:border-b-0"
               >
                 <span className="flex justify-between gap-3">
                   <span className="min-w-0">{name}</span>

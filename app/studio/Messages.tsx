@@ -269,7 +269,7 @@ export default function Messages({
             <button
               onClick={send}
               disabled={sending || !reply.trim()}
-              className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 .5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
+              className="inline-flex min-h-11 items-center justify-center rounded-[10px] bg-accent px-5 text-sm text-white transition hover:bg-accent-dark disabled:opacity-60"
             >
               {sending ? "Sending…" : "Send"}
             </button>

@@ -185,13 +185,13 @@ export default function MoneyStatement({ onImported }: { onImported?: () => void
                 <button
                   onClick={() => send(pending.csv, pending.name, true)}
                   disabled={busy}
-                  className="min-h-11 inline-flex items-center rounded-lg border border-foreground/15 px-3 .5 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
+                  className="min-h-11 inline-flex items-center rounded-lg border border-foreground/15 px-3 text-sm font-medium transition hover:border-foreground/30 disabled:opacity-60"
                 >
                   Import it anyway
                 </button>
                 <button
                   onClick={() => setPending(null)}
-                  className="min-h-11 inline-flex items-center rounded-lg px-3 .5 text-sm text-muted transition hover:text-foreground"
+                  className="min-h-11 inline-flex items-center rounded-lg px-3 text-sm text-muted transition hover:text-foreground"
                 >
                   Cancel
                 </button>

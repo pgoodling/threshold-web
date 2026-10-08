@@ -396,7 +396,7 @@ export default function Overview({
             {unread > waiting.length && (
               <button
                 onClick={() => onGoto?.("messages")}
-                className="min-h-11 inline-flex items-center w-full border-t border-accent/20 px-5 .5 text-left text-xs text-accent-dark transition hover:bg-accent/10"
+                className="min-h-11 inline-flex items-center w-full border-t border-accent/20 px-5 text-left text-xs text-accent-dark transition hover:bg-accent/10"
               >
                 {unread - waiting.length} more unread → open messages
               </button>
@@ -454,7 +454,7 @@ export default function Overview({
             })}
             <button
               onClick={markBookingsSeen}
-              className="min-h-11 inline-flex items-center w-full border-t border-foreground/10 px-4 .5 text-left text-xs text-accent transition hover:bg-accent/5"
+              className="min-h-11 inline-flex items-center w-full border-t border-foreground/10 px-4 text-left text-xs text-accent transition hover:bg-accent/5"
             >
               Mark all as seen
             </button>
