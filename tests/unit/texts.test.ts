@@ -14,6 +14,7 @@ import {
   ownerNewBookingText,
   welcomeConfirmText,
 } from "../../lib/smsTemplates";
+import { textsDue, type DueRow } from "../../lib/textsDue";
 import { plainText } from "../../lib/sms";
 import { countSegments } from "../../lib/smsSegments";
 
@@ -98,4 +99,28 @@ test("one em dash makes the whole message UCS-2: 70, then 67 a segment", () => {
 
 test("extension characters like € count double", () => {
   assert.equal(countSegments("€").length, 2);
+});
+
+// The menu's To send count and the page's lists share one rule (lib/textsDue).
+// Now = 8 Oct 2026, 12:00 Eastern (16:00Z); the reminder window runs 30 hours,
+// to 9 Oct 18:00 Eastern (22:00Z). The confirm floor is 1 Oct.
+test("texts due: confirm floor, 30-hour reminder window, no phone means nothing", () => {
+  const now = Date.parse("2026-10-08T16:00:00Z");
+  const row = (starts_at: string, over: Partial<DueRow> = {}): DueRow => ({
+    starts_at,
+    confirm_sms_sent_at: null,
+    reminder_sms_sent_at: null,
+    clients: { phone: "5135550100" },
+    ...over,
+  });
+  const rows = [
+    row("2026-10-09T21:59:00Z"), // inside 30h: confirm + remind
+    row("2026-10-09T22:01:00Z"), // just past 30h: confirm only
+    row("2026-10-09T14:00:00Z", { confirm_sms_sent_at: "x" }), // remind only
+    row("2026-10-09T14:00:00Z", { clients: { phone: null } }), // neither
+    row("2026-09-30T14:00:00Z"), // before the floor: remind (in window), no confirm
+  ];
+  const { toConfirm, toRemind } = textsDue(rows, now);
+  assert.equal(toConfirm.length, 2);
+  assert.equal(toRemind.length, 3);
 });

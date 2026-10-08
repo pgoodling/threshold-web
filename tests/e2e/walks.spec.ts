@@ -387,3 +387,63 @@ test("Calendar: block, unblock, book anyway", async () => {
     check("the gap was labelled", label.startsWith("Free"), "Free …", label);
   });
 });
+
+test("Menu: eight items, nothing lost", async () => {
+  const w = walk("Menu: eight items, nothing lost", "Fourteen items became eight; every old page is a tab, and every old address still lands on it.");
+  const ITEMS = ["Overview", "Calendar", "Clients", "Messages", "Inventory", "Money", "Reports", "Settings"];
+
+  await w.step(page, "Open the menu: eight items", async (check) => {
+    await open("overview");
+    await page.getByRole("button", { name: "Menu" }).click();
+    const names = (await page.locator("div.absolute.z-20 > button").allTextContents())
+      .map((t) => t.replace(/\d+$/, "").trim())
+      .filter((t) => t !== "Sign out");
+    check("the eight, in order", names.join(",") === ITEMS.join(","), ITEMS.join(", "), names.join(", "));
+  });
+
+  await w.step(page, "Calendar shows its tabs; Time off is one tap", async (check) => {
+    await page.locator("div.absolute.z-20").getByRole("button", { name: "Calendar" }).click();
+    for (const t of ["Calendar", "Upcoming", "Time off"])
+      check(`tab: ${t}`, await page.getByRole("button", { name: t, exact: true }).first().isVisible());
+    await page.getByRole("button", { name: "Time off", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Time off" })).toBeVisible();
+    check("Time off opened", true);
+  });
+
+  // Every page that left the menu, by its old address.
+  const OLD: [string, string, string][] = [
+    ["tasks", "To-do", "To-do"],
+    ["appointments", "Upcoming", "Upcoming"],
+    ["timeoff", "Time off", "Time off"],
+    ["outreach", "Outreach", "Outreach"],
+    ["texts", "To send", "To send"],
+    ["hours", "Hours", "Your week"],
+    ["services", "Services", "Services"],
+  ];
+  await w.step(page, "Old addresses land on their tab", async (check) => {
+    for (const [hash, tab, heading] of OLD) {
+      await open(hash);
+      await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
+      const tabBtn = page.locator("main button.border-foreground", { hasText: tab });
+      check(`#${hash} → ${tab}`, (await tabBtn.count()) === 1, "its tab marked", `${await tabBtn.count()} marked`);
+    }
+  });
+
+  await w.step(page, "On a computer: every tab listed under its item", async (check) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await open("money/taxes");
+    const side = page.locator("aside nav");
+    const subs = await side.locator("div > button:not(:first-child)").count();
+    // 2 + 3 + 2 + 2 + 2 + 4 + 0 + 3 = 18 tabs under the eight
+    check("18 tabs listed", subs === 18, 18, subs);
+    const here = await side.locator('[aria-current="page"]').allTextContents();
+    check("Taxes marked", here.join() === "Taxes", "Taxes", here.join());
+    await side.getByRole("button", { name: "Activity", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Inventory" })).toBeVisible();
+    const now = await side.locator('[aria-current="page"]').allTextContents();
+    check("Activity marked after a tap", now.join() === "Activity", "Activity", now.join());
+    await page.waitForTimeout(300); // let the highlight finish moving
+    await page.screenshot({ path: "e2e-out/sidebar.png" });
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+});

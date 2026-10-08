@@ -41,6 +41,8 @@ export default function Inventory() {
   function select(next: Tab) {
     setTab(next);
     window.history.replaceState(null, "", next === "stock" ? "#inventory" : `#inventory/${next}`);
+    // replaceState fires nothing; the studio menu marks the tab from this.
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
   }
 
   return (

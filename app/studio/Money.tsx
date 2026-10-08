@@ -55,6 +55,8 @@ export default function Money() {
     // replaceState, not pushState: switching sub-tab shouldn't put entries in
     // her history for Back to walk out through one at a time.
     window.history.replaceState(null, "", `#money/${next}`);
+    // replaceState fires nothing; the studio menu marks the tab from this.
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
   }
 
   return (

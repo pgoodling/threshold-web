@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../../lib/supabase";
 import { onMessagesChanged } from "../../lib/messagesChanged";
+import { textsDue, type DueRow } from "../../lib/textsDue";
 import Overview from "./Overview";
 import Tasks from "./Tasks";
 import Calendar, { NewAppointmentPanel, Modal as CalendarModal } from "./Calendar";
@@ -19,19 +20,13 @@ import SettingsPanel from "./Settings";
 import ApptDetailModal from "./ApptDetailModal";
 import {
   LayoutDashboard,
-  ListChecks,
   MessageSquare,
   Calendar as CalendarIcon,
-  List as ListIcon,
   Users,
-  Scissors,
   BarChart3,
   Wallet,
   Package,
-  Clock,
-  Send,
   Settings as SettingsIcon,
-  CalendarOff,
   Menu,
   X,
   LogOut,
@@ -192,32 +187,86 @@ type Tab =
   | "timeoff"
   | "settings";
 
-const TABS: [Tab, string, LucideIcon][] = [
-  ["overview", "Overview", LayoutDashboard],
-  ["tasks", "To-do", ListChecks],
-  ["messages", "Messages", MessageSquare],
-  ["calendar", "Calendar", CalendarIcon],
-  ["appointments", "Appointments", ListIcon],
-  ["clients", "Clients", Users],
-  ["services", "Services", Scissors],
-  ["reports", "Reports", BarChart3],
-  // Its own item, not a Money tab: she opens it every working day, and
-  // Money once a month. Split 2026-09-30.
-  ["inventory", "Inventory", Package],
-  ["money", "Money", Wallet],
-  ["outreach", "Outreach", Send],
-  ["texts", "Texts", MessageSquare],
-  ["hours", "Hours", Clock],
-  ["timeoff", "Time off", CalendarOff],
-  ["settings", "Settings", SettingsIcon],
+const TABS: [Tab, string][] = [
+  ["overview", "Overview"],
+  ["tasks", "To-do"],
+  ["messages", "Inbox"],
+  ["calendar", "Calendar"],
+  ["appointments", "Upcoming"],
+  ["clients", "Clients"],
+  ["services", "Services"],
+  ["reports", "Reports"],
+  ["inventory", "Inventory"],
+  ["money", "Money"],
+  ["outreach", "Outreach"],
+  ["texts", "To send"],
+  ["hours", "Hours"],
+  ["timeoff", "Time off"],
+  ["settings", "Settings"],
 ];
 
-// Reachable by URL and from inside Settings, but not given a place in the
-// sidebar -- Hours is a setting that had become a tab, and thirteen items is a
-// list nobody reads. Kept in TABS so #hours still resolves rather than bouncing
-// her to Overview.
-const HIDDEN_FROM_NAV: Tab[] = ["hours"];
-const NAV_TABS = TABS.filter(([k]) => !HIDDEN_FROM_NAV.includes(k));
+// The menu: eight items, each with the pages that live under it.
+//
+// Fourteen items by 2026-10-07, one added per feature, until the menu was a
+// list nobody reads. Nothing was removed; six pages became tabs of the page
+// they belong with (agreed with Paul 2026-10-08):
+//
+//   Overview   + To-do                her day, and everything still to do
+//   Calendar   + Upcoming, Time off   the book as a grid, a list, and the gaps
+//   Clients    + Outreach             choosing who to contact, from her phone
+//   Messages   + To send              the salon number: what came in, what's due out
+//   Settings   + Hours, Services      set up once, rarely touched
+//
+// Every old address still works -- #appointments, #texts, #timeoff -- because
+// each tab keeps its own. A path with a "/" is a tab the page itself owns
+// (Inventory, Money); the rest are switched here.
+//
+// The sidebar lists every tab under its item; the phone menu lists only the
+// eight, and the page shows its tabs across the top.
+type NavItem = { label: string; icon: LucideIcon; tabs: [string, string][] };
+
+const NAV: NavItem[] = [
+  { label: "Overview", icon: LayoutDashboard, tabs: [["overview", "Overview"], ["tasks", "To-do"]] },
+  {
+    label: "Calendar",
+    icon: CalendarIcon,
+    tabs: [["calendar", "Calendar"], ["appointments", "Upcoming"], ["timeoff", "Time off"]],
+  },
+  { label: "Clients", icon: Users, tabs: [["clients", "Clients"], ["outreach", "Outreach"]] },
+  { label: "Messages", icon: MessageSquare, tabs: [["messages", "Inbox"], ["texts", "To send"]] },
+  // Its own item, not a Money tab: she opens it every working day, and
+  // Money once a month. Split 2026-09-30.
+  { label: "Inventory", icon: Package, tabs: [["inventory", "Stock"], ["inventory/activity", "Activity"]] },
+  {
+    label: "Money",
+    icon: Wallet,
+    tabs: [
+      ["money/overview", "Overview"],
+      ["money/bank", "Bank"],
+      ["money/taxes", "Taxes"],
+      ["money/services", "Services"],
+    ],
+  },
+  { label: "Reports", icon: BarChart3, tabs: [["reports", "Reports"]] },
+  {
+    label: "Settings",
+    icon: SettingsIcon,
+    tabs: [["settings", "Settings"], ["hours", "Hours"], ["services", "Services"]],
+  },
+];
+
+const groupOf = (tab: Tab) =>
+  NAV.find((n) => n.tabs.some(([p]) => p.split("/")[0] === tab)) ?? NAV[0];
+
+// Is this menu path the page she's on? Money with no tab named is its
+// Overview; Inventory's Stock is plain #inventory.
+function isHere(path: string, tab: Tab, sub: string | null) {
+  const [t, s] = path.split("/");
+  if (t !== tab) return false;
+  if (tab === "money") return (s ?? "overview") === (sub || "overview");
+  if (tab === "inventory") return (s === "activity") === (sub === "activity");
+  return true;
+}
 
 // Which view she's on, read from and written to the URL fragment.
 //
@@ -233,7 +282,7 @@ const NAV_TABS = TABS.filter(([k]) => !HIDDEN_FROM_NAV.includes(k));
 //
 // A client id can ride along as #clients/<uuid>, so "View profile" survives a
 // refresh and Back steps out of the client card rather than out of the app.
-function readView(): { tab: Tab; clientId: string | null } {
+function readView(): { tab: Tab; clientId: string | null; sub: string | null } {
   const raw =
     typeof window === "undefined" ? "" : window.location.hash.replace(/^#/, "");
   let [name, id] = raw.split("/");
@@ -245,13 +294,17 @@ function readView(): { tab: Tab; clientId: string | null } {
     [name, id] = fresh.split("/");
   }
   const known = TABS.some(([k]) => k === name);
-  return { tab: known ? (name as Tab) : "overview", clientId: id || null };
+  return { tab: known ? (name as Tab) : "overview", clientId: id || null, sub: id || null };
 }
 
 function Dashboard() {
   // Lazy initialisers: Dashboard only ever mounts client-side, after the session
   // check resolves, so reading location here can't desync from server HTML.
   const [tab, setTab] = useState<Tab>(() => readView().tab);
+  // The part after the "/" -- Money's and Inventory's own tab, so the sidebar
+  // can mark it. They raise a hashchange when it changes.
+  const [sub, setSub] = useState<string | null>(() => readView().sub);
+  const [toSend, setToSend] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [pendingClient, setPendingClient] = useState<string | null>(
@@ -264,11 +317,16 @@ function Dashboard() {
     const onPop = () => {
       const view = readView();
       setTab(view.tab);
+      setSub(view.sub);
       setPendingClient(view.clientId);
       setMenuOpen(false);
     };
     window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    window.addEventListener("hashchange", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("hashchange", onPop);
+    };
   }, []);
 
   // Count of unread incoming texts, for the Messages tab badge.
@@ -278,17 +336,28 @@ function Dashboard() {
   // a permanent "1" with an empty inbox behind it, and the invariant worth
   // holding is that nothing can be counted here which she can't reach by
   // opening the tab.
-  const loadUnread = useCallback(
-    () =>
-      supabase
-        .from("messages")
-        .select("id", { count: "exact", head: true })
-        .eq("direction", "inbound")
-        .is("read_at", null)
-        .is("archived_at", null)
-        .then(({ count }) => setUnread(count ?? 0)),
-    [],
-  );
+  //
+  // The To send count rides along: the same rule as the page (lib/textsDue),
+  // so the number beside it is the number of rows she'll find there.
+  const loadUnread = useCallback(() => {
+    supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("direction", "inbound")
+      .is("read_at", null)
+      .is("archived_at", null)
+      .then(({ count }) => setUnread(count ?? 0));
+    supabase
+      .from("appointments")
+      .select("starts_at,confirm_sms_sent_at,reminder_sms_sent_at,clients(phone)")
+      .gte("starts_at", new Date().toISOString())
+      .in("status", ["booked", "confirmed"])
+      .then(({ data, error }) => {
+        if (error) return setToSend(0);
+        const due = textsDue((data ?? []) as unknown as DueRow[], Date.now());
+        setToSend(due.toConfirm.length + due.toRemind.length);
+      });
+  }, []);
 
   // Three clocks, in decreasing order of how often they matter.
   //
@@ -317,15 +386,33 @@ function Dashboard() {
   };
   const select = (key: Tab) => {
     setTab(key);
+    setSub(null);
     setPendingClient(null);
     setMenuOpen(false);
     window.history.pushState(null, "", `#${key}`);
   };
+  // A menu path. Money's and Inventory's tabs belong to those pages, which
+  // listen for the address changing; everything else is switched here.
+  const go = (path: string) => {
+    if (path.includes("/")) {
+      setMenuOpen(false);
+      window.location.assign(`#${path}`);
+    } else select(path as Tab);
+  };
+  const count = (path: string) =>
+    path === "messages" ? unread : path === "texts" ? toSend : 0;
+  const group = groupOf(tab);
+  const badge = (n: number) =>
+    n > 0 && (
+      <span className="rounded-md bg-accent px-1.5 py-0.5 text-xs tabular-nums text-white">
+        {n}
+      </span>
+    );
   return (
     <div className="min-h-screen bg-background sm:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-foreground/10 bg-[#f4ede5] p-4 sm:flex">
-        <a href="/" aria-label="Threshold home" className="mb-6 block px-2">
+      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col overflow-y-auto border-r border-foreground/10 bg-[#f4ede5] p-4 sm:flex">
+        <a href="/" aria-label="Threshold home" className="mb-4 block px-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/threshold-logos/threshold-wordmark-terracotta-transparent.svg"
@@ -333,26 +420,45 @@ function Dashboard() {
             className="h-8 w-auto"
           />
         </a>
-        <nav className="flex flex-col gap-0.5">
-          {NAV_TABS.map(([key, label, Icon]) => (
-            <button
-              key={key}
-              onClick={() => select(key)}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-                tab === key
-                  ? "bg-accent/15 font-medium text-accent-dark"
-                  : "text-muted hover:bg-foreground/5 hover:text-foreground"
-              }`}
-            >
-              <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
-              <span className="flex-1 text-left">{label}</span>
-              {key === "messages" && unread > 0 && (
-                <span className="rounded-md bg-accent px-1.5 py-0.5 text-xs text-white">
-                  {unread}
-                </span>
-              )}
-            </button>
-          ))}
+        <nav className="flex flex-col">
+          {NAV.map((item) => {
+            const Icon = item.icon;
+            const single = item.tabs.length === 1;
+            const inGroup = item === group;
+            return (
+              <div key={item.label} className="mb-1">
+                <button
+                  onClick={() => go(item.tabs[0][0])}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition ${
+                    single && inGroup
+                      ? "bg-accent/15 font-medium text-accent-dark"
+                      : inGroup
+                        ? "font-medium text-foreground"
+                        : "text-muted hover:bg-foreground/5 hover:text-foreground"
+                  }`}
+                >
+                  <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+                  <span className="flex-1 text-left">{item.label}</span>
+                </button>
+                {!single &&
+                  item.tabs.map(([path, label]) => (
+                    <button
+                      key={path}
+                      onClick={() => go(path)}
+                      aria-current={isHere(path, tab, sub) ? "page" : undefined}
+                      className={`flex w-full items-center gap-2 rounded-lg py-1 pl-[2.6rem] pr-3 text-left text-sm transition ${
+                        isHere(path, tab, sub)
+                          ? "bg-accent/15 font-medium text-accent-dark"
+                          : "text-muted hover:bg-foreground/5 hover:text-foreground"
+                      }`}
+                    >
+                      <span className="flex-1">{label}</span>
+                      {badge(count(path))}
+                    </button>
+                  ))}
+              </div>
+            );
+          })}
         </nav>
         <button
           onClick={() => supabase.auth.signOut()}
@@ -393,25 +499,24 @@ function Dashboard() {
               onClick={() => setMenuOpen(false)}
             />
             <div className="absolute left-0 right-0 z-20 overflow-hidden border-b border-foreground/10 bg-white shadow-lg">
-              {NAV_TABS.map(([key, label, Icon]) => (
-                <button
-                  key={key}
-                  onClick={() => select(key)}
-                  className={`flex w-full items-center gap-3 px-5 py-3 text-left text-sm transition ${
-                    tab === key
-                      ? "bg-accent/10 font-medium text-accent-dark"
-                      : "text-foreground hover:bg-foreground/5"
-                  }`}
-                >
-                  <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
-                  <span className="flex-1">{label}</span>
-                  {key === "messages" && unread > 0 && (
-                    <span className="rounded-md bg-accent px-1.5 py-0.5 text-xs text-white">
-                      {unread}
-                    </span>
-                  )}
-                </button>
-              ))}
+              {NAV.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => go(item.tabs[0][0])}
+                    className={`flex w-full items-center gap-3 px-5 py-3 text-left text-sm transition ${
+                      item === group
+                        ? "bg-accent/10 font-medium text-accent-dark"
+                        : "text-foreground hover:bg-foreground/5"
+                    }`}
+                  >
+                    <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+                    <span className="flex-1">{item.label}</span>
+                    {item.label === "Messages" && badge(unread)}
+                  </button>
+                );
+              })}
               <button
                 onClick={() => {
                   setMenuOpen(false);
@@ -430,6 +535,26 @@ function Dashboard() {
       {/* Main content */}
       <main className="min-w-0 flex-1 px-5 py-6 sm:px-10 sm:py-10">
         <div className="mx-auto max-w-4xl">
+          {group.tabs.length > 1 && !group.tabs.some(([p]) => p.includes("/")) && (
+            <div className="-mx-1 mb-6 flex flex-wrap items-center gap-1 border-b border-foreground/15">
+              {group.tabs.map(([path, label]) => (
+                <button
+                  key={path}
+                  onClick={() => select(path as Tab)}
+                  className={`-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 px-3 text-sm transition ${
+                    path === tab
+                      ? "border-foreground font-medium"
+                      : "border-transparent text-muted hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                  {count(path) > 0 && (
+                    <span className="tabular-nums text-accent-dark">{count(path)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
           {tab === "overview" && (
             <Overview
               onOpenClient={goToClient}
@@ -512,7 +637,7 @@ function Appointments({
   const header = (
     <>
       <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className="font-display text-2xl leading-none sm:text-3xl">Appointments</h2>
+        <h2 className="font-display text-2xl leading-none sm:text-3xl">Upcoming</h2>
         <button
           onClick={() => setAdding(true)}
           className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-accent-dark"

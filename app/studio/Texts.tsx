@@ -7,6 +7,7 @@ import { whenLabel } from "../../lib/format";
 import { welcomeConfirmText, reminderText } from "../../lib/smsTemplates";
 import Rail from "./Rail";
 import Button from "./Button";
+import { textsDue, REMIND_AHEAD_HOURS, DEFAULT_CONFIRM_FROM } from "../../lib/textsDue";
 
 // The texts that need a human to decide, not a schedule.
 //
@@ -36,23 +37,6 @@ type Row = {
   clients: { full_name: string; phone: string | null } | null;
   services: { name: string } | null;
 };
-
-// How far ahead the reminder list looks. A day and a bit, so an appointment at
-// 9am tomorrow is already on the list when she checks at teatime today.
-const REMIND_AHEAD_HOURS = 30;
-
-// Don't offer to confirm anything before this date.
-//
-// Evelyn hand-texted every September client from her own phone while the
-// carrier registration was stuck. Some of those she marked here, some she
-// didn't — "I sent them all" is a claim about the world, not a fact in the
-// database, and the difference between the two is a client getting the same
-// confirmation twice.
-//
-// So the list starts in October and she can wind it back if she wants to. The
-// floor is the safe default; the control is there because she knows things the
-// database doesn't.
-const DEFAULT_CONFIRM_FROM = "2026-10-01";
 
 const smsHref = (phone: string, body: string) =>
   `sms:${toE164(phone)}?&body=${encodeURIComponent(body)}`;
@@ -97,24 +81,10 @@ export default function Texts() {
 
   const [confirmFrom, setConfirmFrom] = useState(DEFAULT_CONFIRM_FROM);
 
-  const { toConfirm, toRemind } = useMemo(() => {
-    const cutoff = nowMs + REMIND_AHEAD_HOURS * 3600 * 1000;
-    const floor = new Date(`${confirmFrom}T00:00:00-04:00`).getTime();
-    return {
-      toConfirm: rows.filter(
-        (r) =>
-          !r.confirm_sms_sent_at &&
-          r.clients?.phone &&
-          new Date(r.starts_at).getTime() >= floor,
-      ),
-      toRemind: rows.filter(
-        (r) =>
-          !r.reminder_sms_sent_at &&
-          r.clients?.phone &&
-          new Date(r.starts_at).getTime() <= cutoff,
-      ),
-    };
-  }, [rows, nowMs, confirmFrom]);
+  const { toConfirm, toRemind } = useMemo(
+    () => textsDue(rows, nowMs, confirmFrom),
+    [rows, nowMs, confirmFrom],
+  );
 
   // ── Sending from the salon number ──────────────────────────────────────
   //
@@ -220,7 +190,7 @@ export default function Texts() {
   if (unavailable) {
     return (
       <div>
-        <h2 className="font-display text-2xl leading-none sm:text-3xl">Texts</h2>
+        <h2 className="font-display text-2xl leading-none sm:text-3xl">To send</h2>
         <p className="mt-4 rounded-xl border border-foreground/10 bg-white px-4 py-3 text-sm text-muted">
           Run migration 0029_manual_texts.sql to start tracking which
           confirmations you&apos;ve sent.
@@ -233,7 +203,7 @@ export default function Texts() {
 
   return (
     <div>
-      <h2 className="font-display text-2xl leading-none sm:text-3xl">Texts</h2>
+      <h2 className="font-display text-2xl leading-none sm:text-3xl">To send</h2>
       <p className="mt-2 text-sm text-muted">
         These send from the salon number. &ldquo;By hand&rdquo; still opens your
         own Messages with the text written, if you&apos;d rather send one
