@@ -3,7 +3,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { yearEnd, compareTakings, toCsv, lineOrder, type YearRow } from "../../lib/yearEnd";
+import { yearEnd, compareCard, toCsv, lineOrder, type YearRow } from "../../lib/yearEnd";
+import { offBankTakings } from "../../lib/takings";
 
 let n = 0;
 const row = (name: string, kind: string, line: string | null, cents: number, posted_on = "2026-09-15"): YearRow => ({
@@ -58,12 +59,25 @@ test("lines sort the way the form prints them", () => {
   assert.deepEqual(["P3", "27a", "8", "20b", "10", "24b", "24a"].sort(lineOrder), ["8", "10", "20b", "24a", "24b", "27a", "P3"]);
 });
 
-test("check-outs against the bank: cash not entered as income is flagged", () => {
-  // Card $500 at check-out vs $480 deposited; cash and Venmo $120, of which $20 entered.
-  const t = compareTakings([{ method: "card", cents: 50000 }, { method: "cash", cents: 8000 }, { method: "venmo", cents: 4000 }], 48000, 2000);
-  assert.equal(t.cardRecordedCents, 50000);
-  assert.equal(t.otherRecordedCents, 12000);
-  assert.equal(t.otherMissingCents, 10000);
+test("card deposits over card check-outs are the tips", () => {
+  // Her 2026: $6,483.75 card at check-out, $6,681.62 deposited → $197.87 tips.
+  const t = compareCard([{ method: "card", cents: 648375 }, { method: "cash", cents: 18500 }], 668162);
+  assert.equal(t.tipsCents, 19787);
+});
+
+test("cash at check-out is income without typing it in; card isn't counted twice", () => {
+  // Marriah's $185 cash + a $12.04 cash bottle (tax inside it); card left to the bank rows.
+  const off = offBankTakings(
+    [{ paid_cents: 18500, payment_method: "cash" }, { paid_cents: 5500, payment_method: "card" }, { paid_cents: null, payment_method: null }],
+    [{ total_cents: 1204, payment_method: "cash" }, { total_cents: 3655, payment_method: "card" }],
+  );
+  assert.equal(off.cents, 19704);
+  assert.deepEqual(off.byMethod, [{ method: "cash", cents: 19704 }]);
+  // Line 1 = deposits 668,162 + cash 19,704 = 687,866; less 418 sales tax = 687,448.
+  const y = yearEnd(ROWS, { salesTaxCents: 418, offBankCents: off.cents });
+  assert.equal(y.receiptsCents, 687866);
+  assert.equal(y.grossCents, 687448);
+  assert.equal(y.depositsCents, 668162);
 });
 
 test("the CSV opens with the summary and lists every row, commas quoted", () => {

@@ -82,7 +82,7 @@ It probes the live schema with the public anon key (no secret needed, reads no
 data) and reports which migrations are applied. It can only see *structure*;
 migrations that only change cron jobs, policies or functions are listed
 separately with the SQL that proves they ran. A new migration needs one line
-added to its list before it can see it (current through 0049).
+added to its list before it can see it (current through 0050).
 
 > **Trap:** the Supabase MCP connection in this project's sessions points at a
 > different project (Paul's golf app), not the salon. Never run salon

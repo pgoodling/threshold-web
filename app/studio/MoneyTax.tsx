@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import MoneyYearEnd from "./MoneyYearEnd";
+import { offBankTakings } from "../../lib/takings";
 import { PiggyBank, CircleAlert, ExternalLink, CalendarClock, ChevronDown } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import {
@@ -67,8 +68,14 @@ export default function MoneyTax() {
         .gte("posted_on", yearStart),
       supabase.from("salon_settings").select("filing_status,other_income_cents").limit(1).maybeSingle(),
       // Shown by month and for the year until we know how often she files.
-      supabase.from("retail_sales").select("sold_on,tax_cents").gte("sold_on", yearStart),
-    ]).then(([r, t, s, st]) => {
+      supabase.from("retail_sales").select("sold_on,tax_cents,total_cents,payment_method").gte("sold_on", yearStart),
+      // Cash taken at check-out never reaches the bank; it's counted from here.
+      supabase
+        .from("appointments")
+        .select("paid_cents,payment_method")
+        .in("status", ["checked_out", "completed"])
+        .gte("starts_at", `${yearStart}T05:00:00Z`),
+    ]).then(([r, t, s, st, ap]) => {
       if (!alive) return;
 
       const thisMonth = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" })
@@ -116,6 +123,10 @@ export default function MoneyTax() {
       // Sales tax she collected arrives inside the card deposits, but it's the
       // state's money, not income -- the year-end summary takes it out too.
       revenueCents -= yearCents;
+      revenueCents += offBankTakings(
+        (ap.data ?? []) as { paid_cents: number | null; payment_method: string | null }[],
+        (st.data ?? []) as { total_cents: number | null; payment_method: string | null }[],
+      ).cents;
 
       setTotals({ revenueCents, costCents, savedCents });
 

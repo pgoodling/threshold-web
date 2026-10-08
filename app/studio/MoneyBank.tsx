@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import MoneyStatement from "./MoneyStatement";
 import MoneyReview from "./MoneyReview";
 import MoneyManual from "./MoneyManual";
+import MoneyReimburse from "./MoneyReimburse";
 import { supabase } from "../../lib/supabase";
 import { readableTxn as readable } from "../../lib/bankNames";
 
@@ -329,6 +330,8 @@ export default function MoneyBank({ onChanged }: { onChanged?: () => void }) {
           </section>
         ))
       )}
+
+      <MoneyReimburse reloadKey={reloadKey + reviewKey} />
 
       {manual ? (
         <MoneyManual

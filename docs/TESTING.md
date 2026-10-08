@@ -6,7 +6,7 @@ all functioning the way it is supposed to").
 
 | Command | What it checks | Needs |
 |---|---|---|
-| `npm test` | **The arithmetic** — sales tax, earnings per hour, Overview's periods and totals, the tax estimate, text segments and wording, which texts are due, one-day hours, changing a service, product cost per service, bottle sizes, product names, tidying a typed client name, where a service fits in a day. 96 tests, under a second. | Nothing |
+| `npm test` | **The arithmetic** — sales tax, earnings per hour, Overview's periods and totals, the tax estimate, text segments and wording, which texts are due, one-day hours, changing a service, product cost per service, bottle sizes, product names, tidying a typed client name, where a service fits in a day. 98 tests, under a second. | Nothing |
 | `npm run test:db` | **The database's own rules** — what a sale writes, shelf and bar, wrong-signed stock refused, the overlap rules (incl. checking in under an overlap), online booking refused on blocked/taken time, one-day hours (a longer day, a closed day, a normally closed day opened), changing a service (new end, busy time, running into the next client), anonymous visitors seeing nothing. 21 tests. | The rig |
 | `npm run walks` | **The studio clicked through like a person**, on a phone-sized screen, 15 walks: Inventory (shelf and back bar; pricing; Sell without an appointment; add stock by hand, count, remove), check-out with a product, Money's Taxes, Overview, Services (earnings per hour, and a highlight's measured product cost taken off) and Bank, Calendar (block, unblock, book anyway), the menu (eight items, every old address landing on its tab, the sidebar on a computer screen), hours for one day, changing an appointment's service, a client with two hair-notes forms (each visit kept, newest open), and the year-end summary (Schedule C lines against a hand-worked answer, a line opened, the CSV downloaded). Screens checked against answers worked out by hand; the database checked behind them. A photo of every step. | The rig, installed Chrome |
 | `npm run test:all` | All three. **Run before deploying.** | |
@@ -18,7 +18,7 @@ section, and taps per task. Publish it as an Artifact to read on a phone.
 ## The rig
 
 A throwaway copy of the database in Docker on this computer, built from the
-same 50 migrations as production, plus a copy of the app pointed at it.
+same 51 migrations as production, plus a copy of the app pointed at it.
 
 ```
 npm run rig:start      # first time, or after a reboot — then leave it running

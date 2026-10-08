@@ -569,12 +569,19 @@ test("Year-end summary for the preparer", async () => {
     const text = (await page.locator("main").first().textContent()) ?? "";
     // The bank rows are last month's (see EXPECT); the sales tax is the whole
     // year's, and earlier walks sell more, so it's read from the database:
-    // gross = 25,500 − tax; net = gross − 41,330 − 120,800.
+    // gross = 25,500 + cash at check-out − tax; net = gross − 41,330 − 120,800.
     const year = Number(lastMonth.slice(0, 4));
     const tax = Number((await sql.query(
       `select coalesce(sum(tax_cents),0) t from retail_sales where extract(year from sold_on) = $1`, [year])).rows[0].t);
     const usd = (c: number) => `${c < 0 ? "−" : ""}$${(Math.abs(c) / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
-    const gross = 25500 - tax;
+    // Cash (anything not card) taken at check-out counts too -- Sarah's $55
+    // cut last month, plus whatever earlier walks took in cash.
+    const cash = Number((await sql.query(
+      `select coalesce((select sum(paid_cents) from appointments where status in ('checked_out','completed')
+                          and coalesce(payment_method,'') <> 'card' and extract(year from starts_at at time zone 'America/New_York') = $1), 0)
+            + coalesce((select sum(total_cents) from retail_sales where coalesce(payment_method,'') <> 'card'
+                          and extract(year from sold_on) = $1), 0) c`, [year])).rows[0].c);
+    const gross = 25500 + cash - tax;
     const net = gross - 41330 - 120800;
     check("gross receipts less sales tax", text.includes(usd(gross)), usd(gross));
     check("net profit", text.includes(usd(net)), usd(net));

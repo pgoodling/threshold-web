@@ -112,6 +112,7 @@ SETTLED="
 0040_rules_are_unique|23 Sep 2026|same paste, same reasoning — and if its create-unique-index had found duplicates the block would have failed there, leaving 0039's column absent. The column is present
 0041_capital_purchases|23 Sep 2026|Paul reported running it. Weaker evidence than the others here — his word, not a query — but it is self-verifying in use: 0041 is one transaction, so either the three capital categories exist or none of it applied, and they appear in the category dropdown on the Money screen the moment anyone categorises anything
 0043_stock_view_respects_rls|24 Sep 2026|CONFIRMED, not just reported. Two invoices are loaded, so products, inventory_movements and the product_stock view all hold real rows — and all three answer [] to the anon key. Empty now means RLS applied, where before it only meant the table was empty. Her costs, prices and stock are not public
+0050_cash_and_reimbursements|8 Oct 2026|data only (two owner categories). Queried after running: 'Reimbursement to Evelyn' and 'Cash deposit (already counted)' both present, kind owner, no Schedule C line
 "
 
 # migration | what it changed | the query that proves it

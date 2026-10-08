@@ -623,3 +623,20 @@ tax preparer (`lib/yearEnd.ts`, `MoneyYearEnd.tsx`).
   the same as a CSV.
 - First run on her data (8 Oct): $295 of cash taken at check-out had not
   been entered as income.
+
+## Cash, tips and paying Evelyn back (2026-10-08)
+
+- **Cash counts from check-out.** Cash (and Venmo/Zelle/other, which she
+  doesn't use) taken at check-out is income straight from the check-outs
+  (`lib/takings.ts`) — Taxes and the year-end summary add it to the bank's
+  card deposits. Overview already read check-outs. A cash deposit into Relay
+  is filed **Cash deposit (already counted)** (0050, kind owner) so it isn't
+  counted twice.
+- **No tip field.** Tips go through another service. Card tips still arrive
+  in the Intuit deposits, so card deposits run higher than card check-outs by
+  the tips; the year-end summary labels the difference as tips.
+- **Reimbursements.** Costs she paid herself before Relay are entered with
+  "A purchase the bank didn't see" (account *Paid outside Relay*) — expenses
+  when paid. Relay paying her back is filed **Reimbursement to Evelyn** (0050,
+  kind owner: not a second expense, not a draw). Money → Bank shows paid,
+  paid back and still owed (`lib/reimburse.ts`, `MoneyReimburse.tsx`).

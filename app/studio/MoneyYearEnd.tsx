@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { readableTxn } from "../../lib/bankNames";
-import { yearEnd, compareTakings, toCsv, type YearRow, type CheckOuts } from "../../lib/yearEnd";
+import { yearEnd, compareCard, toCsv, type YearRow, type CheckOuts } from "../../lib/yearEnd";
+import { offBankTakings } from "../../lib/takings";
 
 // The year on Schedule C lines, for her tax preparer. Opened from Money →
 // Taxes. The arithmetic is lib/yearEnd.ts; this lays it out and lets each line
@@ -17,6 +18,8 @@ const day = (d: string) =>
 
 type Loaded = {
   rows: YearRow[];
+  offBankCents: number;
+  offBank: { method: string; cents: number }[];
   salesTaxCents: number;
   checkOuts: CheckOuts;
   stockCents: number;
@@ -57,6 +60,10 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
       const add = (m: string | null, c: number) => byMethod.set(m ?? "other", (byMethod.get(m ?? "other") ?? 0) + c);
       for (const r of a.data ?? []) add(r.payment_method as string | null, Number(r.paid_cents) || 0);
       for (const r of s.data ?? []) add(r.payment_method as string | null, Number(r.total_cents) || 0);
+      const off = offBankTakings(
+        (a.data ?? []) as { paid_cents: number | null; payment_method: string | null }[],
+        (s.data ?? []) as { total_cents: number | null; payment_method: string | null }[],
+      );
       let stockCents = 0;
       let stockItems = 0;
       for (const r of p.data ?? []) {
@@ -74,6 +81,8 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
           category: one(r.expense_categories as unknown as YearRow["category"] | YearRow["category"][]),
         })),
         salesTaxCents: (s.data ?? []).reduce((t, r) => t + (Number(r.tax_cents) || 0), 0),
+        offBankCents: off.cents,
+        offBank: off.byMethod,
         checkOuts: [...byMethod.entries()].map(([method, cents]) => ({ method, cents })),
         stockCents,
         stockItems,
@@ -84,11 +93,14 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
     };
   }, [year]);
 
-  const y = useMemo(() => (data ? yearEnd(data.rows, { salesTaxCents: data.salesTaxCents }) : null), [data]);
+  const y = useMemo(
+    () => (data ? yearEnd(data.rows, { salesTaxCents: data.salesTaxCents, offBankCents: data.offBankCents }) : null),
+    [data],
+  );
   const takings = useMemo(() => {
     if (!data || !y) return null;
     const card = y.receiptRows.filter((r) => r.category?.name === "Card revenue (Intuit)").reduce((t, r) => t + Math.abs(r.amount_cents), 0);
-    return compareTakings(data.checkOuts, card, y.receiptsCents - card);
+    return compareCard(data.checkOuts, card);
   }, [data, y]);
 
   function download() {
@@ -143,7 +155,7 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
             <Row
               line="1"
               label="Gross receipts"
-              sub="card deposits, plus cash and other takings entered"
+              sub={`card deposits ${money(y.depositsCents)} + cash taken at check-out ${money(y.offBankCents)}`}
               value={money(y.receiptsCents)}
               open={open === "1"}
               onToggle={() => setOpen(open === "1" ? null : "1")}
@@ -197,21 +209,18 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
                   // Card tips go through the reader but aren't recorded at
                   // check-out, so deposits run higher by the tips (Paul, 8 Oct).
                   sub={`card deposits in the bank: ${money(takings.cardDepositedCents)}${
-                    takings.cardDepositedCents > takings.cardRecordedCents
-                      ? ` · ${money(takings.cardDepositedCents - takings.cardRecordedCents)} more, from tips`
-                      : ""
+                    takings.tipsCents > 0 ? ` · ${money(takings.tipsCents)} more, from tips` : ""
                   }`}
                   value={money(takings.cardRecordedCents)}
                 />
                 <Row
-                  label="Cash, Venmo, Zelle and other at check-out"
+                  label="Cash and other taken at check-out"
                   sub={
-                    takings.otherMissingCents > 0
-                      ? `${money(takings.otherMissingCents)} of it isn't entered as income`
-                      : "all entered as income"
+                    data.offBank.length
+                      ? `${data.offBank.map((o) => `${o.method} ${money(o.cents)}`).join(", ")} · counted in line 1`
+                      : "none"
                   }
-                  value={money(takings.otherRecordedCents)}
-                  warn={takings.otherMissingCents > 0}
+                  value={money(data.offBankCents)}
                 />
               </>
             )}

@@ -60,7 +60,7 @@ export type Line = {
 
 const EXPENSE_KINDS = ["fixed", "product", "variable", "resale"];
 
-export function yearEnd(rows: YearRow[], opts: { salesTaxCents: number }) {
+export function yearEnd(rows: YearRow[], opts: { salesTaxCents: number; offBankCents?: number }) {
   const byLine = new Map<string, Line>();
   const setup: YearRow[] = [];
   const toSort: YearRow[] = [];
@@ -107,9 +107,16 @@ export function yearEnd(rows: YearRow[], opts: { salesTaxCents: number }) {
   const lines = [...byLine.values()].filter((l) => l.cents !== 0).sort((a, b) => lineOrder(a.line, b.line));
   const expenses = lines.reduce((t, l) => t + l.cents, 0);
   const setupCents = setup.reduce((t, r) => t + Math.abs(r.amount_cents), 0);
+  // Cash (and any Venmo/Zelle) taken at check-out never reaches the bank, so
+  // it's added from the check-outs themselves (lib/takings.ts).
+  const offBank = opts.offBankCents ?? 0;
+  const depositsCents = receipts;
+  receipts += offBank;
   const grossCents = receipts - opts.salesTaxCents;
 
   return {
+    depositsCents,
+    offBankCents: offBank,
     receiptsCents: receipts,
     receiptRows,
     salesTaxCents: opts.salesTaxCents,
@@ -128,21 +135,12 @@ export function yearEnd(rows: YearRow[], opts: { salesTaxCents: number }) {
 export type CheckOuts = { method: string; cents: number }[];
 
 /**
- * Takings recorded at check-out (services + products) by how she was paid,
- * against what reached the bank as income. Card should roughly match deposits;
- * cash, Venmo and Zelle only count if she entered them.
+ * Card taken at check-out against card deposits. Deposits run higher by the
+ * tips, which go through the reader but are kept in another service.
  */
-export function compareTakings(checkOuts: CheckOuts, cardDepositsCents: number, otherEnteredCents: number) {
+export function compareCard(checkOuts: CheckOuts, cardDepositsCents: number) {
   const card = checkOuts.filter((c) => c.method === "card").reduce((t, c) => t + c.cents, 0);
-  const other = checkOuts.filter((c) => c.method !== "card").reduce((t, c) => t + c.cents, 0);
-  return {
-    cardRecordedCents: card,
-    cardDepositedCents: cardDepositsCents,
-    otherRecordedCents: other,
-    otherEnteredCents,
-    /** Non-card takings recorded at check-out but not entered as income. */
-    otherMissingCents: Math.max(0, other - otherEnteredCents),
-  };
+  return { cardRecordedCents: card, cardDepositedCents: cardDepositsCents, tipsCents: Math.max(0, cardDepositsCents - card) };
 }
 
 const csvCell = (v: string | number) => {
@@ -157,7 +155,9 @@ export function toCsv(year: number, y: ReturnType<typeof yearEnd>) {
   out.push([`Threshold Salon -- ${year} -- Schedule C summary`]);
   out.push([]);
   out.push(["Line", "Name", "Amount"]);
-  out.push(["1", "Gross receipts (deposits and takings entered)", dollars(y.receiptsCents)]);
+  out.push(["1", "Gross receipts", dollars(y.receiptsCents)]);
+  out.push(["", "  of which deposits (card, incl. tips)", dollars(y.depositsCents)]);
+  out.push(["", "  of which cash and other taken at check-out", dollars(y.offBankCents)]);
   out.push(["", "less sales tax collected (not income)", dollars(-y.salesTaxCents)]);
   out.push(["", "Gross receipts, net of sales tax", dollars(y.grossCents)]);
   for (const l of y.lines)
