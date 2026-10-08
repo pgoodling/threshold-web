@@ -29,6 +29,8 @@ const INV: InvProduct[] = [
   { name: "Tinta 8.4- Light Copper Blonde 2 Fl. Oz.", size: null, unit_cost_cents: 935 },
   { name: "Tinta Developer 3% 10 Vol. Liter", size: null, unit_cost_cents: 1190 },
   { name: "Tinta Tinta, So Pure, & 1922 by J.M. Keune Developer 6% 20 Vol. Liter", size: null, unit_cost_cents: 1190 },
+  { name: "Framar Embossed Pop Up Foil Medium Diet Coke 5 inch x 11 inch 500 ct.", size: null, unit_cost_cents: 2399 },
+  { name: "Framar Embossed Foil Roll Medium Extra Dirty 320 ft.", size: null, unit_cost_cents: 1899 },
 ];
 
 const near = (a: number, b: number, tol = 0.5) => assert.ok(Math.abs(a - b) <= tol, `${a} not within ${tol} of ${b}`);
@@ -51,25 +53,32 @@ test("colour and colour developer don't swallow each other", () => {
   assert.ok(!INGREDIENTS.gloss.match.test("GLOSS COLLECTION CLEAR BOOSTER 2 Fl. Oz."));
 });
 
-test("full highlight: $7.91 measured", () => {
+test("full highlight: $11.03 measured, foils included", () => {
   // Lightener 60 g × (2300 ÷ 498.95) = 276.6¢
   // Developer 120 ml × (750 ÷ 1000)  =  90.0¢
+  // Foils 65 × (2399 ÷ 500)          = 311.9¢  (the pop-ups; the roll isn't counted)
   // Gloss 30 ml × (730 ÷ 59.147)     = 370.3¢
   // Activator 60 ml × (900 ÷ 1000)   =  54.0¢
-  //                                   = 790.9¢
+  //                                   = 1,102.7¢
   const m = measured("Custom Full Highlight", INV);
-  const cents = m.lines.map((l) => l.cents);
-  near(cents[0], 276.6);
-  near(cents[1], 90);
-  near(cents[2], 370.3);
-  near(cents[3], 54);
-  near(cents.reduce((a, b) => a + b), 790.9);
-  assert.deepEqual(m.waiting, ["Foils"]);
+  const by = Object.fromEntries(m.lines.map((l) => [l.label, l.cents]));
+  near(by.Lightener, 276.6);
+  near(by.Developer, 90);
+  near(by.Foils, 311.9);
+  near(by.Toner, 370.3);
+  near(by["Toner activator"], 54);
+  near(m.lines.reduce((t, l) => t + l.cents, 0), 1102.7);
+  assert.deepEqual(m.waiting, []);
 });
 
-test("partial is half the lightening with the same toner: $6.08", () => {
-  // 138.3 + 45.0 + 370.3 + 54.0 = 607.6¢
-  near(measured("Custom Cut & Partial Highlight", INV).lines.reduce((t, l) => t + l.cents, 0), 607.6);
+test("a box of foils counts sheets", () => {
+  assert.deepEqual(contents(INV[10]), { amount: 500, unit: "foils" });
+  assert.ok(isChemical(INV[11].name), "the roll stays out of the learned pool too");
+});
+
+test("partial is half the lightening and foils, the same toner: $7.63", () => {
+  // 138.3 + 45.0 + 32.5 foils × 4.798 (155.9) + 370.3 + 54.0 = 763.5¢
+  near(measured("Custom Cut & Partial Highlight", INV).lines.reduce((t, l) => t + l.cents, 0), 763.5);
 });
 
 test("all-over colour $8.80, root half; toner only 'if toned'", () => {

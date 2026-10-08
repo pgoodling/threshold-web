@@ -76,8 +76,9 @@ export function dates() {
 //                    lightener 30 g × 2,300 ÷ 498.95 g = 138.29
 //                    developer 60 ml × 750 ÷ 1,000     =  45.00
 //                    gloss 30 ml × 730 ÷ 59.147        = 370.26
-//                    activator 60 ml × 900 ÷ 1,000     =  54.00  → 607.55
-//                  → (20,000 − 455 − 607.55) ÷ 135 × 60 = $84.17/h
+//                    activator 60 ml × 900 ÷ 1,000     =  54.00
+//                    foils 32.5 × 2,399 ÷ 500          = 155.94  → 763.49
+//                  → (20,000 − 455 − 763.49) ÷ 135 × 60 = $83.47/h
 //   sales tax      2 × $2.09 = $4.18
 
 export const EXPECT = {
@@ -85,8 +86,8 @@ export const EXPECT = {
   expensesCents: 41330,
   setupCents: 120800,
   cutPerHour: "$54.38",
-  highlightPerHour: "$84.17",
-  highlightProduct: "$6.08",
+  highlightPerHour: "$83.47",
+  highlightProduct: "$7.63",
   lastMonthSalesTaxCents: 418,
 };
 
@@ -149,6 +150,7 @@ export async function seed(r: Rig) {
       ["Redken", "Pro-Oxide Oil Developer 20 Volume", 750, "1 litre"],
       ["maria nila", "GLOSS COLLECTION 7.1A 2 Fl. Oz.", 730, null],
       ["maria nila", "GLOSS COLLECTION LIQUID ACTIVATOR Liter", 900, null],
+      ["Framar", "Framar Embossed Pop Up Foil Medium Diet Coke 5 inch x 11 inch 500 ct.", 2399, null],
     ] as const) {
       const id = await product(brand, name, cost, null, false, true, 0);
       if (size) await c.query(`update products set size = $2 where id = $1`, [id, size]);

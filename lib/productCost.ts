@@ -16,17 +16,22 @@
 
 export type InvProduct = { name: string; size: string | null; unit_cost_cents: number | null };
 
+type Unit = "ml" | "g" | "foils";
+
 const ML_PER_FLOZ = 29.5735;
 const G_PER_LB = 453.59237;
 
 /** A bottle's contents in ml or g, from its size field or its name. */
-export function contents(p: Pick<InvProduct, "name" | "size">): { amount: number; unit: "ml" | "g" } | null {
+export function contents(p: Pick<InvProduct, "name" | "size">): { amount: number; unit: Unit } | null {
   // The size field can say grams or plain "L"; a name can't be trusted to --
   // "GLOSS COLLECTION 10.3G" is a shade, not 10.3 grams.
   const sources: [string, RegExp][] = [
     [p.size ?? "", /(\d+(?:\.\d+)?)\s*(fl\.?\s*oz|oz|litre|liter|l|ml|lb|g)\b\.?/i],
     [p.name, /(\d+(?:\.\d+)?)\s*(fl\.?\s*oz|oz|litre|liter|ml|lb)\b\.?/i],
   ];
+  // A box of foils: "500 ct."
+  const count = p.name.match(/(\d+)\s*ct\b/i);
+  if (count) return { amount: Number(count[1]), unit: "foils" };
   for (const [text, re] of sources) {
     const m = text.match(re);
     if (m) {
@@ -57,11 +62,14 @@ export const INGREDIENTS: Record<string, Ingredient> = {
   activator: { key: "activator", label: "Toner activator", match: /GLOSS COLLECTION LIQUID ACTIVATOR/i },
   colour: { key: "colour", label: "Color", match: /^Tinta (?!.*Developer)/i },
   colourDev: { key: "colourDev", label: "Color developer", match: /^Tinta.*Developer/i },
+  // The pop-up sheets, which come counted. The roll is cut to length, so it
+  // can't be priced per foil.
+  foil: { key: "foil", label: "Foils", match: /Pop Up Foil/i },
 };
 
 /** Anything priced by a recipe, so the learned pools leave it out. */
 export const isChemical = (name: string) =>
-  Object.values(INGREDIENTS).some((i) => i.match.test(name)) || /GLOSS (COLLECTION|APPLICATOR)|Lifting Powder/i.test(name);
+  Object.values(INGREDIENTS).some((i) => i.match.test(name)) || /GLOSS (COLLECTION|APPLICATOR)|Lifting Powder|Foil/i.test(name);
 
 type Part = { ingredient: keyof typeof INGREDIENTS; amount: number };
 type Recipe = { parts: Part[]; maybe?: Part[]; waiting?: string[] };
@@ -70,18 +78,21 @@ const toner: Part[] = [
   { ingredient: "gloss", amount: 30 },
   { ingredient: "activator", amount: 60 },
 ];
+// 65 foils on a full highlight (Evelyn, 2026-10-08); a partial and a mini
+// take the same share as their lightener.
 const lift = (share: number): Part[] => [
   { ingredient: "lightener", amount: 60 * share },
   { ingredient: "developer", amount: 120 * share },
+  { ingredient: "foil", amount: 65 * share },
 ];
 const colour = (share: number): Part[] => [
   { ingredient: "colour", amount: 50 * share },
   { ingredient: "colourDev", amount: 75 * share },
 ];
 
-const FULL: Recipe = { parts: [...lift(1), ...toner], waiting: ["Foils"] };
-const PARTIAL: Recipe = { parts: [...lift(0.5), ...toner], waiting: ["Foils"] };
-const MINI: Recipe = { parts: [...lift(0.25), ...toner], waiting: ["Foils"] };
+const FULL: Recipe = { parts: [...lift(1), ...toner] };
+const PARTIAL: Recipe = { parts: [...lift(0.5), ...toner] };
+const MINI: Recipe = { parts: [...lift(0.25), ...toner] };
 const ALLOVER: Recipe = { parts: colour(1), maybe: toner, waiting: ["Gloves", "Plastic caps"] };
 const ROOT: Recipe = { parts: colour(0.5), maybe: toner, waiting: ["Gloves", "Plastic caps"] };
 const EXTENSIONS: Recipe = { parts: [], waiting: ["Beads", "String"] };
@@ -110,7 +121,7 @@ export type PricedIngredient = {
   label: string;
   /** Cents per ml or g. */
   rate: number;
-  unit: "ml" | "g";
+  unit: Unit;
   /** "Blonde IQ $23.00 ÷ 499 g" */
   working: string;
 };
@@ -120,7 +131,7 @@ export function priceIngredient(key: keyof typeof INGREDIENTS, products: InvProd
   const found = products
     .filter((p) => ing.match.test(p.name) && p.unit_cost_cents != null)
     .map((p) => ({ p, c: contents(p) }))
-    .filter((x): x is { p: InvProduct; c: { amount: number; unit: "ml" | "g" } } => x.c !== null);
+    .filter((x): x is { p: InvProduct; c: { amount: number; unit: Unit } } => x.c !== null);
   if (found.length === 0) return null;
   const rates = found.map((x) => x.p.unit_cost_cents! / x.c.amount);
   const rate = rates.reduce((a, b) => a + b, 0) / rates.length;

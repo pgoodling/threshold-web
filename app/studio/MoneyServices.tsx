@@ -393,7 +393,7 @@ function ProductWorking({
       {m.lines.map((l) => (
         <Line
           key={l.label}
-          label={`${l.label} ${Math.round(l.amount * 10) / 10} ${l.unit}`}
+          label={l.unit === "foils" ? `${Math.round(l.amount * 10) / 10} foils` : `${l.label} ${Math.round(l.amount * 10) / 10} ${l.unit}`}
           sub={l.working}
           value={cents2(l.cents)}
         />

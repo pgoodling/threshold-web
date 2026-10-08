@@ -567,7 +567,10 @@ assumes it, so this could be revived without touching anything above it.
   nothing. Only bottles put on the bar from 1 Oct count (`LEARN_FROM`): the
   25 and 29 Sep entries were the back bar being set up with bottles already in
   use, and counting them gave a misleading $6.67 a visit.
-- **Waiting** — foils, gloves, caps, extension beads and string: shown as
+- **Foils** — 65 pop-up foils on a full highlight (partial and mini take the
+  same share as their lightener), priced per sheet from the 500-count box.
+  The roll is cut to length, so it isn't counted.
+- **Waiting** — gloves, caps, extension beads and string: shown as
   waiting until they're in the inventory with a price. No keratin products yet.
 - The four Keune liters were corrected from $10.30 to $34 (products and their
   movements) on 2026-10-08.
