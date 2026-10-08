@@ -251,6 +251,89 @@ test("online booking says 'just booked' when the time was taken", async () => {
   });
 });
 
+// ---- Hours for one day (0049) --------------------------------------------
+//
+// The rig's week (0015): Mon/Tue 9-7, Fri 9-6, Sat 9-5; Sun, Wed, Thu closed.
+// Nothing in that week opens at 8 PM, so an 8 PM slot can only come from a
+// one-off day. Slots are read as anon -- the booking page's own role.
+
+/** The salon date (YYYY-MM-DD) of an ISO time, and that date at hh:mm as ISO. */
+const salonDay = async (iso: string) =>
+  (await one<{ d: string }>(db, `select (($1::timestamptz at time zone 'America/New_York')::date)::text d`, [iso])).d;
+const at = async (day: string, hhmm: string) =>
+  (await one<{ t: Date }>(db, `select (($1::date + $2::time) at time zone 'America/New_York') t`, [day, hhmm])).t.toISOString();
+async function slotsAsAnon(serviceId: string, day: string) {
+  await db.query(`set local role anon`);
+  const r = await db.query(`select slot from get_available_slots($1, $2::date, $2::date)`, [serviceId, day]);
+  await db.query(`reset role`);
+  return r.rows.map((x: { slot: Date }) => x.slot.toISOString());
+}
+
+test("one longer day: 8 PM is offered and booked that day, and not the next week", async () => {
+  await inRolledBackTx(db, async () => {
+    const f = await fixtures(db);
+    const day = await salonDay(await nextWorkingMorning(db, 3, "10:00"));
+    await db.query(`insert into day_hours (day, start_time, end_time) values ($1, '09:00', '21:00')`, [day]);
+    const eight = await at(day, "20:00");
+    // A 60-minute cut fits 20:00-21:00 exactly; 20:30 would run past close.
+    const slots = await slotsAsAnon(f.cutId, day);
+    assert.ok(slots.includes(eight), "8 PM offered");
+    assert.ok(!slots.includes(await at(day, "20:30")), "8:30 PM not offered");
+    await db.query(`set local role anon`);
+    const ok = await one<{ id: string }>(db, `select create_booking($1, $2, 'Late Client', 'late@example.com', '9375550190') as id`, [f.cutId, eight]);
+    await db.query(`reset role`);
+    assert.ok(ok.id);
+    // Same weekday, a week on: the week is untouched.
+    const nextWeek = await at(await salonDay(plus(eight, 7 * 24 * 60)), "20:00");
+    const e = await expectError(db, `select create_booking($1, $2, 'Other Client', 'o2@example.com', '9375550191')`, [f.cutId, nextWeek]);
+    assert.match(e.message, /outside working hours/);
+  });
+});
+
+test("closed by hand: nothing offered, and a booking is refused", async () => {
+  await inRolledBackTx(db, async () => {
+    const f = await fixtures(db);
+    const ten = await nextWorkingMorning(db, 3, "10:00");
+    const day = await salonDay(ten);
+    assert.ok((await slotsAsAnon(f.cutId, day)).length > 0, "open before");
+    await db.query(`insert into day_hours (day) values ($1)`, [day]);
+    assert.equal((await slotsAsAnon(f.cutId, day)).length, 0);
+    const e = await expectError(db, `select create_booking($1, $2, 'Shut Client', 's@example.com', '9375550192')`, [f.cutId, ten]);
+    assert.match(e.message, /outside working hours/);
+  });
+});
+
+test("a day she's normally closed, opened: offered; times outside it are not", async () => {
+  await inRolledBackTx(db, async () => {
+    const f = await fixtures(db);
+    const closed = await one<{ d: string }>(
+      db,
+      `select d::date::text d from generate_series((now() at time zone 'America/New_York')::date + 3,
+                                                   (now() at time zone 'America/New_York')::date + 16, interval '1 day') d
+        where not exists (select 1 from availability_rules r where r.active and r.weekday = extract(dow from d)::int)
+        order by d limit 1`,
+    );
+    assert.equal((await slotsAsAnon(f.cutId, closed.d)).length, 0, "closed before");
+    await db.query(`insert into day_hours (day, start_time, end_time) values ($1, '10:00', '14:00')`, [closed.d]);
+    // 10:00 to 13:00 by the half hour: 10, 10:30, 11, 11:30, 12, 12:30, 13 = 7 starts.
+    const slots = await slotsAsAnon(f.cutId, closed.d);
+    assert.equal(slots.length, 7);
+    assert.equal(slots[0], await at(closed.d, "10:00"));
+  });
+});
+
+test("day_hours: an end before the start is refused; anon can't read or call hours_on", async () => {
+  await inRolledBackTx(db, async () => {
+    const e = await expectError(db, `insert into day_hours (day, start_time, end_time) values ('2030-01-02', '17:00', '09:00')`);
+    assert.equal(e.code, "23514");
+    await db.query(`set local role anon`);
+    const r = await one<{ n: string }>(db, `select count(*) n from day_hours`);
+    assert.equal(Number(r.n), 0);
+    const denied = await expectError(db, `select * from hours_on('2030-01-02')`);
+    assert.equal(denied.code, "42501");
+  });
+});
+
 // ---- Who can read what ---------------------------------------------------
 
 test("an anonymous visitor sees no costs, sales or bank rows", async () => {

@@ -18,6 +18,7 @@ import Outreach from "./Outreach";
 import Texts from "./Texts";
 import SettingsPanel from "./Settings";
 import ApptDetailModal from "./ApptDetailModal";
+import DayHoursPanel, { DayHoursList } from "./DayHoursPanel";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -749,6 +750,9 @@ function Hours() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A one-off day being changed from the list, and a key to reload the list.
+  const [editDay, setEditDay] = useState<string | null>(null);
+  const [listKey, setListKey] = useState(0);
 
   useEffect(() => {
     supabase
@@ -894,6 +898,20 @@ function Hours() {
         </button>
         {msg && <span className="text-sm text-accent">{msg}</span>}
       </div>
+
+      <DayHoursList key={listKey} onEdit={setEditDay} />
+      {editDay && (
+        <CalendarModal onClose={() => setEditDay(null)}>
+          <DayHoursPanel
+            date={editDay}
+            onClose={() => setEditDay(null)}
+            onDone={() => {
+              setEditDay(null);
+              setListKey((k) => k + 1);
+            }}
+          />
+        </CalendarModal>
+      )}
     </div>
   );
 }

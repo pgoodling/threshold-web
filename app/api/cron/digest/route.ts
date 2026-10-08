@@ -7,6 +7,7 @@ import {
   type DigestRow,
 } from "../../../../lib/email";
 import { readSettings } from "../../../../lib/settings";
+import { hoursOn } from "../../../../lib/dayHours";
 
 // Evelyn's schedule for the day, emailed at the hour she picks in Settings.
 //
@@ -138,7 +139,7 @@ async function run(force = false) {
     });
   }
 
-  const { key: dayKey, weekday } = salonToday();
+  const { key: dayKey } = salonToday();
   const { start, end } = dayBounds(dayKey);
 
   const [apptsRes, blocksRes, hoursRes] = await Promise.all([
@@ -156,12 +157,9 @@ async function run(force = false) {
       .lt("starts_at", end)
       .gt("ends_at", start)
       .order("starts_at"),
-    admin
-      .from("availability_rules")
-      .select("weekday")
-      .eq("weekday", weekday)
-      .eq("active", true)
-      .limit(1),
+    // Today's hours: a one-off day (0049) if she set one, else the week. A
+    // day she's closed by hand reads as closed here too.
+    hoursOn(admin, dayKey).then((data) => ({ data })),
   ]);
 
   type ClientRow = { full_name: string | null; phone: string | null; created_at: string | null };

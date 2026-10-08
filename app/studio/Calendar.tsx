@@ -18,6 +18,15 @@ import { saveClient } from "./Clients";
 import ClientPicker from "./ClientPicker";
 import BlockTimePanel, { type BlockRow } from "./BlockTimePanel";
 import { layoutLanes, salonMinutes } from "../../lib/dayLayout";
+import DayHoursPanel from "./DayHoursPanel";
+import {
+  resolveHours,
+  hoursLabel,
+  toMinutes,
+  type WeeklyRule,
+  type DayOverride,
+  type Window,
+} from "../../lib/dayHours";
 
 type Appt = {
   id: string;
@@ -177,6 +186,11 @@ export default function Calendar({
     { date: string; time: string } | { block: BlockRow } | null
   >(null);
   const [newMenu, setNewMenu] = useState(false);
+  // Her hours: the week, and any one-off days (0049), so each day can be
+  // drawn open or closed. The day whose hours she's changing.
+  const [weekly, setWeekly] = useState<WeeklyRule[]>([]);
+  const [overrides, setOverrides] = useState<DayOverride[]>([]);
+  const [hoursDay, setHoursDay] = useState<string | null>(null);
 
   // Visible date range for the current view.
   const range = useMemo(() => {
@@ -218,6 +232,20 @@ export default function Calendar({
         // blocks, and the appointments query above owns the error line.
         setBlocks((data ?? []) as unknown as Block[]);
       });
+
+    // Same reasoning: no hours means no shading, never no calendar. Before
+    // 0049 runs, day_hours errors and the week alone is drawn.
+    supabase
+      .from("availability_rules")
+      .select("weekday,start_time,end_time")
+      .eq("active", true)
+      .then(({ data }) => setWeekly((data ?? []) as WeeklyRule[]));
+    supabase
+      .from("day_hours")
+      .select("day,start_time,end_time")
+      .gte("day", range.start)
+      .lt("day", addDays(range.start, range.days))
+      .then(({ data, error }) => setOverrides(error ? [] : ((data ?? []) as DayOverride[])));
   }, [range.start, range.days]);
 
   useEffect(load, [load]);
@@ -267,6 +295,15 @@ export default function Calendar({
       ),
     [blocks, range.start, range.days],
   );
+
+  const hoursByDay = useMemo(() => {
+    const m = new Map<string, { windows: Window[]; changed: boolean }>();
+    for (let i = 0; i < range.days; i++) {
+      const d = addDays(range.start, i);
+      m.set(d, resolveHours(d, weekly, overrides));
+    }
+    return m;
+  }, [weekly, overrides, range.start, range.days]);
 
   function shift(dir: number) {
     setSelected(null);
@@ -385,6 +422,16 @@ export default function Calendar({
                 >
                   Block time
                 </button>
+                <button
+                  onClick={() => {
+                    setNewMenu(false);
+                    setSelected(null);
+                    setHoursDay(view === "month" ? selectedDay : anchor);
+                  }}
+                  className="block w-full border-t border-foreground/10 px-3 py-2.5 text-left hover:bg-foreground/[0.04]"
+                >
+                  Hours for this day
+                </button>
               </div>
             )}
           </div>
@@ -419,6 +466,7 @@ export default function Calendar({
             todayKey={todayKey}
             byDay={byDay}
             blocksByDay={blocksByDay}
+            hoursByDay={hoursByDay}
             onSelect={setSelected}
             onNewAt={(date, time) => {
               setSelected(null);
@@ -432,11 +480,37 @@ export default function Calendar({
           />
         )}
         {view === "day" && (
+          <button
+            onClick={() => setHoursDay(anchor)}
+            className="mb-3 flex min-h-11 w-full items-center justify-between gap-3 py-1 pl-3 text-left text-sm"
+            style={{
+              boxShadow: hoursByDay.get(anchor)?.changed ? "inset 3px 0 0 #bd8f45" : undefined,
+            }}
+          >
+            <span>
+              {(() => {
+                const h = hoursByDay.get(anchor);
+                const label = hoursLabel(h?.windows ?? []);
+                return (
+                  <>
+                    <span className={h?.windows.length ? "" : "text-muted"}>
+                      {h?.windows.length ? `Open ${label}` : "Closed"}
+                    </span>
+                    {h?.changed && <span className="ml-2 text-xs text-muted">this day only</span>}
+                  </>
+                );
+              })()}
+            </span>
+            <span className="text-accent">Change</span>
+          </button>
+        )}
+        {view === "day" && (
           <TimeGrid
             days={[anchor]}
             todayKey={todayKey}
             byDay={byDay}
             blocksByDay={blocksByDay}
+            hoursByDay={hoursByDay}
             onSelect={setSelected}
             onNewAt={(date, time) => {
               setSelected(null);
@@ -494,6 +568,19 @@ export default function Calendar({
             onClose={() => setBlockForm(null)}
             onDone={() => {
               setBlockForm(null);
+              load();
+            }}
+          />
+        </Modal>
+      )}
+
+      {hoursDay && (
+        <Modal onClose={() => setHoursDay(null)}>
+          <DayHoursPanel
+            date={hoursDay}
+            onClose={() => setHoursDay(null)}
+            onDone={() => {
+              setHoursDay(null);
               load();
             }}
           />
@@ -761,6 +848,21 @@ function minutesFromClickY(clientY: number, top: number) {
   const snapped = Math.round(raw / SNAP_MIN) * SNAP_MIN;
   return Math.min(HOUR_END * 60 - SNAP_MIN, Math.max(GRID_TOP_MIN, snapped));
 }
+// The parts of the drawn grid outside a day's opening windows, in minutes.
+function closedSpans(windows: Window[]): [number, number][] {
+  const out: [number, number][] = [];
+  let at = GRID_TOP_MIN;
+  const sorted = [...windows].sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time));
+  for (const w of sorted) {
+    const from = Math.max(GRID_TOP_MIN, toMinutes(w.start_time));
+    const to = Math.min(HOUR_END * 60, toMinutes(w.end_time));
+    if (from > at) out.push([at, Math.min(from, HOUR_END * 60)]);
+    at = Math.max(at, to);
+  }
+  if (at < HOUR_END * 60) out.push([at, HOUR_END * 60]);
+  return out;
+}
+
 const hhmm = (min: number) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
 // 12-hour label for the block she's dragging, matching the rest of the grid.
 const clockLabel = (min: number) => {
@@ -792,6 +894,7 @@ function TimeGrid({
   todayKey,
   byDay,
   blocksByDay,
+  hoursByDay,
   onSelect,
   onNewAt,
   onBlockSelect,
@@ -802,6 +905,8 @@ function TimeGrid({
   todayKey: string;
   byDay: Map<string, Appt[]>;
   blocksByDay: Map<string, BlockSpan[]>;
+  /** Each day's opening hours; outside them is shaded. */
+  hoursByDay?: Map<string, { windows: Window[]; changed: boolean }>;
   onSelect: (a: Appt) => void;
   onNewAt?: (date: string, time: string) => void;
   /** Tapping a block opens it to change or unblock. */
@@ -838,6 +943,11 @@ function TimeGrid({
                 }`}
               >
                 {WEEKDAYS[dow(k)]} {p.d}
+                {days.length > 1 && hoursByDay?.get(k)?.changed && (
+                  <span className="block text-xs text-[#8a6420]">
+                    {hoursLabel(hoursByDay.get(k)!.windows).replace(/ (AM|PM)/g, "").replace(" – ", "–")}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -875,6 +985,21 @@ function TimeGrid({
                   className="border-t border-foreground/10"
                 />
               ))}
+              {/* Closed time, under everything: a flat wash, quieter than a
+                  block's hatching, so "not open" and "kept for myself" read
+                  differently. She can still tap in it to book by hand. */}
+              {hoursByDay &&
+                closedSpans(hoursByDay.get(k)?.windows ?? []).map(([from, to]) => (
+                  <div
+                    key={`closed-${from}`}
+                    data-closed=""
+                    className="pointer-events-none absolute inset-x-0 bg-foreground/[0.045]"
+                    style={{
+                      top: ((from - GRID_TOP_MIN) / 60) * HOUR_PX,
+                      height: ((to - from) / 60) * HOUR_PX,
+                    }}
+                  />
+                ))}
               {/* Under the appointments, deliberately. A block is the ground
                   the day is drawn on, not an object sitting on it — and if an
                   appointment does overlap one (she can still book over her own

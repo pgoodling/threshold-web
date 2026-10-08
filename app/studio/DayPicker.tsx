@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { salonWallToISO } from "../../lib/format";
 import { layoutLanes, salonMinutes, freeGaps } from "../../lib/dayLayout";
+import { hoursOn } from "../../lib/dayHours";
 
 // The day she's booking into, drawn under the date while she rebooks.
 //
@@ -80,8 +81,6 @@ export default function DayPicker({
     let live = true;
     const dayStart = salonWallToISO(`${date}T00:00`);
     const dayEnd = salonWallToISO(`${addDays(date, 1)}T00:00`);
-    const [y, m, d] = date.split("-").map(Number);
-    const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
     Promise.all([
       supabase
         .from("appointments")
@@ -100,11 +99,8 @@ export default function DayPicker({
         .select("starts_at,ends_at,reason")
         .lt("starts_at", dayEnd)
         .gt("ends_at", dayStart),
-      supabase
-        .from("availability_rules")
-        .select("start_time,end_time")
-        .eq("weekday", weekday)
-        .eq("active", true),
+      // That date's hours: a one-off day if she set one, else the week.
+      hoursOn(supabase, date).then((data) => ({ data })),
       supabase.from("services").select("*").eq("id", serviceId).maybeSingle(),
     ]).then(([a, b, o, h, s]) => {
       if (!live) return;

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { salonWallToISO } from "./format";
+import { hoursOn } from "./dayHours";
 
 // "Can I say yes to this?" — answered before she presses Book.
 //
@@ -115,8 +116,6 @@ export async function checkSlot(
       : [[s, e]];
 
   const [datePart, timePart] = opts.local.split("T");
-  const [y, mo, d] = datePart.split("-").map(Number);
-  const weekday = new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
 
   const [busyRes, spanRes, offRes, hoursRes] = await Promise.all([
     db
@@ -138,12 +137,8 @@ export async function checkSlot(
       .lt("starts_at", endsAt)
       .gt("ends_at", startsAt)
       .order("starts_at"),
-    db
-      .from("availability_rules")
-      .select("start_time,end_time")
-      .eq("weekday", weekday)
-      .eq("active", true)
-      .order("start_time"),
+    // That date's hours: a one-off day (0049) if she set one, else the week.
+    hoursOn(db, datePart).then((data) => ({ data })),
   ]);
 
   const clashes = new Map<string, SlotClash>();

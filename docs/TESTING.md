@@ -6,9 +6,9 @@ all functioning the way it is supposed to").
 
 | Command | What it checks | Needs |
 |---|---|---|
-| `npm test` | **The arithmetic** — sales tax, earnings per hour, Overview's periods and totals, the tax estimate, text segments and wording, which texts are due, bottle sizes, product names, where a service fits in a day. 67 tests, under a second. | Nothing |
-| `npm run test:db` | **The database's own rules** — what a sale writes, shelf and bar, wrong-signed stock refused, the overlap rules (incl. checking in under an overlap), online booking refused on blocked/taken time, anonymous visitors seeing nothing. 15 tests. | The rig |
-| `npm run walks` | **The studio clicked through like a person**, on a phone-sized screen: Inventory, pricing, Sell, check-out, Taxes, Overview, Services, Bank, Calendar, and the menu (eight items, every old address landing on its tab, the sidebar on a computer screen). Screens checked against answers worked out by hand; the database checked behind them. A photo of every step. | The rig, installed Chrome |
+| `npm test` | **The arithmetic** — sales tax, earnings per hour, Overview's periods and totals, the tax estimate, text segments and wording, which texts are due, one-day hours, bottle sizes, product names, where a service fits in a day. 72 tests, under a second. | Nothing |
+| `npm run test:db` | **The database's own rules** — what a sale writes, shelf and bar, wrong-signed stock refused, the overlap rules (incl. checking in under an overlap), online booking refused on blocked/taken time, one-day hours (a longer day, a closed day, a normally closed day opened), anonymous visitors seeing nothing. 19 tests. | The rig |
+| `npm run walks` | **The studio clicked through like a person**, on a phone-sized screen: Inventory, pricing, Sell, check-out, Taxes, Overview, Services, Bank, Calendar, and the menu (eight items, every old address landing on its tab, the sidebar on a computer screen), and hours for one day. Screens checked against answers worked out by hand; the database checked behind them. A photo of every step. | The rig, installed Chrome |
 | `npm run test:all` | All three. **Run before deploying.** | |
 
 The walks write `e2e-out/walks-<time>/report.html` (gitignored): every step
@@ -18,7 +18,7 @@ section, and taps per task. Publish it as an Artifact to read on a phone.
 ## The rig
 
 A throwaway copy of the database in Docker on this computer, built from the
-same 49 migrations as production, plus a copy of the app pointed at it.
+same 50 migrations as production, plus a copy of the app pointed at it.
 
 ```
 npm run rig:start      # first time, or after a reboot — then leave it running

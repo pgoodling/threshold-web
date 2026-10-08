@@ -447,3 +447,47 @@ test("Menu: eight items, nothing lost", async () => {
     await page.setViewportSize({ width: 390, height: 844 });
   });
 });
+
+test("Hours for one day", async () => {
+  const w = walk("Hours for one day", "Open later one day, close another over a booked client, and find both under Settings › Hours.");
+  const { today } = dates();
+  const row = async () =>
+    (await sql.query(`select start_time::text s, end_time::text e from day_hours where day = $1`, [today])).rows[0] as
+      | { s: string | null; e: string | null }
+      | undefined;
+
+  await w.step(page, "Today, day view: tap the hours, open until 9 PM", async (check) => {
+    await open("calendar");
+    await page.getByRole("button", { name: "day", exact: true }).click();
+    await page.getByRole("button", { name: /Change$/ }).first().click();
+    await page.getByRole("button", { name: "Different hours" }).click();
+    await page.getByLabel("Opens").fill("09:00");
+    await page.getByLabel("Closes").fill("21:00");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect.poll(row).toEqual({ s: "09:00:00", e: "21:00:00" });
+    check("saved for today only", true, "09:00-21:00", "09:00-21:00");
+    await expect(page.getByText("Open 9 AM – 9 PM")).toBeVisible();
+    check("the day says so", await page.getByText("this day only").isVisible());
+  });
+
+  await w.step(page, "Close today: it names Sarah, then Save anyway", async (check) => {
+    await page.getByRole("button", { name: /Change$/ }).first().click();
+    await page.getByRole("button", { name: "Closed", exact: true }).click();
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Sarah Jenkins")).toBeVisible();
+    check("warning names who", true);
+    await page.getByRole("button", { name: "Save anyway" }).click();
+    await expect.poll(row).toEqual({ s: null, e: null });
+    check("closed for today", true, "closed", "closed");
+  });
+
+  await w.step(page, "Settings › Hours lists it; Remove puts the week back", async (check) => {
+    await open("hours");
+    await expect(page.getByText("Just these days")).toBeVisible();
+    const listed = page.locator("div", { hasText: /^.*Closed.*usually/ }).last();
+    check("listed as Closed", await listed.isVisible());
+    await page.getByRole("button", { name: "Remove" }).first().click();
+    await expect.poll(row).toBeUndefined();
+    check("row gone", true, "none", "none");
+  });
+});
