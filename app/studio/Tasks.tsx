@@ -172,40 +172,42 @@ function ToDos() {
         </p>
       ) : (
         <>
-          <form
-            onSubmit={add}
-            className="mt-3 flex flex-wrap items-end gap-3 rounded-2xl border border-foreground/10 bg-white p-4"
-          >
-            <label className="block flex-1">
+          {/* A stack, not a wrapping row: on an iPhone, Safari gives a date box a
+              fixed minimum width, so the old row ran past the card's edge
+              (Paul, 2026-10-08). Every field is allowed to shrink (min-w-0). */}
+          <form onSubmit={add} className="mt-3 grid gap-3 rounded-2xl border border-foreground/10 bg-white p-4">
+            <label className="block min-w-0">
               <span className="mb-1 block text-sm">Task</span>
               <input
-                className="input"
+                className="input w-full min-w-0"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Restock developer, order toner…"
               />
             </label>
-            <label className="block">
-              <span className="mb-1 block text-sm">Start</span>
-              <input
-                type="date"
-                className="input w-auto"
-                value={start}
-                max={due || undefined}
-                onChange={(e) => setStart(e.target.value)}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm">Due</span>
-              <input
-                type="date"
-                className="input w-auto"
-                value={due}
-                min={start || undefined}
-                onChange={(e) => setDue(e.target.value)}
-              />
-            </label>
-            <div className="w-56">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block min-w-0">
+                <span className="mb-1 block text-sm">Start</span>
+                <input
+                  type="date"
+                  className="input w-full min-w-0 appearance-none"
+                  value={start}
+                  max={due || undefined}
+                  onChange={(e) => setStart(e.target.value)}
+                />
+              </label>
+              <label className="block min-w-0">
+                <span className="mb-1 block text-sm">Due</span>
+                <input
+                  type="date"
+                  className="input w-full min-w-0 appearance-none"
+                  value={due}
+                  min={start || undefined}
+                  onChange={(e) => setDue(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="min-w-0">
               <ClientPicker
                 clients={clients}
                 value={clientId}
@@ -214,26 +216,28 @@ function ToDos() {
                 placeholder="Leave blank, or start typing…"
               />
             </div>
-            <label className="block">
-              <span className="mb-1 block text-sm">Repeat</span>
-              <select
-                className="input w-auto"
-                value={recurrence}
-                onChange={(e) => setRecurrence(e.target.value)}
+            <div className="grid grid-cols-2 items-end gap-3">
+              <label className="block min-w-0">
+                <span className="mb-1 block text-sm">Repeat</span>
+                <select
+                  className="input w-full min-w-0"
+                  value={recurrence}
+                  onChange={(e) => setRecurrence(e.target.value)}
+                >
+                  {RECURRENCE.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="min-h-11 rounded-[10px] bg-accent px-6 text-[15px] font-medium text-white transition hover:bg-accent-dark"
               >
-                {RECURRENCE.map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="submit"
-              className="rounded-md bg-accent px-6 py-3 text-white transition hover:bg-accent-dark"
-            >
-              Add
-            </button>
+                Add
+              </button>
+            </div>
           </form>
 
           {error && <ErrorNote>{error}</ErrorNote>}

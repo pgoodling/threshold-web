@@ -46,6 +46,23 @@ body {
   font: inherit;
   color: var(--foreground);
 }
+/* iPhone Safari gives date and time boxes a fixed minimum width and its own
+   chrome, so they run past the edge of a narrow card -- the To-do form on
+   Evelyn's phone (2026-10-08). Let them shrink, keep the height when empty,
+   and left-align the value like every other field. */
+input[type="date"].input,
+input[type="time"].input,
+input[type="datetime-local"].input {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 2.875rem;
+  display: block;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.input::-webkit-date-and-time-value {
+  text-align: left;
+}
 .input:focus {
   outline: none;
   border-color: var(--accent);
