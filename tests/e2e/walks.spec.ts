@@ -660,3 +660,103 @@ test("Paid by Evelyn, owed back", async () => {
     check("two rows, −49,820 in all", Number(n.n) === 2 && Number(n.s) === -49820, "2 / −49820", `${n.n} / ${n.s}`);
   });
 });
+
+// ---- The public side: what a client sees ------------------------------------
+
+test("Website pages load", async () => {
+  const w = walk("Website pages load", "Every public page answers, shows its heading, and the home page's Book now goes to booking.");
+  await w.step(page, "Home → Book now", async (check) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Book now" }).first().click();
+    await expect(page.getByRole("heading", { name: "Book an appointment" })).toBeVisible();
+    check("lands on booking", page.url().endsWith("/book"));
+  });
+  for (const [path, heading] of [["/products", /./], ["/privacy", /privacy/i], ["/terms", /terms/i], ["/messaging", /text|messag/i]] as const) {
+    await w.step(page, `${path} loads`, async (check) => {
+      const res = await page.goto(path);
+      check("200", res?.status() === 200, 200, res?.status());
+      await expect(page.getByRole("heading").first()).toBeVisible();
+      check("has its heading", heading.test((await page.getByRole("heading").first().textContent()) ?? ""));
+    });
+  }
+});
+
+test("A client books, sends hair notes, and cancels", async () => {
+  const w = walk(
+    "Client books online",
+    "The booking flow a client uses, start to finish, against the real database rules. Stripe is off on the rig, so its 'start card entry' answer is stood in for (card already on file); everything else is real.",
+  );
+  // Stripe's one call, answered as for a returning client with a saved card.
+  await page.route("**/api/stripe/setup-intent", (r) => r.fulfill({ json: { customerId: "cus_walk", hasCardOnFile: true } }));
+  let apptId = "";
+
+  await w.step(page, "Choose Cut & Style", async (check) => {
+    await page.goto("/book");
+    await page.getByRole("button", { name: /Cut & Style/ }).first().click();
+    await expect(page.getByRole("heading", { name: "Pick a time" })).toBeVisible();
+    check("on the calendar", true);
+  });
+
+  await w.step(page, "Pick a day at least 3 days out, then the first time", async (check) => {
+    // Three days out, so the 24-hour cancellation window doesn't get in the way.
+    // The calendar opens on this month; `ahead` is how many months on we are.
+    const now = new Date();
+    const soonest = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3);
+    const pickDay = async (ahead: number) => {
+      await expect(page.getByText("Finding open times…")).toBeHidden();
+      const days = page.locator("button.aspect-square:not([disabled])");
+      for (let i = 0; i < (await days.count()); i++) {
+        const d = Number(await days.nth(i).textContent());
+        if (new Date(now.getFullYear(), now.getMonth() + ahead, d) >= soonest) {
+          await days.nth(i).click();
+          return true;
+        }
+      }
+      return false;
+    };
+    if (!(await pickDay(0))) {
+      await page.getByRole("button", { name: "Next month" }).click();
+      check("found a day next month", await pickDay(1));
+    }
+    const slot = page.getByRole("button", { name: /^\d{1,2}:\d{2} (AM|PM)$/ }).first();
+    await expect(slot).toBeVisible();
+    check("times offered", true, "a time", await slot.textContent());
+    await slot.click();
+    await expect(page.getByRole("heading", { name: "Your details" })).toBeVisible();
+  });
+
+  await w.step(page, "Details, then Confirm booking", async (check) => {
+    await page.getByLabel(/First name/).fill("walk");
+    await page.getByLabel(/Last name/).fill("client");
+    await page.getByLabel(/^Phone/).fill("9375550188");
+    await page.getByRole("button", { name: "Continue to card" }).click();
+    await page.getByRole("button", { name: "Confirm booking" }).click();
+    await expect(page.getByRole("link", { name: /Tell her about my hair/ })).toBeVisible();
+    const row = (await sql.query(
+      `select a.id, a.source, a.status, c.full_name from appointments a join clients c on c.id = a.client_id
+        where c.phone like '%5550188' order by a.created_at desc limit 1`)).rows[0];
+    apptId = row?.id ?? "";
+    check("booked online", row?.source === "online" && row?.status === "booked", "online / booked", `${row?.source} / ${row?.status}`);
+    // Typed in lowercase; saved capitalised.
+    check("name tidied", row?.full_name === "Walk Client", "Walk Client", row?.full_name);
+  });
+
+  await w.step(page, "Their appointment page → hair notes → Send to Evelyn", async (check) => {
+    await page.goto(`/appointment/${apptId}`);
+    await page.getByRole("link", { name: "Tell Evelyn about my hair" }).click();
+    await page.getByRole("button", { name: "Wavy", exact: true }).click();
+    await page.getByRole("button", { name: "Send to Evelyn" }).click();
+    await expect.poll(async () => (await sql.query(`select hair_type from appointment_intake where appointment_id = $1`, [apptId])).rows[0]?.hair_type).toBe("wavy");
+    check("form saved", true, "wavy", "wavy");
+    await page.goto(`/appointment/${apptId}`);
+    check("the page says it's got them", await page.getByText("Got your hair notes.").isVisible());
+  });
+
+  await w.step(page, "Cancel it from the same page", async (check) => {
+    await page.getByRole("button", { name: "Cancel this appointment" }).click();
+    await page.getByRole("button", { name: "Yes, cancel it" }).click();
+    await expect.poll(async () => (await sql.query(`select status from appointments where id = $1`, [apptId])).rows[0]?.status).toBe("cancelled");
+    check("cancelled", true, "cancelled", "cancelled");
+  });
+  await page.unroute("**/api/stripe/setup-intent");
+});
