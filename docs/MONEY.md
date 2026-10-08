@@ -635,9 +635,15 @@ tax preparer (`lib/yearEnd.ts`, `MoneyYearEnd.tsx`).
 - **No tip field.** Tips go through another service. Card tips still arrive
   in the Intuit deposits, so card deposits run higher than card check-outs by
   the tips; the year-end summary labels the difference as tips.
+- **Owed back to Evelyn** (renamed 2026-10-08, 0051). One figure: what she
+  moved into Relay from her own bank (Owner contribution — $3,300 in Aug
+  2026) plus receipts she paid herself, less every transfer back to her, all
+  filed **Paid back to Evelyn**. Her own money returning: not taxed, not a
+  business cost. The spending it funded was already deducted from Relay's
+  statements, which is why paying it back isn't another expense.
 - **Reimbursements.** Costs she paid herself before Relay are entered with
   "Add something Evelyn paid for" in that section (account *Paid outside Relay*) — expenses
-  when paid. Relay paying her back is filed **Reimbursement to Evelyn** (0050,
+  when paid. Relay paying her back is filed **Paid back to Evelyn** (0050, renamed 0051;
   kind owner: not a second expense, not a draw). Money → Bank shows paid,
   paid back and still owed (`lib/reimburse.ts`, `MoneyReimburse.tsx`).
 

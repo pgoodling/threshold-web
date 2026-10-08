@@ -1,19 +1,23 @@
-// What the business owes Evelyn for costs she paid herself before Relay
-// existed (2026-10-08). The costs are rows on the "Paid outside Relay"
-// account (MoneyManual) -- already expenses, counted when she paid them. Relay
-// paying her back is filed "Reimbursement to Evelyn" (0050), which no screen
-// counts as spending, so nothing is counted twice.
+// What the business owes Evelyn: money she moved into Relay from her own bank
+// to start it (Owner contribution), and business costs she paid herself
+// before Relay existed (the "Paid outside Relay" account, via MoneyManual --
+// already expenses, counted when she paid them). Every transfer back to her
+// is filed "Paid back to Evelyn" (0050, renamed 0051), which no screen counts
+// as spending: nothing is deducted twice and nothing is taxed.
 
 export const PAID_PERSONALLY_ACCOUNT = "Paid outside Relay";
-export const REIMBURSEMENT_CATEGORY = "Reimbursement to Evelyn";
+export const REIMBURSEMENT_CATEGORY = "Paid back to Evelyn";
 
 export type Paid = { id: string; posted_on: string; amount_cents: number; payee: string; category: string | null };
 
-export function owed(paid: Paid[], repaid: Paid[]) {
+export function owed(paid: Paid[], repaid: Paid[], putIn: Paid[] = []) {
   // Purchases are stored negative; a refund on that account (positive) reduces what she's owed.
-  const paidCents = paid.reduce((t, p) => t - p.amount_cents, 0);
+  const receiptsCents = paid.reduce((t, p) => t - p.amount_cents, 0);
+  // Transfers in are positive.
+  const putInCents = putIn.reduce((t, p) => t + p.amount_cents, 0);
   const repaidCents = repaid.reduce((t, p) => t + Math.abs(p.amount_cents), 0);
-  return { paidCents, repaidCents, owedCents: paidCents - repaidCents };
+  const paidCents = receiptsCents + putInCents;
+  return { receiptsCents, putInCents, paidCents, repaidCents, owedCents: paidCents - repaidCents };
 }
 
 // ---- The entry form: several receipts, one total -------------------------

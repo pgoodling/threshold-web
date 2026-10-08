@@ -626,6 +626,12 @@ test("Year-end summary for the preparer", async () => {
 test("Paid by Evelyn, owed back", async () => {
   const w = walk("Paid by Evelyn, owed back", "A pile of receipts she paid herself: one line each, a running total, recorded together, and owed back.");
   await w.step(page, "Two receipts, $412 + $86.20: the total reads $498.20", async (check) => {
+    // $300 she moved in from her own bank, like her real USAA transfers.
+    await sql.query(
+      `insert into bank_transactions (account_id, posted_on, amount_cents, description, merchant, import_hash, category_id, category_source, is_business, reviewed_at)
+       select a.id, '2026-08-05', 30000, 'USAA CLASSIC CHECKING', 'USAA CLASSIC CHECKING', 'walk:usaa', c.id, 'manual', true, now()
+         from bank_accounts a, expense_categories c
+        where a.name <> 'Paid outside Relay' and c.name = 'Owner contribution' limit 1`);
     await open("money/bank");
     await page.getByRole("button", { name: "Add something Evelyn paid for" }).click();
     await page.locator("input[type='date']").last().fill("2026-08-30");
@@ -643,8 +649,11 @@ test("Paid by Evelyn, owed back", async () => {
   await w.step(page, "Record all 2: both saved, and owed back", async (check) => {
     await page.getByRole("button", { name: "Record all 2" }).click();
     await expect(page.getByText("2 recorded · $498.20")).toBeVisible();
-    const row = (await page.getByText("Still owed to her").locator("..").textContent()) ?? "";
-    check("owed $498.20", row.includes("$498.20"), "$498.20", row);
+    const row = (await page.getByText("Still hers to take back").locator("..").textContent()) ?? "";
+    // $300 put in + $498.20 of receipts, nothing paid back yet.
+    check("still hers $798.20", row.includes("$798.20"), "$798.20", row);
+    const putIn = (await page.getByText("Put into Relay from her own bank").locator("../..").textContent()) ?? "";
+    check("put in $300.00", putIn.includes("$300.00"), "$300.00", putIn);
     const n = (await sql.query(
       `select count(*) n, sum(t.amount_cents) s from bank_transactions t join bank_accounts a on a.id = t.account_id
         where a.name = 'Paid outside Relay'`)).rows[0];
