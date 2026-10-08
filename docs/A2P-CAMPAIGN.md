@@ -9,6 +9,11 @@ for plain ones so a message stays in the GSM-7 alphabet (153 characters a
 segment instead of 67). The reminder went from 5 segments to 2. A punctuation
 change doesn't alter the use case, so nothing was resubmitted.
 
+**Layout only on 2026-10-08.** `/book`, `/messaging`, `/privacy` and `/terms`
+had their "← Back" links given 44-point tap areas, and the booking step bar
+hides its dashes on a phone. No wording, consent boxes or templates changed, so
+nothing here or in the console needs touching.
+
 **Samples are generated from `lib/smsTemplates.ts` and
 `app/api/sms/booking-confirm/route.ts`.** If you reword a template, reword the
 matching sample here and in the console. Reviewers compare what arrives against

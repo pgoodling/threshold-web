@@ -18,6 +18,10 @@ Prepared July 2026.
 > - **Inventory was not deferred.** Evelyn retails product, so there is a full
 >   Inventory item in the studio (stock, back bar, retail sales with sales tax)
 >   and product cost per service.
+> - **The plan has no bookkeeping; the app now does it.** Money imports her
+>   bank statements, works out the tax set-aside, ranks services by earnings
+>   per hour against a fixed-cost line, and produces a year-end Schedule C
+>   summary for her preparer. See [MONEY.md](MONEY.md).
 > - **No deposits.** The `deposit_cents` / `deposit_status` columns exist but
 >   nothing uses them. The booking page saves a card instead
 >   (`/api/stripe/setup-intent`) and Evelyn can charge a no-show fee

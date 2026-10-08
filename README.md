@@ -13,9 +13,14 @@ in Kettering, Ohio. One Next.js app on Vercel, backed by Supabase.
 **Inventory** has been its own menu item since 30 Sep 2026 (supplier orders,
 shelf and back bar, Sell, stock count). **Money** is four sub-tabs,
 deep-linkable as `#money/bank` and so on: Overview, Bank (statement import,
-review queue), Taxes (what to set aside) and Services (earnings per hour,
-less product cost). See `docs/MONEY.md` — especially before changing a tax
-rate or a category kind.
+review queue, what's owed back to Evelyn), Taxes (what to set aside, and the
+year-end summary for her preparer) and Services (earnings per hour, less
+product cost, against a fixed-cost line). See `docs/MONEY.md` — especially
+before changing a tax rate or a category kind.
+
+The studio's shared controls (round back buttons, action tiles, segmented
+choices, setting rows) live in `app/studio/ui.tsx` — "direction B", 8 Oct
+2026. The public website and booking keep their own look on purpose.
 
 ## Running it
 
@@ -63,7 +68,7 @@ every one and why it exists. Two are load-bearing in non-obvious ways:
 Supabase project `threshold-salon` (ref `jlfzwqkybmlldmchjqrk`).
 
 **Migrations are applied one file at a time**, in order, from
-`supabase/migrations/` (latest: `0049_day_hours.sql`; two files share the
+`supabase/migrations/` (latest: `0051_paid_back_to_evelyn.sql`; two files share the
 number 0032), with the Supabase CLI:
 
 ```bash
@@ -127,6 +132,6 @@ against what was registered.
 | `docs/A2P-CAMPAIGN.md` | Current. The carrier submission and its history. |
 | `docs/BACKLOG.md` | What's built, what's next, what's still needed from Paul. |
 | `docs/TESTING.md` | Current. The three test layers, the local rig, and what isn't covered. |
-| `docs/MONEY.md` | Current. Bank feed, cost allocation and the four tax jurisdictions. Read before touching a rate — they carry a source and a checked-on date for a reason. |
+| `docs/MONEY.md` | Current. Bank feed, product cost per service, the year-end summary, what's owed back to Evelyn, and the four tax jurisdictions. Read before touching a rate — they carry a source and a checked-on date for a reason. |
 | `docs/BUILD-PLAN.md` | Historical. The July 2026 decision record for building this instead of buying GlossGenius. Kept as rationale, not as a plan to follow. |
 | `AGENTS.md` | Read this first if you're an agent. |

@@ -339,6 +339,14 @@ left genuinely ambiguous. That's **$13,000 a year**, and it is the numerator.
 Weekly is also the natural unit for the answer, so nothing needs converting in
 either direction.
 
+> **Partly built 2026-10-08, in a different shape.** Money → Services draws a
+> **fixed-cost line** per hour rather than appointments per week: costs of kind
+> `fixed` over the last 28 days the statements reach, ÷ her hands hours in
+> that window (`fixedCostLine` in `lib/serviceEarnings.ts`). It's a dashed
+> line on each service's bar, and a service's page says what's left per hour
+> after it. About $12 an hour on her data. There is still no "appointments
+> per week before you're earning" figure.
+
 ## Tax
 
 Her situation, as of 2026-09-23: **single-member LLC, Schedule C** (no S-corp
@@ -460,11 +468,14 @@ Updated 2026-10-08. **Inventory** is its own studio item (tabs **Stock** and
 **Overview** (revenue from check-outs and product sales against sorted
 business expenses, by week / month / quarter / year, each side tappable down
 to categories and transactions; 'capital' categories shown apart as Setting
-up), **Bank** (upload, then month by month, tap a row to change its category),
-**Taxes** (set-aside in dollars, next payment, one line per place, sales tax
-collected; the working behind a toggle) and **Services** (each service ranked by
-what it earns per hour of her hands, after product and card fees; replaced
-Costs on 2026-09-30; product counted from 2026-10-08). Old `#money/inventory`
+up), **Bank** (upload, then month by month, tap a row to change its category;
+what's owed back to Evelyn), **Taxes** (set-aside in dollars, next payment,
+one line per place, sales tax collected; the working behind a toggle; the
+year-end summary) and **Services** (each service ranked by what it earns per
+hour of her hands, after product and card fees, against the fixed-cost line;
+replaced Costs on 2026-09-30; product counted from 2026-10-08). Its choices
+(tabs, periods, filters) are segmented buttons since "direction B" on
+2026-10-08. Old `#money/inventory`
 and `#money/activity` links redirect to Inventory, and `#money/costs` to
 Services.
 
@@ -474,7 +485,9 @@ Services.
 a review queue (`MoneyReview`) where the only question is business or personal
 and "always, for X" writes a rule, and manual entry (`MoneyManual`) for
 purchases the bank never saw — into `bank_transactions` against an account
-called "Paid outside Relay", not a table of their own.
+called "Paid outside Relay", not a table of their own. Since 2026-10-08 it's a
+batch form: a line per receipt, a running total, all recorded together, and a
+category dropdown grouped furniture and equipment / product / other.
 
 **Inventory** — migrations `0042`–`0043`, `0045`, `0046`.
 
@@ -529,7 +542,8 @@ Setting up.
 
 **Services** — `lib/serviceEarnings.ts`, `lib/productCost.ts`,
 `MoneyServices`. Earnings per hour of her hands after card fees and product
-(`handRate(row, productPerVisit)`). The old Costs tab (`MoneyColourCost`) is
+(`handRate(row, productPerVisit)`), against the fixed-cost line
+(`fixedCostLine`, 2026-10-08). The old Costs tab (`MoneyColourCost`) is
 gone; `lib/colourCost.ts` is still in the repo but nothing imports it.
 
 ### Not built
@@ -548,7 +562,10 @@ gone; `lib/colourCost.ts` is still in the repo but nothing imports it.
    retail part of future orders stops being taxed twice.
 2. **Break-even** — fixed costs derived from categorised transactions rather
    than stored, so a rent rise carries itself through. Needs her average
-   ticket, which needs check-out data.
+   ticket, which needs check-out data. *Partly built 2026-10-08:* the
+   fixed-cost line on Services (fixed costs per hour of her hands; see
+   [The number that matters most](#the-number-that-matters-most)). No
+   visits-a-week figure.
 3. ~~**Where the money went**~~ **Built 2026-09-30** as Money → Overview.
 4. ~~**Margin per service**~~ **Built 2026-09-30** as Money → Services, ranked
    by earnings per hour of her hands — **after product since 2026-10-08**. A
@@ -560,8 +577,9 @@ gone; `lib/colourCost.ts` is still in the repo but nothing imports it.
    [Product cost per service](#product-cost-per-service-2026-10-08). Every
    service shows the visits behind it and the sum written out, so the
    arithmetic can be checked by hand.
-5. **Schedule C export** — the year-end summary with transactions behind each
-   line.
+5. ~~**Schedule C export**~~ **Built 2026-10-08** — the year-end summary with
+   transactions behind each line, and a CSV. See
+   [Year-end summary](#year-end-summary-2026-10-08).
 
 ### Abandoned
 
@@ -609,20 +627,24 @@ tax preparer (`lib/yearEnd.ts`, `MoneyYearEnd.tsx`).
 - Same rows as the Taxes estimate: business bank rows posted in the year,
   grouped by each category's `schedule_c_line` (0036). Line names as printed
   on the form; 24b takes half of what was spent.
-- Line 1 is deposits plus cash/other entered, **less sales tax collected**
+- Line 1 is card deposits plus cash/other taken at check-out (counted from
+  the check-outs, `lib/takings.ts` — see below), **less sales tax collected**
   (`retail_sales.tax_cents`) — it arrives in card deposits but isn't income.
   Taxes now subtracts it too, so the estimate and the summary agree.
 - Setting-up purchases (capital) are listed item by item and counted in full
   in net profit, as Taxes assumes; the preparer chooses the line.
 - For the preparer: retail stock on the shelf at cost (today's count — take
   it on 31 Dec), card and other takings recorded at check-out against what
-  reached the bank as income (flags cash not entered; card deposits run
-  higher than check-outs by the tips, which are labelled as such), rows still to sort,
-  and owner money that isn't on the form.
+  reached the bank (card deposits run higher than check-outs by the tips,
+  which are labelled as such; cash and other are shown as counted in line 1),
+  rows still to sort, and owner money that isn't on the form.
+- Before-opening costs get their own section in the opening year — see
+  [Before opening](#before-opening-startup-costs-equipment-product-2026-10-08).
 - Every line opens onto its transactions; **Download for preparer** writes
   the same as a CSV.
 - First run on her data (8 Oct): $295 of cash taken at check-out had not
-  been entered as income.
+  been entered as income. That's why cash is now counted from the check-outs
+  instead of typed in.
 
 ## Cash, tips and paying Evelyn back (2026-10-08)
 
@@ -642,8 +664,8 @@ tax preparer (`lib/yearEnd.ts`, `MoneyYearEnd.tsx`).
   business cost. The spending it funded was already deducted from Relay's
   statements, which is why paying it back isn't another expense.
 - **Reimbursements.** Costs she paid herself before Relay are entered with
-  "Add something Evelyn paid for" in that section (account *Paid outside Relay*) — expenses
-  when paid. Relay paying her back is filed **Paid back to Evelyn** (0050, renamed 0051;
+  "Add something Evelyn paid for" in that section (account *Paid outside Relay*;
+  the batch form in `MoneyManual`) — expenses when paid. Relay paying her back is filed **Paid back to Evelyn** (0050, renamed 0051;
   kind owner: not a second expense, not a draw). Money → Bank shows paid,
   paid back and still owed (`lib/reimburse.ts`, `MoneyReimburse.tsx`).
 

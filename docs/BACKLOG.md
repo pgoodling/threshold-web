@@ -43,6 +43,19 @@ section, this section is right.
 - **Settings**: her morning email (on/off, hour, include takings), booking alert
   window, minimum booking notice, cancellation window, how far ahead clients can
   book, automated-text switches, quiet hours, reminder lookahead, monthly target.
+  Each switch is a whole tappable row (2026-10-08).
+- **Studio look, "direction B" (2026-10-08)** — shared pieces in
+  `app/studio/ui.tsx`: round ‹ back buttons, action tiles (main action
+  terracotta, Remove in wine), segmented choices in place of tabs and filters
+  (four options wrap two-by-two on a phone), setting rows. The phone menu is a
+  2×4 grid of tiles; the appointment window's actions and Inventory's Sell /
+  Add stock / Count are tiles; buttons are 44 points tall. The website and
+  booking keep their look (Paul's choice) — only their back links grew to 44
+  points, and the booking step bar drops its dashes on a phone so "Done" fits.
+- **Phone fixes (2026-10-08)**: iPhone date and time boxes can't run off the
+  screen; the To-do and Time off forms restacked to fit; the day view scrolls
+  when a swipe starts on an appointment.
+- **Client names** typed in lowercase are tidied on save (`lib/tidyName.ts`).
 
 **Behind it**
 - Stripe live; card on file, deposits, no-show fees.
@@ -62,8 +75,9 @@ section, this section is right.
     — turning it on reintroduces the MX and the collision.
   - Consequence: the Cloudflare DNS migration is still optional, not forced.
 - `scripts/check-migrations.sh` — asks the database which migrations actually ran.
-- Tests on a local rig: `npm test` (logic), `npm run test:db`, `npm run walks`
-  (Playwright); `npm run test:all` before deploying. See [TESTING.md](TESTING.md).
+- Tests on a local rig: `npm test` (108 logic tests), `npm run test:db` (21),
+  `npm run walks` (19 Playwright walks); `npm run test:all` before deploying.
+  `npm run audit` measures every button on 40 screens. See [TESTING.md](TESTING.md).
 
 ---
 
@@ -99,7 +113,7 @@ section, this section is right.
 | 16 | Reviews & light marketing | Google Business link; go/no-go |
 | 17 | Google Calendar sync for Evelyn | Go/no-go (needs Google sign-in setup) |
 | 18 | ~~**Retail + inventory + cost-of-goods**~~ 🟡 **MOSTLY BUILT** — migrations `0042`, `0043`, `0045`–`0047` | Stock, catalogue, supplier-order PDF import, kit splitting, back-bar log and stock count are all live. **Selling built 2026-09-30** (`0047`): at check-out and on its own via Inventory → Sell. All 29 products she sells priced 2026-09-30 at Keune's / Maria Nila's US retail. She has her vendor's licence; the number isn't stored because nothing needs it — it goes on the resale exemption certificate for Premier and SalonCentric instead (certificate still not sent). ⚠️ This item used to say "keep bookkeeping/expenses/taxes in QuickBooks" — **reversed 2026-09-23**; she does her own, so tax lives here too. |
-| 19 | ~~**Money: bank feed, costs, tax**~~ 🟡 **MOSTLY BUILT** — migrations `0036`, `0037`, `0039`–`0041`, `0044` | Relay **CSV** (not OFX — their export dialog doesn't offer it) import with a balance-chain proof, review queue, manual purchases, colour cost, and the set-aside rate across four jurisdictions. **Built since:** spend by week/month/quarter/year (Money → Overview); margin per service with product cost (Money → Services, `lib/productCost.ts`) — colour, lightener, foils, toner, gloves, caps and extension string/beads measured, bowl and styling product learned from back-bar bottles finished since 1 Oct. **Outstanding: break-even.** **Year-end summary built 2026-10-08** (Money → Taxes → Year-end summary): Schedule C lines, setting up itemised, check-outs vs deposits, CSV for the preparer. Plaid was costed and **abandoned** — she uploads monthly from her phone. See [MONEY.md](MONEY.md). |
+| 19 | ~~**Money: bank feed, costs, tax**~~ 🟡 **MOSTLY BUILT** — migrations `0036`, `0037`, `0039`–`0041`, `0044` | Relay **CSV** (not OFX — their export dialog doesn't offer it) import with a balance-chain proof, review queue, manual purchases, colour cost, and the set-aside rate across four jurisdictions. **Built since:** spend by week/month/quarter/year (Money → Overview); margin per service with product cost (Money → Services, `lib/productCost.ts`) — colour, lightener, foils (65 on a full highlight), toner, gloves, caps and extension string/beads (rows = paid ÷ $115) measured; bowl and styling product is the one piece left — it's learned from back-bar bottles opened on or after 1 Oct, and says nothing until one of those is finished. **Break-even: partly built 2026-10-08** — Services draws a fixed-cost line (fixed costs over the last 28 days of statements ÷ her hands hours in that window; about $12 an hour on her data) on every bar, and a service's page says what's left per hour after it. There is no "visits a month to break even" figure. **Year-end summary built 2026-10-08** (Money → Taxes → Year-end summary): Schedule C lines with sales tax kept out of line 1, cash and other non-card check-outs counted as income from the check-outs (Taxes uses the same figure), card deposits over card check-outs shown as tips, the before-opening costs split three ways (equipment / product / startup, with the § 195 startup deduction), CSV for the preparer. **Owed back to Evelyn built 2026-10-08** (Money → Bank): what she put in + receipts she paid herself (a batch entry form with a running total) − transfers filed "Paid back to Evelyn" (`0050`, `0051`). Plaid was costed and **abandoned** — she uploads monthly from her phone. See [MONEY.md](MONEY.md). |
 
 ## 🧭 Navigation — decided 2026-09-24; superseded 2026-10-08
 
