@@ -29,6 +29,7 @@ import Rail from "./Rail";
 import ActionStrip, { type Action } from "./ActionStrip";
 import { appointmentUrl } from "../../lib/policy";
 import { insertStudioAppointment } from "../../lib/appointments";
+import ChangeServicePanel from "./ChangeServicePanel";
 import SlotStatus from "./SlotStatus";
 import DayPicker from "./DayPicker";
 import SaleLines from "./SaleLines";
@@ -128,7 +129,7 @@ export default function ApptDetailModal({
   const [appt, setAppt] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<
-    "view" | "reschedule" | "rebook" | "checkout" | "noShowFee" | "timing"
+    "view" | "reschedule" | "rebook" | "checkout" | "noShowFee" | "timing" | "service"
   >("view");
   const [seg, setSeg] = useState({ start: "", process: "", finish: "" });
   const [blockGap, setBlockGap] = useState(false);
@@ -903,6 +904,16 @@ export default function ApptDetailModal({
                   </button>
                 </div>
               </div>
+            ) : mode === "service" ? (
+              <ChangeServicePanel
+                appt={appt}
+                onCancel={() => setMode("view")}
+                onDone={() => {
+                  setMode("view");
+                  onChanged?.();
+                  load();
+                }}
+              />
             ) : mode === "noShowFee" ? (
               <div className="mt-4 grid gap-3">
                 <p className="text-sm text-muted">
@@ -1019,6 +1030,16 @@ export default function ApptDetailModal({
                   </ActionBtn>
                   {appt.status !== "cancelled" && (
                     <ActionBtn onClick={openTiming}>Adjust timing</ActionBtn>
+                  )}
+                  {appt.status !== "cancelled" && (
+                    <ActionBtn
+                      onClick={() => {
+                        setError(null);
+                        setMode("service");
+                      }}
+                    >
+                      Change service
+                    </ActionBtn>
                   )}
                   {/* One-tap guard for the common case: she wants this gap back. */}
                   {effectiveSegments(appt).process > 0 && (

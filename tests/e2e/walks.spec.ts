@@ -491,3 +491,34 @@ test("Hours for one day", async () => {
     check("row gone", true, "none", "none");
   });
 });
+
+test("Change an appointment's service", async () => {
+  const w = walk("Change an appointment's service", "Mike's 2:30 cut becomes a highlight: same start, the highlight's length and price.");
+  const mike = async () =>
+    (await sql.query(
+      `select s.name, a.price_cents, extract(epoch from a.ends_at - a.starts_at)/60 mins, a.start_minutes
+         from appointments a join clients c on c.id = a.client_id join services s on s.id = a.service_id
+        where c.full_name = 'Mike Reed' and a.starts_at > now() - interval '1 day'`)).rows[0];
+
+  await w.step(page, "Open Mike's appointment, Change service, pick the highlight", async (check) => {
+    await open("calendar");
+    await page.getByRole("button", { name: "day", exact: true }).click();
+    await page.getByText("2:30 PM Mike").click();
+    await page.getByRole("button", { name: "Change service" }).click();
+    await page.getByRole("button", { name: /Custom Cut & Partial Highlight/ }).click();
+    // 2:30 + 180 min = 5:30 PM; $150.
+    await expect(page.getByText("5:30 PM")).toBeVisible();
+    check("preview shows the new end", true, "5:30 PM", "5:30 PM");
+    check("preview shows $55 → $150", await page.getByText(/\$55\s*\$150/).isVisible());
+    check("timing shown", await page.getByText("60 · 45 · 75").isVisible());
+  });
+
+  await w.step(page, "Change it: the database agrees", async (check) => {
+    await page.getByRole("button", { name: /^(Change service|Change anyway)$/ }).last().click();
+    await expect.poll(async () => (await mike()).name).toBe("Custom Cut & Partial Highlight");
+    const r = await mike();
+    check("price $150", r.price_cents === 15000, 15000, r.price_cents);
+    check("3 hours long", Number(r.mins) === 180, 180, r.mins);
+    check("hand timing cleared", r.start_minutes === null, null, r.start_minutes);
+  });
+});

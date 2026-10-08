@@ -226,6 +226,51 @@ test("a cut fits in a colour client's processing gap without any flag", async ()
   });
 });
 
+// ---- Changing the service --------------------------------------------------
+//
+// What Change service writes: the new service_id, its price, timing overrides
+// cleared. The database must re-derive the end and the busy blocks from that.
+
+const changeSql = `update appointments set service_id = $2, price_cents = 15000,
+                     start_minutes = null, process_minutes = null, finish_minutes = null,
+                     allow_overlap = allow_overlap or $3 where id = $1`;
+
+test("changing a cut to a colour: ends 3 hours on, busy in two pieces", async () => {
+  await inRolledBackTx(db, async () => {
+    const f = await fixtures(db);
+    const t = await nextWorkingMorning(db);
+    const a = await book(f, t);
+    // A hand-adjusted timing on the cut, which the change must drop.
+    await db.query(`update appointments set start_minutes = 75 where id = $1`, [a.id]);
+    await db.query(changeSql, [a.id, f.colourId, false]);
+    // Colour = 60 work + 45 processing + 75 finish = 180 minutes.
+    const r = await one<{ ends_at: Date; start_minutes: number | null }>(db, `select ends_at, start_minutes from appointments where id = $1`, [a.id]);
+    assert.equal(r.ends_at.toISOString(), plus(t, 180));
+    assert.equal(r.start_minutes, null);
+    // Busy 10:00-11:00 and 11:45-13:00; the processing gap is free.
+    const busy = await db.query(`select starts_at, ends_at from appointment_busy where appointment_id = $1 order by starts_at`, [a.id]);
+    assert.deepEqual(
+      busy.rows.map((b: { starts_at: Date; ends_at: Date }) => [b.starts_at.toISOString(), b.ends_at.toISOString()]),
+      [[t, plus(t, 60)], [plus(t, 105), plus(t, 180)]],
+    );
+  });
+});
+
+test("a change that runs into the next client is refused, and accepted as 'Change anyway'", async () => {
+  await inRolledBackTx(db, async () => {
+    const f = await fixtures(db);
+    const t = await nextWorkingMorning(db);
+    const a = await book(f, t);
+    // The next client at 12:00 -- inside the colour's finish (11:45-13:00).
+    await book(f, plus(t, 120));
+    const e = await expectError(db, changeSql, [a.id, f.colourId, false]);
+    assert.equal(e.code, "23P01");
+    await db.query(changeSql, [a.id, f.colourId, true]);
+    const r = await one<{ service_id: string }>(db, `select service_id from appointments where id = $1`, [a.id]);
+    assert.equal(r.service_id, f.colourId);
+  });
+});
+
 // ---- Online booking (create_booking) --------------------------------------
 
 test("online booking takes a free time, and refuses blocked time", async () => {
