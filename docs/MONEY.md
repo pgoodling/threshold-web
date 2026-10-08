@@ -570,7 +570,12 @@ assumes it, so this could be revived without touching anything above it.
 - **Foils** — 65 pop-up foils on a full highlight (partial and mini take the
   same share as their lightener), priced per sheet from the 500-count box.
   The roll is cut to length, so it isn't counted.
-- **Waiting** — gloves, caps, extension beads and string: shown as
-  waiting until they're in the inventory with a price. No keratin products yet.
+- **Gloves and caps** — one pair of gloves (2 of the 100-piece box) on every
+  colour service; a plastic cap on signature colours only, at $9.39 for 100
+  until caps are in the inventory (the inventory's price wins once they are).
+- **Extensions** — per row: 4 arm's lengths of string (an arm taken as 70 cm;
+  $8.99 a 1,700 m spool) and 15 beads ($14.99 for 2,500), about 10.5¢ a row.
+  Extensions are priced by the row at $115, so a visit's rows = paid ÷ $115.
+  String and beads use Paul's prices until they're in the inventory.
 - The four Keune liters were corrected from $10.30 to $34 (products and their
   movements) on 2026-10-08.

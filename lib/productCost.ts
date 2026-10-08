@@ -16,7 +16,7 @@
 
 export type InvProduct = { name: string; size: string | null; unit_cost_cents: number | null };
 
-type Unit = "ml" | "g" | "foils";
+type Unit = "ml" | "g" | "foils" | "pieces" | "m";
 
 const ML_PER_FLOZ = 29.5735;
 const G_PER_LB = 453.59237;
@@ -29,6 +29,9 @@ export function contents(p: Pick<InvProduct, "name" | "size">): { amount: number
     [p.size ?? "", /(\d+(?:\.\d+)?)\s*(fl\.?\s*oz|oz|litre|liter|l|ml|lb|g)\b\.?/i],
     [p.name, /(\d+(?:\.\d+)?)\s*(fl\.?\s*oz|oz|litre|liter|ml|lb)\b\.?/i],
   ];
+  // Counted things: gloves "100 pieces", beads, caps.
+  const pieces = (p.size ?? "").match(/(\d+)\s*(pieces?|pcs?|ct)\b/i);
+  if (pieces) return { amount: Number(pieces[1]), unit: "pieces" };
   // A box of foils: "500 ct."
   const count = p.name.match(/(\d+)\s*ct\b/i);
   if (count) return { amount: Number(count[1]), unit: "foils" };
@@ -51,7 +54,13 @@ export function contents(p: Pick<InvProduct, "name" | "size">): { amount: number
 
 // ---- Measured: the recipes -------------------------------------------------
 
-type Ingredient = { key: string; label: string; match: RegExp };
+type Ingredient = {
+  key: string;
+  label: string;
+  match: RegExp;
+  /** A price she's told us, used until the thing is in her inventory. */
+  fallback?: { cents: number; amount: number; unit: Unit; from: string };
+};
 
 // Which inventory products price each ingredient. Several shades of the same
 // line are averaged (they cost the same today).
@@ -65,14 +74,37 @@ export const INGREDIENTS: Record<string, Ingredient> = {
   // The pop-up sheets, which come counted. The roll is cut to length, so it
   // can't be priced per foil.
   foil: { key: "foil", label: "Foils", match: /Pop Up Foil/i },
+  // Priced as single gloves; a pair is two.
+  gloves: { key: "gloves", label: "Gloves", match: /^Gloves\b/i },
+  // Caps, string and beads aren't in her inventory yet (8 Oct): the prices
+  // Paul gave stand in until they are, then the inventory's price wins.
+  cap: {
+    key: "cap",
+    label: "Plastic cap",
+    match: /plastic cap|processing cap/i,
+    fallback: { cents: 939, amount: 100, unit: "pieces", from: "$9.39 for 100" },
+  },
+  string: {
+    key: "string",
+    label: "String",
+    match: /extension (string|thread)|beading thread/i,
+    fallback: { cents: 899, amount: 1700, unit: "m", from: "$8.99 a spool of 1,700 m" },
+  },
+  beads: {
+    key: "beads",
+    label: "Beads",
+    match: /\bbeads?\b/i,
+    fallback: { cents: 1499, amount: 2500, unit: "pieces", from: "$14.99 for 2,500" },
+  },
 };
 
-/** Anything priced by a recipe, so the learned pools leave it out. */
+/** Anything priced by a recipe (chemicals and supplies), so the learned pools leave it out. */
 export const isChemical = (name: string) =>
-  Object.values(INGREDIENTS).some((i) => i.match.test(name)) || /GLOSS (COLLECTION|APPLICATOR)|Lifting Powder|Foil/i.test(name);
+  Object.values(INGREDIENTS).some((i) => i.match.test(name)) ||
+  /GLOSS (COLLECTION|APPLICATOR)|Lifting Powder|Foil|Glove|\bCaps?\b|\bBeads?\b|String|Thread/i.test(name);
 
-type Part = { ingredient: keyof typeof INGREDIENTS; amount: number };
-type Recipe = { parts: Part[]; maybe?: Part[]; waiting?: string[] };
+type Part = { ingredient: keyof typeof INGREDIENTS; amount: number; say?: string };
+type Recipe = { parts: Part[]; maybe?: Part[]; perRow?: Part[]; waiting?: string[] };
 
 const toner: Part[] = [
   { ingredient: "gloss", amount: 30 },
@@ -90,12 +122,38 @@ const colour = (share: number): Part[] => [
   { ingredient: "colourDev", amount: 75 * share },
 ];
 
+// One pair of gloves per colour service; a cap on signature colours only.
+const gloves: Part = { ingredient: "gloves", amount: 2, say: "Gloves, 1 pair" };
+const cap: Part = { ingredient: "cap", amount: 1, say: "Plastic cap" };
+
+// An arm's length of string taken as 70 cm -- an assumption, and it barely
+// matters: string is half a cent a metre.
+const ARM_M = 0.7;
+
 const FULL: Recipe = { parts: [...lift(1), ...toner] };
 const PARTIAL: Recipe = { parts: [...lift(0.5), ...toner] };
 const MINI: Recipe = { parts: [...lift(0.25), ...toner] };
-const ALLOVER: Recipe = { parts: colour(1), maybe: toner, waiting: ["Gloves", "Plastic caps"] };
-const ROOT: Recipe = { parts: colour(0.5), maybe: toner, waiting: ["Gloves", "Plastic caps"] };
-const EXTENSIONS: Recipe = { parts: [], waiting: ["Beads", "String"] };
+const ALLOVER: Recipe = { parts: [...colour(1), gloves, cap], maybe: toner };
+const ROOT: Recipe = { parts: [...colour(0.5), gloves], maybe: toner };
+// Per row: 4 arm's lengths of string and 15 beads. Extensions are priced by
+// the row -- $115 a row (Paul, 2026-10-08) -- so a visit's rows are what it
+// was paid ÷ $115.
+const EXTENSIONS: Recipe = {
+  parts: [],
+  perRow: [
+    { ingredient: "string", amount: 4 * ARM_M, say: "String, 4 arm's lengths (about 2.8 m)" },
+    { ingredient: "beads", amount: 15, say: "Beads, 15" },
+  ],
+};
+
+export const ROW_PRICE_CENTS = 11500;
+
+/** Rows in an extension visit: paid ÷ $115, rounded, at least one. */
+export const rowsFor = (paidCents: number) => Math.max(1, Math.round(paidCents / ROW_PRICE_CENTS));
+
+/** Average rows across a service's visits. */
+export const averageRows = (paid: number[]) =>
+  paid.length ? paid.reduce((t, c) => t + rowsFor(c), 0) / paid.length : 0;
 
 // By service name. "Cut & X" is X's chemicals; the cut's wash and styling come
 // from the learned pool every service shares.
@@ -132,7 +190,11 @@ export function priceIngredient(key: keyof typeof INGREDIENTS, products: InvProd
     .filter((p) => ing.match.test(p.name) && p.unit_cost_cents != null)
     .map((p) => ({ p, c: contents(p) }))
     .filter((x): x is { p: InvProduct; c: { amount: number; unit: Unit } } => x.c !== null);
-  if (found.length === 0) return null;
+  if (found.length === 0) {
+    const f = ing.fallback;
+    if (!f) return null;
+    return { label: ing.label, rate: f.cents / f.amount, unit: f.unit, working: `${f.from} (not in inventory yet)` };
+  }
   const rates = found.map((x) => x.p.unit_cost_cents! / x.c.amount);
   const rate = rates.reduce((a, b) => a + b, 0) / rates.length;
   const first = found[0];
@@ -146,12 +208,13 @@ export function priceIngredient(key: keyof typeof INGREDIENTS, products: InvProd
   };
 }
 
-export type CostLine = { label: string; amount: number; unit: string; cents: number; working: string };
+export type CostLine = { label: string; amount: number; unit: string; cents: number; working: string; say?: string };
 
 /** A service's measured lines, the toner-if-toned lines, and what's waiting. */
 export function measured(serviceName: string, products: InvProduct[]) {
   const recipe = RECIPES[serviceName];
-  if (!recipe) return { lines: [] as CostLine[], maybe: [] as CostLine[], waiting: [] as string[], missing: [] as string[] };
+  if (!recipe)
+    return { lines: [] as CostLine[], maybe: [] as CostLine[], perRow: [] as CostLine[], waiting: [] as string[], missing: [] as string[] };
   const missing: string[] = [];
   const price = (parts: Part[]) =>
     parts.flatMap((part) => {
@@ -160,9 +223,15 @@ export function measured(serviceName: string, products: InvProduct[]) {
         missing.push(INGREDIENTS[part.ingredient].label);
         return [];
       }
-      return [{ label: p.label, amount: part.amount, unit: p.unit, cents: part.amount * p.rate, working: p.working }];
+      return [{ label: p.label, amount: part.amount, unit: p.unit, cents: part.amount * p.rate, working: p.working, say: part.say }];
     });
-  return { lines: price(recipe.parts), maybe: price(recipe.maybe ?? []), waiting: recipe.waiting ?? [], missing };
+  return {
+    lines: price(recipe.parts),
+    maybe: price(recipe.maybe ?? []),
+    perRow: price(recipe.perRow ?? []),
+    waiting: recipe.waiting ?? [],
+    missing,
+  };
 }
 
 // ---- Learned: finished back-bar bottles ------------------------------------

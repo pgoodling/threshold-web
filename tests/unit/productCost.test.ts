@@ -12,6 +12,8 @@ import {
   inWashPool,
   usesWash,
   usesMask,
+  rowsFor,
+  averageRows,
   INGREDIENTS,
   type InvProduct,
   type Movement,
@@ -31,6 +33,7 @@ const INV: InvProduct[] = [
   { name: "Tinta Tinta, So Pure, & 1922 by J.M. Keune Developer 6% 20 Vol. Liter", size: null, unit_cost_cents: 1190 },
   { name: "Framar Embossed Pop Up Foil Medium Diet Coke 5 inch x 11 inch 500 ct.", size: null, unit_cost_cents: 2399 },
   { name: "Framar Embossed Foil Roll Medium Extra Dirty 320 ft.", size: null, unit_cost_cents: 1899 },
+  { name: "Gloves", size: "100 pieces", unit_cost_cents: 1595 },
 ];
 
 const near = (a: number, b: number, tol = 0.5) => assert.ok(Math.abs(a - b) <= tol, `${a} not within ${tol} of ${b}`);
@@ -81,13 +84,34 @@ test("partial is half the lightening and foils, the same toner: $7.63", () => {
   near(measured("Custom Cut & Partial Highlight", INV).lines.reduce((t, l) => t + l.cents, 0), 763.5);
 });
 
-test("all-over colour $8.80, root half; toner only 'if toned'", () => {
+test("all-over colour $9.21 with gloves and a cap; root $4.72 with gloves; toner only 'if toned'", () => {
   // Tinta 50 ml × (935 ÷ 59.147) = 790.4¢; developer 75 ml × 1.19 = 89.25¢ → 879.6¢
+  // Gloves: a pair = 2 × (1595 ÷ 100) = 31.9¢. Cap: 939 ÷ 100 = 9.39¢ (Paul's price).
+  // All-over 879.6 + 31.9 + 9.39 = 920.9¢. Root 439.8 + 31.9 = 471.7¢ (no cap).
   const all = measured("Signature Color", INV);
-  near(all.lines.reduce((t, l) => t + l.cents, 0), 879.6);
-  near(measured("Root Retouch", INV).lines.reduce((t, l) => t + l.cents, 0), 439.8);
+  near(all.lines.reduce((t, l) => t + l.cents, 0), 920.9);
+  near(measured("Root Retouch", INV).lines.reduce((t, l) => t + l.cents, 0), 471.7);
+  assert.ok(!measured("Root Retouch", INV).lines.some((l) => l.label === "Plastic cap"));
+  assert.match(all.lines.find((l) => l.label === "Plastic cap")!.working, /not in inventory yet/);
   // 370.3 + 54.0
   near(all.maybe.reduce((t, l) => t + l.cents, 0), 424.3);
+});
+
+test("extensions: about 10.5¢ a row; rows are paid ÷ $115", () => {
+  // String 2.8 m × (899 ÷ 1,700) = 1.48¢; beads 15 × (1,499 ÷ 2,500) = 8.99¢ → 10.47¢
+  const m = measured("Hand-tied Extension Application", INV);
+  assert.equal(m.lines.length, 0);
+  near(m.perRow.reduce((t, l) => t + l.cents, 0), 10.47, 0.05);
+  assert.deepEqual(m.waiting, []);
+  // $115 = 1 row, $230 = 2, $345 = 3; a $100 visit still had a row.
+  assert.deepEqual([11500, 23000, 34500, 10000].map(rowsFor), [1, 2, 3, 1]);
+  // Visits of $115 and $345 average 2 rows.
+  assert.equal(averageRows([11500, 34500]), 2);
+});
+
+test("gloves, caps, beads and string stay out of the learned pool", () => {
+  for (const n of ["Gloves", "Plastic Processing Caps 100 ct.", "Extension Beads", "Extension String"])
+    assert.ok(!inWashPool(n), n);
 });
 
 test("a cut has no measured product; a consultation uses nothing", () => {

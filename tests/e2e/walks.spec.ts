@@ -181,7 +181,7 @@ test("Money: Services", async () => {
     check("product per visit", sum.includes(`1 × ${EXPECT.highlightProduct} product`), EXPECT.highlightProduct, sum);
     for (const [label, amount] of [["Lightener 30 g", "$1.38"], ["Developer 60 ml", "$0.45"], ["32.5 foils", "$1.56"], ["Toner 30 ml", "$3.70"], ["Toner activator 60 ml", "$0.54"]])
       check(`${label} = ${amount}`, await page.getByText(label).isVisible() && (await page.getByText(amount, { exact: true }).count()) > 0, amount);
-    check("nothing waiting", (await page.getByText("waiting: not in inventory yet").count()) === 0);
+    check("nothing waiting", (await page.getByText("waiting: not known yet").count()) === 0);
   });
 });
 

@@ -23,6 +23,7 @@ import {
   type Movement,
   type Pool,
   LEARN_FROM,
+  averageRows,
 } from "../../lib/productCost";
 
 // Services: what each one earns per hour of her hands.
@@ -132,12 +133,17 @@ export default function MoneyServices() {
   const productBy = useMemo(() => {
     const m = new Map<string, number>();
     for (const r of rows ?? [])
+    {
+      const mm = measured(r.name, products);
+      const rows = averageRows(r.visits.map((v) => v.paidCents));
       m.set(
         r.name,
-        measured(r.name, products).lines.reduce((t, l) => t + l.cents, 0) +
+        mm.lines.reduce((t, l) => t + l.cents, 0) +
+          mm.perRow.reduce((t, l) => t + l.cents, 0) * rows +
           (usesWash(r.name) ? (pools.wash.perVisit ?? 0) : 0) +
           (usesMask(r.name) ? (pools.mask.perVisit ?? 0) : 0),
       );
+    }
     return m;
   }, [rows, products, pools]);
   const productOf = (name: string) => productBy.get(name) ?? 0;
@@ -205,7 +211,12 @@ export default function MoneyServices() {
           <Line label="Left, after product" value={exact(net / n)} strong />
         </div>
 
-        <ProductWorking name={r.name} products={products} pools={pools} />
+        <ProductWorking
+          name={r.name}
+          products={products}
+          pools={pools}
+          rows={averageRows(r.visits.map((v) => v.paidCents))}
+        />
 
         <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white text-sm shadow-sm">
           <Line
@@ -373,17 +384,20 @@ function ProductWorking({
   name,
   products,
   pools,
+  rows,
 }: {
   name: string;
   products: InvProduct[];
   pools: { wash: Pool; mask: Pool };
+  /** Average rows per visit, for extensions (paid ÷ $115). */
+  rows: number;
 }) {
   const m = measured(name, products);
   const learned: [string, Pool][] = [
     ...(usesWash(name) ? ([["Bowl and styling", pools.wash]] as [string, Pool][]) : []),
     ...(usesMask(name) ? ([["Mask", pools.mask]] as [string, Pool][]) : []),
   ];
-  if (m.lines.length === 0 && learned.length === 0 && m.waiting.length === 0)
+  if (m.lines.length === 0 && m.perRow.length === 0 && learned.length === 0 && m.waiting.length === 0)
     return <p className="mt-3 text-sm text-muted">No product used.</p>;
 
   return (
@@ -393,7 +407,10 @@ function ProductWorking({
       {m.lines.map((l) => (
         <Line
           key={l.label}
-          label={l.unit === "foils" ? `${Math.round(l.amount * 10) / 10} foils` : `${l.label} ${Math.round(l.amount * 10) / 10} ${l.unit}`}
+          label={
+            l.say ??
+            (l.unit === "foils" ? `${Math.round(l.amount * 10) / 10} foils` : `${l.label} ${Math.round(l.amount * 10) / 10} ${l.unit}`)
+          }
           sub={l.working}
           value={cents2(l.cents)}
         />
@@ -405,11 +422,24 @@ function ProductWorking({
           value={`+${cents2(m.maybe.reduce((t, l) => t + l.cents, 0))}`}
         />
       )}
+      {m.perRow.length > 0 && (
+        <p className="px-4 pt-2 text-xs text-muted">
+          Per row; {Math.round(rows * 10) / 10} row{rows === 1 ? "" : "s"} a visit on average (paid ÷ $115)
+        </p>
+      )}
+      {m.perRow.map((l) => (
+        <Line
+          key={l.label}
+          label={l.say ?? l.label}
+          sub={`${l.working} · ${cents2(l.cents)} a row`}
+          value={cents2(l.cents * rows)}
+        />
+      ))}
       {m.missing.map((w) => (
         <Line key={w} label={w} sub="no price in inventory" value="—" />
       ))}
       {m.waiting.map((w) => (
-        <Line key={w} label={w} sub="waiting: not in inventory yet" value="—" />
+        <Line key={w} label={w} sub="waiting: not known yet" value="—" />
       ))}
       {learned.length > 0 && (
         <p className="px-4 pt-2 text-xs text-muted">Learned: finished back-bar bottles ÷ visits</p>
