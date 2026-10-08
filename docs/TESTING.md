@@ -94,3 +94,17 @@ First run (2026-10-07) found:
   order import, and the Relay CSV import — they need fixture files.
 - Cron jobs and the iPad two-pane layout. Real card entry: the booking walk stands in for Stripe's setup-intent call (card already on file), so Stripe itself is untested.
 - Real devices. Playwright's phone is Chrome at 390×844, not Safari on an iPhone.
+
+## Button audit
+
+`npm run audit` (the rig must be running) visits 40 screens of the website,
+booking and studio at phone size and measures every tappable thing, sorted by
+kind — back, close, arrow, icon, primary, secondary, text action, tab, choice,
+checkbox, field. It writes `e2e-out/audit/report.html` (a table by kind and a
+photo of every screen with anything under 44 points outlined in red) and
+`audit.json`. A report, not a test: it never fails.
+
+First run, 2026-10-08: 263 distinct controls, 181 under 44 points. Worst: back
+links 17–20 tall, text actions 15–20, main buttons anywhere from 22 to 48 in
+three shapes, tabs 24–30, icon buttons 28–36, Settings switches 38×22. The
+booking step bar also runs off a phone's right edge.
