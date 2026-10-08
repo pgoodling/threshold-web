@@ -599,23 +599,30 @@ test("Year-end summary for the preparer", async () => {
 });
 
 test("Paid by Evelyn, owed back", async () => {
-  const w = walk("Paid by Evelyn, owed back", "Something she paid for herself before Relay: one form, and it shows as owed back.");
-  await w.step(page, "Bank → Add something Evelyn paid for → $412 at IKEA", async (check) => {
+  const w = walk("Paid by Evelyn, owed back", "A pile of receipts she paid herself: one line each, a running total, recorded together, and owed back.");
+  await w.step(page, "Two receipts, $412 + $86.20: the total reads $498.20", async (check) => {
     await open("money/bank");
     await page.getByRole("button", { name: "Add something Evelyn paid for" }).click();
     await page.locator("input[type='date']").last().fill("2026-08-30");
-    await page.getByPlaceholder("2043.38").fill("412");
-    await page.getByPlaceholder("Premier Beauty Supply").fill("IKEA");
+    await page.getByPlaceholder("2043.38").last().fill("412");
+    await page.getByPlaceholder("Premier Beauty Supply").last().fill("IKEA");
     await page.locator("select").last().selectOption({ label: "Furniture and fixtures" });
-    await page.getByRole("button", { name: "Record it" }).click();
-    await expect(page.getByText("IKEA — $412.00 recorded.")).toBeVisible();
-    // Nothing paid back yet, so all $412 is owed.
-    await expect(page.getByText("Still owed to her")).toBeVisible();
+    await page.getByRole("button", { name: "Add another" }).click();
+    // The new line starts with the same date and category.
+    check("date carried down", (await page.locator("input[type='date']").last().inputValue()) === "2026-08-30");
+    await page.getByPlaceholder("2043.38").last().fill("86.20");
+    await page.getByPlaceholder("Premier Beauty Supply").last().fill("Amazon");
+    await expect(page.getByText("$498.20")).toBeVisible();
+    check("running total", true, "$498.20", "$498.20");
+  });
+  await w.step(page, "Record all 2: both saved, and owed back", async (check) => {
+    await page.getByRole("button", { name: "Record all 2" }).click();
+    await expect(page.getByText("2 recorded · $498.20")).toBeVisible();
     const row = (await page.getByText("Still owed to her").locator("..").textContent()) ?? "";
-    check("owed $412.00", row.includes("$412.00"), "$412.00", row);
-    const db = (await sql.query(
-      `select t.amount_cents from bank_transactions t join bank_accounts a on a.id = t.account_id
-        where a.name = 'Paid outside Relay' and t.merchant = 'IKEA'`)).rows[0];
-    check("saved as money out on her own account", Number(db?.amount_cents) === -41200, -41200, db?.amount_cents);
+    check("owed $498.20", row.includes("$498.20"), "$498.20", row);
+    const n = (await sql.query(
+      `select count(*) n, sum(t.amount_cents) s from bank_transactions t join bank_accounts a on a.id = t.account_id
+        where a.name = 'Paid outside Relay'`)).rows[0];
+    check("two rows, −49,820 in all", Number(n.n) === 2 && Number(n.s) === -49820, "2 / −49820", `${n.n} / ${n.s}`);
   });
 });
