@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus } from "lucide-react";
+import MoneyManual from "./MoneyManual";
 import { supabase } from "../../lib/supabase";
 import { readableTxn } from "../../lib/bankNames";
 import { owed, PAID_PERSONALLY_ACCOUNT, REIMBURSEMENT_CATEGORY, type Paid } from "../../lib/reimburse";
@@ -33,10 +35,12 @@ const toPaid = (r: Raw): Paid => {
   };
 };
 
-export default function MoneyReimburse({ reloadKey }: { reloadKey: number }) {
+export default function MoneyReimburse({ reloadKey, onChanged }: { reloadKey: number; onChanged?: () => void }) {
   const [paid, setPaid] = useState<Paid[] | null>(null);
   const [repaid, setRepaid] = useState<Paid[]>([]);
   const [showAll, setShowAll] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -59,7 +63,7 @@ export default function MoneyReimburse({ reloadKey }: { reloadKey: number }) {
     return () => {
       alive = false;
     };
-  }, [reloadKey]);
+  }, [reloadKey, added]);
 
   if (paid === null) return null;
   const o = owed(paid, repaid);
@@ -74,8 +78,8 @@ export default function MoneyReimburse({ reloadKey }: { reloadKey: number }) {
       <div className="mt-2 overflow-hidden rounded-xl border border-foreground/15 bg-white text-sm">
         {paid.length === 0 ? (
           <p className="px-4 py-3 text-muted">
-            Nothing yet. Add each thing she paid for herself with &ldquo;A purchase the bank didn&rsquo;t
-            see&rdquo; below; when Relay pays her back, file that payment as &ldquo;{REIMBURSEMENT_CATEGORY}&rdquo;.
+            Nothing yet. Add each thing she paid for herself below. When Relay pays her back,
+            file that payment as &ldquo;{REIMBURSEMENT_CATEGORY}&rdquo;.
           </p>
         ) : (
           <>
@@ -102,6 +106,23 @@ export default function MoneyReimburse({ reloadKey }: { reloadKey: number }) {
           </>
         )}
       </div>
+      {adding ? (
+        <MoneyManual
+          startOpen
+          onAdded={() => {
+            setAdded((n) => n + 1);
+            onChanged?.();
+          }}
+          onClose={() => setAdding(false)}
+        />
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-sm text-accent hover:text-accent-dark"
+        >
+          <Plus size={15} /> Add something Evelyn paid for
+        </button>
+      )}
     </section>
   );
 }

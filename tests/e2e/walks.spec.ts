@@ -597,3 +597,25 @@ test("Year-end summary for the preparer", async () => {
     check("a CSV named for the year", /^threshold-\d{4}-schedule-c\.csv$/.test(dl.suggestedFilename()), "threshold-YYYY-schedule-c.csv", dl.suggestedFilename());
   });
 });
+
+test("Paid by Evelyn, owed back", async () => {
+  const w = walk("Paid by Evelyn, owed back", "Something she paid for herself before Relay: one form, and it shows as owed back.");
+  await w.step(page, "Bank → Add something Evelyn paid for → $412 at IKEA", async (check) => {
+    await open("money/bank");
+    await page.getByRole("button", { name: "Add something Evelyn paid for" }).click();
+    await page.locator("input[type='date']").last().fill("2026-08-30");
+    await page.getByPlaceholder("2043.38").fill("412");
+    await page.getByPlaceholder("Premier Beauty Supply").fill("IKEA");
+    await page.locator("select").last().selectOption({ label: "Furniture and fixtures" });
+    await page.getByRole("button", { name: "Record it" }).click();
+    await expect(page.getByText("IKEA — $412.00 recorded.")).toBeVisible();
+    // Nothing paid back yet, so all $412 is owed.
+    await expect(page.getByText("Still owed to her")).toBeVisible();
+    const row = (await page.getByText("Still owed to her").locator("..").textContent()) ?? "";
+    check("owed $412.00", row.includes("$412.00"), "$412.00", row);
+    const db = (await sql.query(
+      `select t.amount_cents from bank_transactions t join bank_accounts a on a.id = t.account_id
+        where a.name = 'Paid outside Relay' and t.merchant = 'IKEA'`)).rows[0];
+    check("saved as money out on her own account", Number(db?.amount_cents) === -41200, -41200, db?.amount_cents);
+  });
+});

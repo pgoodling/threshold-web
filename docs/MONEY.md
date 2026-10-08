@@ -636,7 +636,7 @@ tax preparer (`lib/yearEnd.ts`, `MoneyYearEnd.tsx`).
   in the Intuit deposits, so card deposits run higher than card check-outs by
   the tips; the year-end summary labels the difference as tips.
 - **Reimbursements.** Costs she paid herself before Relay are entered with
-  "A purchase the bank didn't see" (account *Paid outside Relay*) — expenses
+  "Add something Evelyn paid for" in that section (account *Paid outside Relay*) — expenses
   when paid. Relay paying her back is filed **Reimbursement to Evelyn** (0050,
   kind owner: not a second expense, not a draw). Money → Bank shows paid,
   paid back and still owed (`lib/reimburse.ts`, `MoneyReimburse.tsx`).

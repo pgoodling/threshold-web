@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import MoneyStatement from "./MoneyStatement";
 import MoneyReview from "./MoneyReview";
-import MoneyManual from "./MoneyManual";
 import MoneyReimburse from "./MoneyReimburse";
 import { supabase } from "../../lib/supabase";
 import { readableTxn as readable } from "../../lib/bankNames";
@@ -69,7 +68,6 @@ export default function MoneyBank({ onChanged }: { onChanged?: () => void }) {
   const [cats, setCats] = useState<Category[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [manual, setManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Two keys, not one. The months refetch when anything is sorted; the review
   // list only remounts after an upload. Sharing a key would loop: the list
@@ -331,23 +329,8 @@ export default function MoneyBank({ onChanged }: { onChanged?: () => void }) {
         ))
       )}
 
-      <MoneyReimburse reloadKey={reloadKey + reviewKey} />
+      <MoneyReimburse reloadKey={reloadKey + reviewKey} onChanged={changed} />
 
-      {manual ? (
-        <MoneyManual
-          onAdded={() => {
-            setManual(false);
-            changed();
-          }}
-        />
-      ) : (
-        <button
-          onClick={() => setManual(true)}
-          className="mt-5 inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent-dark"
-        >
-          <Plus size={15} /> A purchase the bank didn&rsquo;t see
-        </button>
-      )}
     </div>
   );
 }

@@ -24,8 +24,17 @@ const MANUAL_ACCOUNT = "Paid outside Relay";
 
 type Category = { id: string; name: string; kind: string };
 
-export default function MoneyManual({ onAdded }: { onAdded?: () => void }) {
-  const [open, setOpen] = useState(false);
+export default function MoneyManual({
+  onAdded,
+  onClose,
+  startOpen = false,
+}: {
+  onAdded?: () => void;
+  /** Closing the form, when the caller is the one showing it. */
+  onClose?: () => void;
+  startOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(startOpen);
   const [cats, setCats] = useState<Category[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,11 +145,11 @@ export default function MoneyManual({ onAdded }: { onAdded?: () => void }) {
 
   return (
     <div className="mt-4 max-w-prose rounded-xl border border-foreground/15 bg-white p-4 shadow-sm">
-      <p className="text-sm font-medium">A purchase the bank doesn&rsquo;t show</p>
+      <p className="text-sm font-medium">Something Evelyn paid for herself</p>
       <p className="mt-1 text-xs text-muted">
-        Paid before the Relay account existed, or on a card that isn&rsquo;t in it.
-        Counts everywhere a bank row would — including startup costs, if it&rsquo;s
-        dated before she opened.
+        Paid before Relay existed, or on her own card. It counts as a business
+        cost on the day she paid, and goes on what she&rsquo;s owed back. Stays
+        open for the next one.
       </p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -219,6 +228,7 @@ export default function MoneyManual({ onAdded }: { onAdded?: () => void }) {
             setOpen(false);
             setDone(null);
             setError(null);
+            onClose?.();
           }}
           className="rounded-lg px-3 py-1.5 text-sm text-muted transition hover:text-foreground"
         >
