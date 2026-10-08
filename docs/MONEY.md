@@ -616,7 +616,8 @@ tax preparer (`lib/yearEnd.ts`, `MoneyYearEnd.tsx`).
   in net profit, as Taxes assumes; the preparer chooses the line.
 - For the preparer: retail stock on the shelf at cost (today's count — take
   it on 31 Dec), card and other takings recorded at check-out against what
-  reached the bank as income (flags cash not entered), rows still to sort,
+  reached the bank as income (flags cash not entered; card deposits run
+  higher than check-outs by the tips, which are labelled as such), rows still to sort,
   and owner money that isn't on the form.
 - Every line opens onto its transactions; **Download for preparer** writes
   the same as a CSV.

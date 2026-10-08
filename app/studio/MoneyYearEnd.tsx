@@ -194,7 +194,13 @@ export default function MoneyYearEnd({ onBack }: { onBack: () => void }) {
               <>
                 <Row
                   label="Card taken at check-out"
-                  sub={`card deposits in the bank: ${money(takings.cardDepositedCents)}`}
+                  // Card tips go through the reader but aren't recorded at
+                  // check-out, so deposits run higher by the tips (Paul, 8 Oct).
+                  sub={`card deposits in the bank: ${money(takings.cardDepositedCents)}${
+                    takings.cardDepositedCents > takings.cardRecordedCents
+                      ? ` · ${money(takings.cardDepositedCents - takings.cardRecordedCents)} more, from tips`
+                      : ""
+                  }`}
                   value={money(takings.cardRecordedCents)}
                 />
                 <Row
