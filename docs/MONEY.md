@@ -549,3 +549,25 @@ consumption window rather than calendar month.
 **Plaid.** Approved, costed and then dropped — see the decision note above.
 She uploads the CSV monthly from her phone. Nothing in the ingestion path
 assumes it, so this could be revived without touching anything above it.
+
+## Product cost per service (2026-10-08)
+
+`lib/productCost.ts`, shown on Money → Services with the working.
+
+- **Measured** — colour and lightener, from Evelyn's own amounts:
+  full highlight / balayage / grey blending 60 g Blonde IQ + 120 ml Redken
+  developer; partial half; mini foil a quarter; toner 30 ml Maria Nila gloss +
+  60 ml liquid activator on every lightening service (same amount on partials
+  and minis). All-over colour 50 g Tinta + 75 ml Tinta developer, root retouch
+  half; toner there is "if toned", shown but not counted. Priced from the
+  inventory, so new prices flow through. Grams are counted as ml for liquids.
+- **Learned** — bowl, styling and masks vary, so: finished back-bar bottles'
+  cost ÷ paid visits between the first going on the bar and the last being
+  finished. Masks only spread over treatment services; consultations use
+  nothing. Only bottles put on the bar from 1 Oct count (`LEARN_FROM`): the
+  25 and 29 Sep entries were the back bar being set up with bottles already in
+  use, and counting them gave a misleading $6.67 a visit.
+- **Waiting** — foils, gloves, caps, extension beads and string: shown as
+  waiting until they're in the inventory with a price. No keratin products yet.
+- The four Keune liters were corrected from $10.30 to $34 (products and their
+  movements) on 2026-10-08.

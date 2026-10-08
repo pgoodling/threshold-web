@@ -72,7 +72,12 @@ export function dates() {
 //   Cut & Style    fees: Mike round(5,500 × 0.022745) = 125, Sarah cash 0
 //                  hands 60 + 60 = 120 → (11,000 − 125) ÷ 120 × 60 = $54.38/h
 //   Liz highlight  fee round(20,000 × 0.022745) = 455; hands 60 + 75 = 135
-//                  → (20,000 − 455) ÷ 135 × 60 = $86.87/h
+//                  product (a partial, her measures, the prices seeded below):
+//                    lightener 30 g × 2,300 ÷ 498.95 g = 138.29
+//                    developer 60 ml × 750 ÷ 1,000     =  45.00
+//                    gloss 30 ml × 730 ÷ 59.147        = 370.26
+//                    activator 60 ml × 900 ÷ 1,000     =  54.00  → 607.55
+//                  → (20,000 − 455 − 607.55) ÷ 135 × 60 = $84.17/h
 //   sales tax      2 × $2.09 = $4.18
 
 export const EXPECT = {
@@ -80,7 +85,8 @@ export const EXPECT = {
   expensesCents: 41330,
   setupCents: 120800,
   cutPerHour: "$54.38",
-  highlightPerHour: "$86.87",
+  highlightPerHour: "$84.17",
+  highlightProduct: "$6.08",
   lastMonthSalesTaxCents: 418,
 };
 
@@ -137,6 +143,16 @@ export async function seed(r: Rig) {
     const shampoo = await product("Keune", "Long & Strong Strengthening Shampoo 10.1 oz.", 1500, 3400, true, true, 3);
     const conditioner = await product("Keune", "Long & Strong Strengthening Conditioner 8.5 oz.", 1500, 3400, true, true, 2);
     await product("Keune", "Long & Strong Super Serum 3.4 oz.", 2300, null, true, true, 1);
+    // The chemicals a highlight's product cost is priced from (see EXPECT).
+    for (const [brand, name, cost, size] of [
+      ["Redken", "Blonde IQ 7 Calibrated Powder Lightener", 2300, "1.1 lb"],
+      ["Redken", "Pro-Oxide Oil Developer 20 Volume", 750, "1 litre"],
+      ["maria nila", "GLOSS COLLECTION 7.1A 2 Fl. Oz.", 730, null],
+      ["maria nila", "GLOSS COLLECTION LIQUID ACTIVATOR Liter", 900, null],
+    ] as const) {
+      const id = await product(brand, name, cost, null, false, true, 0);
+      if (size) await c.query(`update products set size = $2 where id = $1`, [id, size]);
+    }
     await product("Keune", "Velvet Smooth Anti-frizz Mask 8.5 oz.", 2100, 4800, true, true, 0);
     await product("Keune", "Tinta 6- Dark Blonde 2 Fl. Oz.", 1030, null, false, true, 2);
 

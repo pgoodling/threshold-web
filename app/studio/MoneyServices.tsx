@@ -12,6 +12,18 @@ import {
   type EarningsAppt,
   type ServiceRow,
 } from "../../lib/serviceEarnings";
+import {
+  measured,
+  pool,
+  inWashPool,
+  isMask,
+  usesWash,
+  usesMask,
+  type InvProduct,
+  type Movement,
+  type Pool,
+  LEARN_FROM,
+} from "../../lib/productCost";
 
 // Services: what each one earns per hour of her hands.
 //
@@ -23,13 +35,13 @@ import {
 // where she set its own (a blowout stretched to two hours earned what it
 // earned), otherwise from the service.
 //
-// BEFORE PRODUCT, for now. The first version spread every product order since
-// opening across every visit by length, and Paul was right that it's the wrong
-// model: an order isn't used up the month it arrives, and a two-oz tube of
-// colour doesn't touch a blowout. The honest cost of a service is what goes on
-// the head — so many ml from a bottle whose price she knows — and that needs
-// her list of what she uses for each service. Until it exists, no product
-// figure is better than an invented one.
+// AFTER PRODUCT (2026-10-08), from her own list of what each service uses --
+// see lib/productCost.ts. Colour and lightener are measured (her grams × what
+// she paid); bowl and styling products are learned from back-bar bottles she
+// has finished. The first version spread every product order across every
+// visit, and Paul was right that it was the wrong model: an order isn't used up
+// the month it arrives, and a tube of colour doesn't touch a blowout. Anything
+// not yet known says so rather than being guessed.
 //
 // CARD FEES come from her own statement: what Intuit charged over what it
 // deposited, applied to card visits only.
@@ -54,6 +66,8 @@ export default function MoneyServices() {
   const [feeRate, setFeeRate] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [products, setProducts] = useState<InvProduct[]>([]);
+  const [moves, setMoves] = useState<Movement[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -69,7 +83,12 @@ export default function MoneyServices() {
         .select("amount_cents,expense_categories(name)")
         .eq("is_business", true)
         .not("reviewed_at", "is", null),
-    ]).then(([a, t]) => {
+      supabase.from("products").select("name,size,unit_cost_cents").eq("active", true),
+      supabase
+        .from("inventory_movements")
+        .select("kind,quantity,unit_cost_cents,occurred_on,created_at,products(name)")
+        .in("kind", ["used", "finished"]),
+    ]).then(([a, t, p, m]) => {
       if (!alive) return;
       if (a.error || t.error) setError((a.error ?? t.error)!.message);
       const one = <T,>(x: T | T[] | null): T | null => (Array.isArray(x) ? (x[0] ?? null) : x);
@@ -82,18 +101,54 @@ export default function MoneyServices() {
       );
       setRows(serviceRows((a.data ?? []) as unknown as EarningsAppt[], rate));
       setFeeRate(rate);
+      setProducts((p.data ?? []) as InvProduct[]);
+      setMoves(
+        (m.data ?? []).map((r) => ({
+          kind: r.kind as string,
+          quantity: Number(r.quantity),
+          unit_cost_cents: r.unit_cost_cents as number | null,
+          occurred_on: r.occurred_on as string,
+          created_at: r.created_at as string,
+          product_name: one(r.products as unknown as { name: string } | null)?.name ?? "",
+        })),
+      );
     });
     return () => {
       alive = false;
     };
   }, []);
 
+  // The two learned pools, each over the visits that draw on it.
+  const pools = useMemo(() => {
+    const days = (test: (s: string) => boolean) =>
+      (rows ?? []).filter((r) => test(r.name)).flatMap((r) => r.visits.map((v) => v.day));
+    return {
+      wash: pool(moves, inWashPool, days(usesWash)),
+      mask: pool(moves, isMask, days(usesMask)),
+    };
+  }, [rows, moves]);
+
+  // Product per visit for each service: measured lines + its share of the pools.
+  const productBy = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of rows ?? [])
+      m.set(
+        r.name,
+        measured(r.name, products).lines.reduce((t, l) => t + l.cents, 0) +
+          (usesWash(r.name) ? (pools.wash.perVisit ?? 0) : 0) +
+          (usesMask(r.name) ? (pools.mask.perVisit ?? 0) : 0),
+      );
+    return m;
+  }, [rows, products, pools]);
+  const productOf = (name: string) => productBy.get(name) ?? 0;
+  const rate = useMemo(() => (r: Row) => handRate(r, productBy.get(r.name) ?? 0), [productBy]);
+
   const ranked = useMemo(
-    () => (rows ?? []).filter((r) => r.visits.length >= MIN_VISITS).sort((a, b) => handRate(b) - handRate(a)),
-    [rows],
+    () => (rows ?? []).filter((r) => r.visits.length >= MIN_VISITS).sort((a, b) => rate(b) - rate(a)),
+    [rows, rate],
   );
   const few = (rows ?? []).filter((r) => r.visits.length < MIN_VISITS);
-  const top = ranked[0] ? handRate(ranked[0]) : 1;
+  const top = ranked[0] ? rate(ranked[0]) : 1;
   const lowBar = top * 0.5;
 
   if (error) return <p className="text-sm text-red-600">{error}</p>;
@@ -109,6 +164,8 @@ export default function MoneyServices() {
     const chair = sum(r.visits, "chairMinutes");
     const proc = sum(r.visits, "processMinutes");
     const listGap = r.listCents && r.listCents > 0 ? paid / n / r.listCents - 1 : 0;
+    const product = productOf(r.name);
+    const net = paid - fee - product * n;
 
     return (
       <div className="max-w-xl">
@@ -124,13 +181,13 @@ export default function MoneyServices() {
 
         <div className="mt-4 flex gap-8">
           <div>
-            <p className="text-3xl font-medium tabular-nums">{whole(perHour(paid - fee, hands))}</p>
+            <p className="text-3xl font-medium tabular-nums">{whole(perHour(net, hands))}</p>
             <p className="text-xs text-muted">per hour of your hands</p>
           </div>
           {proc > 0 && (
             <div>
               <p className="text-3xl font-medium tabular-nums text-muted">
-                {whole(perHour(paid - fee, chair))}
+                {whole(perHour(net, chair))}
               </p>
               <p className="text-xs text-muted">per hour in the chair</p>
             </div>
@@ -144,9 +201,11 @@ export default function MoneyServices() {
             sub={feeRate ? `${(feeRate * 100).toFixed(1)}% on card visits` : undefined}
             value={`−${exact(fee / n)}`}
           />
-          <Line label="Product" sub="not set yet — needs her product list" value="—" />
-          <Line label="Left, before product" value={exact((paid - fee) / n)} strong />
+          <Line label="Product" sub="per visit, so far: below" value={`−${exact(product)}`} />
+          <Line label="Left, after product" value={exact(net / n)} strong />
         </div>
+
+        <ProductWorking name={r.name} products={products} pools={pools} />
 
         <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white text-sm shadow-sm">
           <Line
@@ -210,8 +269,8 @@ export default function MoneyServices() {
           </table>
         </div>
         <p className="mt-2 text-xs text-muted">
-          ({exact(paid)} − {exact(fee)}) ÷ {hands} min × 60 = {exact(perHour(paid - fee, hands))} an
-          hour
+          ({exact(paid)} − {exact(fee)} − {n} × {exact(product)} product) ÷ {hands} min × 60 ={" "}
+          {exact(perHour(net, hands))} an hour
         </p>
       </div>
     );
@@ -221,14 +280,14 @@ export default function MoneyServices() {
   return (
     <div className="max-w-xl">
       <p className="text-sm text-muted">What each service earns</p>
-      <p className="text-[15px]">per hour of your hands, before product</p>
+      <p className="text-[15px]">per hour of your hands, after product so far</p>
 
       {ranked.length === 0 ? (
         <p className="mt-4 text-sm text-muted">Not enough paid visits yet.</p>
       ) : (
         <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white shadow-sm">
           {ranked.map((x) => {
-            const ph = handRate(x);
+            const ph = rate(x);
             const low = ph < lowBar;
             return (
               <button
@@ -268,7 +327,7 @@ export default function MoneyServices() {
                   className="flex w-full justify-between gap-3 border-t border-foreground/10 px-3 py-2 text-left first:border-t-0"
                 >
                   <span className="min-w-0">{x.name}</span>
-                  <span className="shrink-0 tabular-nums text-muted">{whole(handRate(x))}/h</span>
+                  <span className="shrink-0 tabular-nums text-muted">{whole(rate(x))}/h</span>
                 </button>
               ))}
           </div>
@@ -276,8 +335,8 @@ export default function MoneyServices() {
       )}
 
       <p className="mt-4 text-xs text-muted">
-        Product isn&rsquo;t taken off yet. It will be once each service has its list of what
-        goes on the head.
+        Product: color and lightener from her measures; bowl and styling from back-bar bottles
+        she&rsquo;s finished. Open a service to see the working.
       </p>
     </div>
   );
@@ -301,6 +360,72 @@ function Line({
         {sub && <span className="block text-xs font-normal text-muted">{sub}</span>}
       </span>
       <span className={`shrink-0 tabular-nums ${strong ? "font-medium" : ""}`}>{value}</span>
+    </div>
+  );
+}
+
+const day = (d: string) =>
+  new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+const cents2 = (c: number) => `$${(c / 100).toFixed(2)}`;
+
+// The product figure, line by line, with where each number comes from.
+function ProductWorking({
+  name,
+  products,
+  pools,
+}: {
+  name: string;
+  products: InvProduct[];
+  pools: { wash: Pool; mask: Pool };
+}) {
+  const m = measured(name, products);
+  const learned: [string, Pool][] = [
+    ...(usesWash(name) ? ([["Bowl and styling", pools.wash]] as [string, Pool][]) : []),
+    ...(usesMask(name) ? ([["Mask", pools.mask]] as [string, Pool][]) : []),
+  ];
+  if (m.lines.length === 0 && learned.length === 0 && m.waiting.length === 0)
+    return <p className="mt-3 text-sm text-muted">No product used.</p>;
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-xl border border-foreground/15 bg-white text-sm shadow-sm">
+      <p className="px-4 pt-2.5 text-xs uppercase tracking-wider text-muted">Product per visit</p>
+      {m.lines.length > 0 && <p className="px-4 pt-2 text-xs text-muted">Measured: her amounts × what she paid</p>}
+      {m.lines.map((l) => (
+        <Line
+          key={l.label}
+          label={`${l.label} ${Math.round(l.amount * 10) / 10} ${l.unit}`}
+          sub={l.working}
+          value={cents2(l.cents)}
+        />
+      ))}
+      {m.maybe.length > 0 && (
+        <Line
+          label="Toner, when she tones"
+          sub="not counted in the total"
+          value={`+${cents2(m.maybe.reduce((t, l) => t + l.cents, 0))}`}
+        />
+      )}
+      {m.missing.map((w) => (
+        <Line key={w} label={w} sub="no price in inventory" value="—" />
+      ))}
+      {m.waiting.map((w) => (
+        <Line key={w} label={w} sub="waiting: not in inventory yet" value="—" />
+      ))}
+      {learned.length > 0 && (
+        <p className="px-4 pt-2 text-xs text-muted">Learned: finished back-bar bottles ÷ visits</p>
+      )}
+      {learned.map(([label, p]) => (
+        <Line
+          key={label}
+          label={label}
+          sub={
+            p.perVisit === null
+              ? `Learning: no bottle put on the bar since ${day(LEARN_FROM)} is finished yet`
+              : `${p.bottles.length} bottle${p.bottles.length === 1 ? "" : "s"} finished (${cents2(p.costCents)}), ${day(p.from!)}–${day(p.to!)}, ÷ ${p.visits} visits. ${p.stillOpen} still open.`
+          }
+          value={p.perVisit === null ? "—" : cents2(p.perVisit)}
+        />
+      ))}
     </div>
   );
 }

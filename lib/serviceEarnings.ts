@@ -6,7 +6,7 @@
 // client, so it isn't counted against the service; blocked processing is.
 // Timing comes from the visit where she set its own, otherwise the service.
 // Card fees are her own Intuit fees over Intuit deposits, on card visits only.
-// No product cost yet — see MoneyServices.tsx for why.
+// Product per visit is passed in -- see lib/productCost.ts.
 
 export type EarningsAppt = {
   id: string;
@@ -96,6 +96,9 @@ export const sumVisits = (vs: Visit[], k: keyof Visit) =>
 export const perHour = (netCents: number, minutes: number) =>
   minutes > 0 ? (netCents / minutes) * 60 : 0;
 
-/** (paid − fees) ÷ hands minutes × 60, in cents. */
-export const handRate = (r: ServiceRow) =>
-  perHour(sumVisits(r.visits, "paidCents") - sumVisits(r.visits, "feeCents"), sumVisits(r.visits, "handMinutes"));
+/** (paid − fees − product per visit × visits) ÷ hands minutes × 60, in cents. */
+export const handRate = (r: ServiceRow, productPerVisitCents = 0) =>
+  perHour(
+    sumVisits(r.visits, "paidCents") - sumVisits(r.visits, "feeCents") - productPerVisitCents * r.visits.length,
+    sumVisits(r.visits, "handMinutes"),
+  );

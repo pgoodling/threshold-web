@@ -172,6 +172,17 @@ test("Money: Services", async () => {
     check("written-out sum", t.includes(`= ${EXPECT.cutPerHour} an hour`), EXPECT.cutPerHour, t);
     check("visits listed", (await page.locator("tbody tr").count()) === 3, "2 visits + total", await page.locator("tbody tr").count());
   });
+  await w.step(page, "A highlight: product measured from her amounts, taken off", async (check) => {
+    await open("money/services");
+    await page.getByText("1 with only one visit so far").click();
+    await page.getByRole("button", { name: /Custom Cut & Partial Highlight/ }).click();
+    const sum = (await page.getByText(/an hour$/).textContent()) ?? "";
+    check("per hour after product", sum.includes(`= ${EXPECT.highlightPerHour} an hour`), EXPECT.highlightPerHour, sum);
+    check("product per visit", sum.includes(`1 × ${EXPECT.highlightProduct} product`), EXPECT.highlightProduct, sum);
+    for (const [label, amount] of [["Lightener 30 g", "$1.38"], ["Developer 60 ml", "$0.45"], ["Toner 30 ml", "$3.70"], ["Toner activator 60 ml", "$0.54"]])
+      check(`${label} = ${amount}`, await page.getByText(label).isVisible() && (await page.getByText(amount, { exact: true }).count()) > 0, amount);
+    check("foils waiting", await page.getByText("waiting: not in inventory yet").isVisible());
+  });
 });
 
 test("Inventory: Sell without an appointment", async () => {
@@ -270,8 +281,11 @@ test("Inventory: add stock by hand, count, remove", async () => {
 test("Check-out with a product", async () => {
   const w = walk("Check-out with a product", "The service and a bottle on one bill: tax on the bottle only, the service kept apart.");
   await w.step(page, "Open today's client and check out", async () => {
-    await open("appointments");
-    await page.getByText("Sarah Jenkins").first().click();
+    // From the day view, not Upcoming: Upcoming drops a visit once its start
+    // time passes, so after 2 PM the walk couldn't find her there.
+    await open("calendar");
+    await page.getByRole("button", { name: "day", exact: true }).click();
+    await page.getByText("2:00 PM Sarah").click();
     await page.getByRole("button", { name: "Check out", exact: true }).click();
     await expect(page.getByText("Check out — record the payment:")).toBeVisible();
   });
